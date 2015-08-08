@@ -19,7 +19,8 @@ local trackTime
 local gameStarted = false
 local musicFile = "LuaUI/sounds/Zeus_vs_Bunnies.ogg"
 
-function widget:GameStart()
+--function widget:GameStart()
+function widget:Initialize()
     Spring.PlaySoundStream(musicFile, VOLUME)
     _, trackTime = Spring.GetSoundStreamTime()
     gameStarted = true
