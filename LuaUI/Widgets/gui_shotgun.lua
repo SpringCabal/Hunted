@@ -12,6 +12,19 @@ end
 
 -------------------------------------------------------------------
 -------------------------------------------------------------------
+local lastX, lastY
+
+function widget:Update(dt)
+	local mx, my = Spring.GetMouseState()
+	if mx ~= lastX or my ~= lastY then
+		lastX, lastY = mx, my
+		local _, pos = Spring.TraceScreenRay(mx, my, true)
+		if pos then
+			local x, y, z = pos[1], pos[2], pos[3]
+			Spring.SendLuaRulesMsg('movegun|' .. x .. '|' .. y .. '|' .. z )
+		end
+	end
+end
 
 function widget:MousePress(mx, my, button)
 	local alt, ctrl, meta, shift = Spring.GetModKeyState()
@@ -20,8 +33,6 @@ function widget:MousePress(mx, my, button)
 		if pos then
 			local x, y, z = pos[1], pos[2], pos[3]
 			Spring.SendLuaRulesMsg('shotgun|' .. x .. '|' .. y .. '|' .. z )
-			local mx, my = Spring.GetMouseState()
-			Spring.WarpMouse(mx + 30, my + 30)
 			return true
 		end
 	end	

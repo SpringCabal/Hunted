@@ -16,6 +16,8 @@ function gadget:GetInfo()
 	}
 end
 
+local shotgunDefId = UnitDefNames["shotgun"].id
+local shotgunID = nil
 -------------------------------------------------------------------
 -------------------------------------------------------------------
 
@@ -33,6 +35,7 @@ local function explode(div,str)
 	return arr
 end
 -------------------------------------------------------------------
+-- Spawning Projectiles
 -------------------------------------------------------------------
 
 local shotgunAttributes = {
@@ -55,35 +58,80 @@ local function SpawnShot(def, spawnx, spawny, spawnz, dx, dy, dz)
 	local params = {
 		pos = {spawnx, spawny, spawnz},
 		speed = {dirx * v, diry * v, dirz * v},
+		owner  = shotgunID,
 	}
 	Spring.SpawnProjectile(def.id, params)
 end
 
-local function SpawnShotgun(x, y, z)
+local function FireShotgun(x, y, z)
+	if not shotgunID then
+		return
+	end
+	
 	local shotgunDef = WeaponDefNames.shotgun
-	local spawnx, spawny, spawnz = x + 30, y + 100, z - 30
+	local flare = Spring.GetUnitPieceMap(shotgunID).flare
+	local spawnx, spawny, spawnz = Spring.GetUnitPiecePosDir(shotgunID, flare)
 	local dx, dy, dz = Norm(x - spawnx, y - spawny, z - spawnz)
 	
 	for i = 1, shotgunDef.projectiles do
 		SpawnShot(shotgunDef, spawnx, spawny, spawnz, dx, dy, dz)
 	end
+	
+	Spring.SetUnitVelocity(shotgunID, -dx * 10, -dy * 10, -dz * 10)
 end
+
+-------------------------------------------------------------------
+-- Handling unit
+-------------------------------------------------------------------
+
+local function MoveShotgun(x, y, z)
+	if not shotgunID then
+		return
+	end
+	Spring.GiveOrderToUnit(shotgunID, CMD.MOVE, {x + 50, y + 100, z + 50}, {})
+end
+
+function gadget:UnitCreated(unitID, unitDefID, unitTeam)
+	if unitDefID == shotgunDefId then
+		shotgunID = unitID
+		Spring.GiveOrderToUnit(unitID, CMD.IDLEMODE, {0}, {}) --no land
+	end
+end
+
+
+function gadget:Initialize()
+	for _, unitID in ipairs(Spring.GetAllUnits()) do
+		local unitDefID = Spring.GetUnitDefID(unitID)
+		gadget:UnitCreated(unitID, unitDefID)
+	end
+end
+
+-------------------------------------------------------------------
+-- Handling messages
+-------------------------------------------------------------------
+
 
 function HandleLuaMessage(msg)
 	local msg_table = explode('|', msg)
-	if msg_table[1] ~= 'shotgun' then
-		return
+	if msg_table[1] == 'shotgun' then
+		local x = tonumber(msg_table[2])
+		local y = tonumber(msg_table[3])
+		local z = tonumber(msg_table[4])
+		
+		FireShotgun(x, y, z)
+		GG.ScareRabbitsInArea(x, z, shotgunAttributes)
 	end
-
-	local x = tonumber(msg_table[2])
-	local y = tonumber(msg_table[3])
-	local z = tonumber(msg_table[4])
-	
-	SpawnShotgun(x, y, z)
-	GG.ScareRabbitsInArea(x, z, shotgunAttributes)
+	if msg_table[1] == 'movegun' then
+		local x = tonumber(msg_table[2])
+		local y = tonumber(msg_table[3])
+		local z = tonumber(msg_table[4])
+		
+		MoveShotgun(x, y, z)
+	end
 end
 
 
 function gadget:RecvLuaMsg(msg)
 	HandleLuaMessage(msg)
 end
+

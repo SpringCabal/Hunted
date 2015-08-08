@@ -1357,7 +1357,7 @@ end
 -->Turns a piece in the speed necessary to arrive after x Milliseconds
 function turnInTime(piecename,axis,degree,timeInMs,boolWait)
 timeInMs=timeInMs/1000
-Speed=Degree/timeInMs
+Speed=degree/timeInMs
 if degree < 180 or degree < -180 then
 Turn(piecename,axis,math.rad(degree),Speed)
 if boolWait==true then WaitForTurn(piecename,axis) end
