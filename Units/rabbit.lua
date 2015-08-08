@@ -1,5 +1,3 @@
- 
-
 local unitName  =  "rabbit"
 
 local unitDef  =  {
@@ -7,7 +5,7 @@ local unitDef  =  {
     ObjectName = "rabbitProto.s3o",
     name = "Rabbit",
     UnitName = unitName,
-    script = "rabbit.lua",
+    script = unitName .. ".lua",
     
 --Unit limitations and properties
     MaxDamage = 800,
@@ -21,9 +19,11 @@ local unitDef  =  {
     FootprintX = 2,
     FootprintZ = 2,
     MaxSlope = 15,
-    MaxVelocity = 5.0,
+    MaxVelocity = 2.2,
     MaxWaterDepth = 20,
     MovementClass = "Bot2x2",
+	TurnInPlace = false,
+	TurnInPlaceSpeedLimit = 1.8, 
     TurnRate = 900,
     
 --Abilities
