@@ -1,10 +1,10 @@
--- genericunitexplosion-medium-red
--- genericunitexplosion-large-red
--- genericunitexplosion-small-red
--- genericunitexplosion-huge-red
+-- genericbunnyexplosion-medium-red
+-- genericbunnyexplosion-large-red
+-- genericbunnyexplosion-small-red
+-- genericbunnyexplosion-huge-red
 
 return {
-  ["genericunitexplosion-medium-red"] = {
+  ["genericbunnyexplosion-medium-red"] = {
     centerflare = {
       air                = true,
       class              = [[heatcloud]],
@@ -97,7 +97,7 @@ return {
         pos                = [[0, 1, 0]],
         sizegrowth         = 0.5,
         sizemod            = 1.0,
-        texture            = [[bigexplosmoke]],
+        texture            = [[spattercloud]],
       },
     },
     kickedupwater = {
@@ -124,7 +124,7 @@ return {
         pos                = [[0, 1, 0]],
         sizegrowth         = 0.5,
         sizemod            = 1.0,
-        texture            = [[wake]],
+        texture            = [[spattercloud]],
       },
     },
     orangeexplosionspikes = {
@@ -153,7 +153,7 @@ return {
         pos                = [[0, 2, 0]],
         sizegrowth         = 1,
         sizemod            = 1,
-        texture            = [[flashside2]],
+        texture            = [[explosionspikes]],
         useairlos          = false,
       },
     },
@@ -173,7 +173,7 @@ return {
         size               = 1,
         sizegrowth         = 15,
         speed              = [[0, 1 0, 0]],
-        texture            = [[rednovaexplo]],
+        texture            = [[explosionwave]],
       },
     },
     unitpoofs = {
@@ -208,7 +208,7 @@ return {
     },
   },
 
-  ["genericunitexplosion-large-red"] = {
+  ["genericbunnyexplosion-large-red"] = {
     centerflare = {
       air                = true,
       class              = [[heatcloud]],
@@ -301,7 +301,7 @@ return {
         pos                = [[0, 1, 0]],
         sizegrowth         = 0.5,
         sizemod            = 1.0,
-        texture            = [[bigexplosmoke]],
+        texture            = [[spattercloud]],
       },
     },
     kickedupwater = {
@@ -328,7 +328,7 @@ return {
         pos                = [[0, 1, 0]],
         sizegrowth         = 0.5,
         sizemod            = 1.0,
-        texture            = [[wake]],
+        texture            = [[spattercloud]],
       },
     },
     orangeexplosionspikes = {
@@ -357,7 +357,7 @@ return {
         pos                = [[0, 2, 0]],
         sizegrowth         = 1,
         sizemod            = 1,
-        texture            = [[flashside2]],
+        texture            = [[explosionspikes]],
         useairlos          = false,
       },
     },
@@ -377,7 +377,7 @@ return {
         size               = 1,
         sizegrowth         = 30,
         speed              = [[0, 1 0, 0]],
-        texture            = [[rednovaexplo]],
+        texture            = [[explosionwave]],
       },
     },
     unitpoofs = {
@@ -412,7 +412,7 @@ return {
     },
   },
 
-  ["genericunitexplosion-small-red"] = {
+  ["genericbunnyexplosion-small-red"] = {
     centerflare = {
       air                = true,
       class              = [[heatcloud]],
@@ -505,7 +505,7 @@ return {
         pos                = [[0, 1, 0]],
         sizegrowth         = 0.5,
         sizemod            = 1.0,
-        texture            = [[bigexplosmoke]],
+        texture            = [[spattercloud]],
       },
     },
     kickedupwater = {
@@ -532,7 +532,7 @@ return {
         pos                = [[0, 1, 0]],
         sizegrowth         = 0.5,
         sizemod            = 1.0,
-        texture            = [[wake]],
+        texture            = [[spattercloud]],
       },
     },
     orangeexplosionspikes = {
@@ -561,7 +561,7 @@ return {
         pos                = [[0, 2, 0]],
         sizegrowth         = 1,
         sizemod            = 1,
-        texture            = [[flashside2]],
+        texture            = [[explosionspikes]],
         useairlos          = false,
       },
     },
@@ -581,7 +581,7 @@ return {
         size               = 1,
         sizegrowth         = 10,
         speed              = [[0, 1 0, 0]],
-        texture            = [[rednovaexplo]],
+        texture            = [[explosionwave]],
       },
     },
     unitpoofs = {
@@ -616,7 +616,7 @@ return {
     },
   },
 
-  ["genericunitexplosion-huge-red"] = {
+  ["genericbunnyexplosion-huge-red"] = {
     centerflare = {
       air                = true,
       class              = [[heatcloud]],
@@ -709,7 +709,7 @@ return {
         pos                = [[0, 1, 0]],
         sizegrowth         = 0.5,
         sizemod            = 1.0,
-        texture            = [[bigexplosmoke]],
+        texture            = [[spattercloud]],
       },
     },
     kickedupwater = {
@@ -736,7 +736,7 @@ return {
         pos                = [[0, 1, 0]],
         sizegrowth         = 0.5,
         sizemod            = 1.0,
-        texture            = [[wake]],
+        texture            = [[spattercloud]],
       },
     },
     orangeexplosionspikes = {
@@ -765,7 +765,7 @@ return {
         pos                = [[0, 2, 0]],
         sizegrowth         = 1,
         sizemod            = 1,
-        texture            = [[flashside2]],
+        texture            = [[explosionspikes]],
         useairlos          = false,
       },
     },
@@ -785,7 +785,7 @@ return {
         size               = 1,
         sizegrowth         = 40,
         speed              = [[0, 1 0, 0]],
-        texture            = [[rednovaexplo]],
+        texture            = [[explosionwave]],
       },
     },
     unitpoofs = {
