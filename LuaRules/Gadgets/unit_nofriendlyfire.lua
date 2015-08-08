@@ -50,7 +50,7 @@ end
 function gadget:UnitPreDamaged(unitID, unitDefID, unitTeam, damage, paralyzer, 
                             weaponID, attackerID, attackerDefID, attackerTeam)
 	if weaponID and noFFWeaponDefs[weaponID] then
-		if attackerID ~= unitID and unitTeam ~= Spring.GetGaiaTeamID() then
+		if attackerID ~= unitID and unitTeam == Spring.GetGaiaTeamID() then
 			return 0, 0
 		end
 	end
