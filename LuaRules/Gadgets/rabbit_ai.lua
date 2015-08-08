@@ -218,7 +218,7 @@ local function GetBestThing(thingTable, x, z, typeMultiplier)
 	end
 	
 	if bestMagnitude > 0 then
-		return bestIndex, bestX, bestZ, bestMagnitude
+		return thingTable[bestIndex], bestX, bestZ, bestMagnitude
 	else
 		return false, x, z, 0
 	end
@@ -329,7 +329,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	rabbitData.nextUpdate = frame + 10 + 20*math.random()
 	
 	--// Update Rabbit disposition.
-	local scaryId, sX, sZ, scaryMag, scaryFear
+	local scaryRef, sX, sZ, scaryMag, scaryFear
 	if scaryOverride then
 		-- This type of fear is from a sudden event (shotgun?). It is not
 		-- multiplied by time since last update because it is treated as
@@ -340,7 +340,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 		-- This type of fear is due to constant environmental effects
 		-- so it is multiplied by the time since last update.
 		-- These fears should be set low.
-		scaryId, sX, sZ, scaryMag = GetBestThing(scaryThings, x, z)
+		scaryRef, sX, sZ, scaryMag = GetBestThing(scaryThings, x, z)
 		scaryFear = scaryMag*updateGap
 	end
 	
@@ -352,7 +352,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 		}
 	end
 
-	local goalId, gX, gZ, goalMag = GetBestThing(desirableThings, x, z)
+	local goalRef, gX, gZ, goalMag = GetBestThing(desirableThings, x, z)
 	
 	-- fear and boldness are basic attributes which affect rabit behaviour.
 	-- A rabit wandering around with no goal or fear will have about:
@@ -434,8 +434,8 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	end 
 	
 	--// Start eating a nearby carrot
-	if goalId and (not rabbitData.eatingProgress) and (not rabbitData.panicMode) and goalMag < 60 and desirableThings[goalId].attributes.isEdible then
-		StartEating(rabbitData, desirableThings[goalId])
+	if goalRef and (not rabbitData.eatingProgress) and (not rabbitData.panicMode) and goalMag < 60 and goalRef.attributes.isEdible then
+		StartEating(rabbitData, goalRef)
 		SetRabbitMovement(unitID, x, z, {gX - x, gZ - z}, 0.5, 1)
 		return
 	end
