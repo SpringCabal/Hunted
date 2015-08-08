@@ -15,7 +15,7 @@ end
 
 function widget:MousePress(mx, my, button)
 	local alt, ctrl, meta, shift = Spring.GetModKeyState()
-	if button == 1 and ctrl and not Spring.IsAboveMiniMap(mx, my) then
+	if button == 1 and not Spring.IsAboveMiniMap(mx, my) then
 		local _, pos = Spring.TraceScreenRay(mx, my, true)
 		if pos then
 			local x, y, z = pos[1], pos[2], pos[3]

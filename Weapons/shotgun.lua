@@ -1,11 +1,15 @@
 local shotgun = Weapon:New{
 				alwaysVisible = true,
-				areaofeffect = 8,
+				--areaofeffect = 8,
 				avoidfeature = false,
 				burst = 3,
 				burstrate = 0.1,
 				craterboost = 0,
 				cratermult = 0,
+				collidefriendly = false,
+				collidefeature = false,
+				collideneutral = false,
+				collideground = true,
 				--explosiongenerator = "custom:EMG_HIT",
 				firestarter = 100,
 				impulseboost = 0.123,
@@ -24,11 +28,14 @@ local shotgun = Weapon:New{
 				weapontimer = 0.1,
 				weapontype = "Cannon",
 				weaponvelocity = 2000,
+				customparams = {
+					nofriendlyfire = true
+				},
 				damage = {
 					default = 50000,
 				},
 }
 
-return {
+return lowerkeys{
 	shotgun = shotgun
 }
