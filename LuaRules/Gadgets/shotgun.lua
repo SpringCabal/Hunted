@@ -83,8 +83,10 @@ end
 -------------------------------------------------------------------
 -- Handling unit
 -------------------------------------------------------------------
+local targetx, targety, targetz
 
 local function MoveShotgun(x, y, z)
+	targetx, targety, targetz = x, y, z
 	if not shotgunID then
 		if gameStarted then
 			Spring.CreateUnit(shotgunDefId, x + 50, y + 100, z + 50, 0, Spring.GetGaiaTeamID())
@@ -97,12 +99,24 @@ end
 function gadget:UnitCreated(unitID, unitDefID, unitTeam)
 	if unitDefID == shotgunDefId then
 		shotgunID = unitID
+		Spring.MoveCtrl.Disable(shotgunID)
 		Spring.GiveOrderToUnit(unitID, CMD.IDLEMODE, {0}, {}) --no land
 	end
 end
 
 function gadget:GameStart()
 	gameStarted = true
+end
+
+function gadget:GameFrame(n)
+	if not shotgunID or not targetx then
+		return
+	end
+	
+	local ux, uy, uz = Spring.GetUnitPosition(shotgunID)
+	local dx, dz = targetx - ux, targetz - uz
+	local newHeading = math.deg(math.atan2(dx, dz)) * 182
+	Spring.MoveCtrl.SetHeading(shotgunID, newHeading)
 end
 
 function gadget:Initialize()
