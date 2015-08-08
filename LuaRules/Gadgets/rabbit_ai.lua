@@ -129,6 +129,10 @@ local function Norm(b, v)
 	end
 end
 
+local function Angle(v)
+	return -Spring.GetHeadingFromVector(v[1], v[2])/2^15*math.pi + math.pi*3/2
+end
+
 local function PolarToCart(mag, dir)
 	return {mag*math.cos(dir), mag*math.sin(dir)}
 end
@@ -261,7 +265,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 
 	local updateGap = frame - rabbitData.lastUpdate
 	rabbitData.lastUpdate = frame
-	rabbitData.nextUpdate = frame + math.random(15, 35)
+	rabbitData.nextUpdate = frame + 10 + 20*math.random()
 	
 	--// Update Rabbit disposition.
 	local scaryId, sX, sZ, scaryMag, scaryFear
@@ -348,7 +352,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	-- At this point moveVec is the direction which a rabbit would go if it were bold.
 	
 	-- Direction is 0 in positive x direction. Increases clockwise.
-	local moveDir = -Spring.GetHeadingFromVector(moveVec[1], moveVec[2])/2^15*math.pi + math.pi*3/2
+	local moveDir = Angle(moveVec)
 	local moveMag = AbsVal(moveVec)
 	
 	--Spring.MarkerAddPoint(moveVec[1], 0 ,moveVec[2])
@@ -363,13 +367,16 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	local moveDir = moveDir + math.random()*2*dirRandomness - dirRandomness
 	
 	local vx, _, vz, velMag = Spring.GetUnitVelocity(unitID)
-	local velVector = Norm(10 + math.random(5), {vx, vz})
+	local velVector = Norm(10 + math.random()*5, {vx, vz})
 	--Spring.Echo("velMag", velMag)
 	moveVec = PolarToCart(moveMag, moveDir)
 	
-
 	
-	local randVec = PolarToCart(7 + math.random(10), math.random(2*math.pi))
+	local randVec = PolarToCart(5 + math.random()*10, math.random()*2*math.pi)
+	
+	--Spring.Echo("moveVec Mag", AbsVal(moveVec))
+	--Spring.Echo("moveVec Angle", Angle(moveVec)*180/math.pi)
+	--Spring.Echo("randVec", AbsVal(randVec))
 	
 	-- moveVec is now the direction which the rabbit will move in.
 	moveVec = Norm(200*speedMult, Add(moveVec, Add(randVec, velVector)))
@@ -377,7 +384,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	--// Modify movement attributes and goal
 	Spring.SetUnitRulesParam(unitID, "selfMoveSpeedChange", speedMult)
 	if scaryMag > 100 then
-		Spring.SetUnitRulesParam(unitID, "selfTurnSpeedChange", 1)
+		Spring.SetUnitRulesParam(unitID, "selfTurnSpeedChange", 1/speedMult)
 	else
 		Spring.SetUnitRulesParam(unitID, "selfTurnSpeedChange", 1/(speedMult^1.1))
 	
