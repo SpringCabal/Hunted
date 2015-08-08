@@ -1,3 +1,9 @@
+if not gadgetHandler:IsSyncedCode() then
+	return
+end
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
 function gadget:GetInfo()
 	return {
 		name 	= "Shotgun",
@@ -29,6 +35,12 @@ end
 -------------------------------------------------------------------
 -------------------------------------------------------------------
 
+local shotgunAttributes = {
+	radius = 300,
+	radiusSq = 300^2,
+	edgeMagnitude = 50,
+	proximityMagnitude = 300,
+}
 
 function HandleLuaMessage(msg)
 	local msg_table = explode('|', msg)
@@ -41,6 +53,7 @@ function HandleLuaMessage(msg)
 	local z = tonumber(msg_table[4])
 	
 	Spring.MarkerAddPoint(x,y,z, "Boom")
+	GG.ScareRabbitsInArea(x, z, shotgunAttributes)
 end
 
 
