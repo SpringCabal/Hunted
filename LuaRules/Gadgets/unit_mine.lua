@@ -17,6 +17,14 @@ local explosionRadius = 250
 local mineDefID = UnitDefNames["mine"].id
 local rabbitDefId = UnitDefNames["rabbit"].id
 
+local scareAttributes = {
+	radius = 500,
+	radiusSq = 500^2,
+	edgeMagnitude = 50,
+	proximityMagnitude = 500,
+}
+
+
 if (gadgetHandler:IsSyncedCode()) then
 
 local mines = {}
@@ -44,6 +52,7 @@ function gadget:GameFrame()
                         --Spring.AddUnitDamage(nearbyUnitID, 500)
                     end
                 end
+				GG.ScareRabbitsInArea(x, z, scareAttributes)
                 SendToUnsynced("RemoveMineTimer", mineID) 
                 Spring.SpawnCEG("flashnuke", x,y,z, 0,0,0, 0, 0) --spawn CEG, cause no damage
 --                 Script.LuaRules.FlameRaw(x+5*rand(),y,z+5*rand(), 0,0.1,0, 0,0,0, 500)

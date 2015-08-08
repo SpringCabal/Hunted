@@ -35,6 +35,13 @@ local desirableUnitDefs = {
 		eatTime = 60,
 		isEdible = true
 	},
+	[UnitDefNames["mine"].id] = {
+		radius = 1500,
+		radiusSq = 1500^2,
+		edgeMagnitude = 0.1, -- Magnitude once within radius (per frame)
+		proximityMagnitude = 2, -- Maximum agnitude gained by being close (per frame)
+		thingType = 1, -- Food
+	},
 	[UnitDefNames["burrow"].id] = {
 		radius = 2000,
 		radiusSq = 2000^2,
