@@ -20,6 +20,8 @@ function widget:MousePress(mx, my, button)
 		if pos then
 			local x, y, z = pos[1], pos[2], pos[3]
 			Spring.SendLuaRulesMsg('shotgun|' .. x .. '|' .. y .. '|' .. z )
+			local mx, my = Spring.GetMouseState()
+			Spring.WarpMouse(mx + 10, my + 10)
 			return true
 		end
 	end	

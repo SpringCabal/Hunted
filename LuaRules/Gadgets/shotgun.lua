@@ -42,6 +42,33 @@ local shotgunAttributes = {
 	proximityMagnitude = 300,
 }
 
+local function Norm(x, y, z)
+	local size = math.sqrt(x * x + y * y + z * z)
+	return x / size, y / size, z / size
+end
+
+local function SpawnShot(def, spawnx, spawny, spawnz, dx, dy, dz)
+	local ex, ey, ez = (math.random() * 2 - 1) * def.sprayAngle, (math.random() * 2 - 1) * def.sprayAngle, (math.random() * 2 - 1) * def.sprayAngle
+	local dirx, diry, dirz = Norm(dx + ex, dy + ey, dz + ez)
+	local v = def.projectilespeed
+	
+	local params = {
+		pos = {spawnx, spawny, spawnz},
+		speed = {dirx * v, diry * v, dirz * v},
+	}
+	Spring.SpawnProjectile(def.id, params)
+end
+
+local function SpawnShotgun(x, y, z)
+	local shotgunDef = WeaponDefNames.shotgun
+	local spawnx, spawny, spawnz = x + 30, y + 100, z - 30
+	local dx, dy, dz = Norm(x - spawnx, y - spawny, z - spawnz)
+	
+	for i = 1, shotgunDef.projectiles do
+		SpawnShot(shotgunDef, spawnx, spawny, spawnz, dx, dy, dz)
+	end
+end
+
 function HandleLuaMessage(msg)
 	local msg_table = explode('|', msg)
 	if msg_table[1] ~= 'shotgun' then
@@ -52,7 +79,7 @@ function HandleLuaMessage(msg)
 	local y = tonumber(msg_table[3])
 	local z = tonumber(msg_table[4])
 	
-	Spring.MarkerAddPoint(x,y,z, "Boom")
+	SpawnShotgun(x, y, z)
 	GG.ScareRabbitsInArea(x, z, shotgunAttributes)
 end
 
