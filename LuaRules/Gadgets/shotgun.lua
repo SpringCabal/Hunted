@@ -86,6 +86,9 @@ end
 
 local function MoveShotgun(x, y, z)
 	if not shotgunID then
+		if gameStarted then
+			Spring.CreateUnit(shotgunDefId, x + 50, y + 100, z + 50, 0, Spring.GetGaiaTeamID())
+		end
 		return
 	end
 	Spring.GiveOrderToUnit(shotgunID, CMD.MOVE, {x + 50, y + 100, z + 50}, {})
@@ -98,6 +101,9 @@ function gadget:UnitCreated(unitID, unitDefID, unitTeam)
 	end
 end
 
+function gadget:GameStart()
+	gameStarted = true
+end
 
 function gadget:Initialize()
 	for _, unitID in ipairs(Spring.GetAllUnits()) do

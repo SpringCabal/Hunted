@@ -14,7 +14,7 @@ end
 -------------------------------------------------------------------
 local lastX, lastY
 
-function widget:Update(dt)
+function widget:GameFrame(n)
 	local mx, my = Spring.GetMouseState()
 	if mx ~= lastX or my ~= lastY then
 		lastX, lastY = mx, my
