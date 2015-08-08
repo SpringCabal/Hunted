@@ -78,13 +78,15 @@ local function FireShotgun(x, y, z)
 	end
 	
 	Spring.SetUnitVelocity(shotgunID, -dx * 10, -dy * 10, -dz * 10)
+	local env = Spring.UnitScript.GetScriptEnv(shotgunID)
+	Spring.UnitScript.CallAsUnit(shotgunID, env.Fire)
 end
 
 -------------------------------------------------------------------
 -- Handling unit
 -------------------------------------------------------------------
 local targetx, targety, targetz
-
+local COB_ANGULAR = 182
 local function MoveShotgun(x, y, z)
 	targetx, targety, targetz = x, y, z
 	if not shotgunID then
@@ -93,7 +95,7 @@ local function MoveShotgun(x, y, z)
 		end
 		return
 	end
-	Spring.GiveOrderToUnit(shotgunID, CMD.MOVE, {x + 50, y + 100, z + 50}, {})
+	Spring.GiveOrderToUnit(shotgunID, CMD.MOVE, {targetx + 50, targety + 100, targetz + 50}, {})
 end
 
 function gadget:UnitCreated(unitID, unitDefID, unitTeam)
@@ -115,8 +117,9 @@ function gadget:GameFrame(n)
 	
 	local ux, uy, uz = Spring.GetUnitPosition(shotgunID)
 	local dx, dz = targetx - ux, targetz - uz
-	local newHeading = math.deg(math.atan2(dx, dz)) * 182
-	Spring.MoveCtrl.SetHeading(shotgunID, newHeading)
+	local newHeading = math.deg(math.atan2(dx, dz)) * COB_ANGULAR
+	
+	Spring.SetUnitCOBValue(shotgunID, COB.HEADING, newHeading)
 end
 
 function gadget:Initialize()

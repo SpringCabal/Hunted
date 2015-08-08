@@ -12,15 +12,15 @@ end
 
 -------------------------------------------------------------------
 -------------------------------------------------------------------
-local lastX, lastY
+local lastx, lasty, lastz
 
 function widget:GameFrame(n)
 	local mx, my = Spring.GetMouseState()
-	if mx ~= lastX or my ~= lastY then
-		lastX, lastY = mx, my
-		local _, pos = Spring.TraceScreenRay(mx, my, true)
-		if pos then
-			local x, y, z = pos[1], pos[2], pos[3]
+	local _, pos = Spring.TraceScreenRay(mx, my, true)
+	if pos then
+		local x, y, z = pos[1], pos[2], pos[3]
+		if x ~= lastx or y ~= lasty or z ~= lastz then
+			lastx, lasty, lastz = x, y, z
 			Spring.SendLuaRulesMsg('movegun|' .. x .. '|' .. y .. '|' .. z )
 		end
 	end
