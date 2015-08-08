@@ -33,7 +33,12 @@ end
 
 function gadget:DrawWorld()
     gl.PushMatrix()
-    gl.Color(0.69, 0.61, 0.85, 0.3) 
+    -- purple~ish 
+    --gl.Color(0.69, 0.61, 0.85, 0.3)
+    -- yellow~ish
+    --gl.Color(0.941, 0.901, 0.549, 0.3)
+    -- blueish
+    gl.Color(0.617, 0.761, 0.969, 0.3)
     if self.x ~= nil then
         gl.Utilities.DrawGroundCircle(self.x, self.z, FLASHLIGHT_SIZE)
     end
