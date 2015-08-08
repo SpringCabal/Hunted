@@ -161,13 +161,18 @@ local function updateMovementSpeed(unitID, ud, speedFactor, turnAccelFactor, max
 			origSpeed = ud.speed,
 			origReverseSpeed = (moveData.name == "ground") and moveData.maxReverseSpeed or ud.speed,
 			origTurnRate = ud.turnRate,
+			origTurnAccel = ud.turnRate,
 			origMaxAcc = ud.maxAcc,
 			origMaxDec = ud.maxDec,
 			movetype = -1,
 		}
 		
+		if ud.customParams and ud.customParams.turnaccel then
+			origUnitSpeed[unitDefID].origTurnAccel = tonumber(ud.customParams.turnaccel)
+		end
+		
 		local state = origUnitSpeed[unitDefID]
-		state.movetype = getMovetype(ud)
+		state.movetype = GetMovetype(ud)
 	end
 	
 	local state = origUnitSpeed[unitDefID]
@@ -235,7 +240,7 @@ local function updateMovementSpeed(unitID, ud, speedFactor, turnAccelFactor, max
 				turnRate        = state.origTurnRate    *turnFactor,
 				accRate         = accRate,
 				decRate         = state.origMaxDec      *decFactor,
-				turnAccel       = state.origTurnRate    *turnAccelFactor,
+				turnAccel       = state.origTurnAccel   *turnAccelFactor,
 			}
 
 			spSetGroundMoveTypeData(unitID, attribute)
@@ -308,8 +313,16 @@ function UpdateUnitAttributes(unitID, frame)
 	end
 end
 
+function gadget:UnitCreated(unitID, unitDefID)
+	updateMovementSpeed(unitID, UnitDefs[unitDefID], 1, 1, 1)	
+end
+
 function gadget:Initialize()
 	GG.UpdateUnitAttributes = UpdateUnitAttributes
+	for _, unitID in ipairs(Spring.GetAllUnits()) do
+		local unitDefID = Spring.GetUnitDefID(unitID)
+		gadget:UnitCreated(unitID, unitDefID)
+	end
 end
 
 function gadget:GameFrame(f)

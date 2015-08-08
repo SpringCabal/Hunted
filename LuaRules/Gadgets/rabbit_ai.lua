@@ -106,12 +106,12 @@ local function Mult(b, v)
 	return {b*v[1], b*v[2]}
 end
 
-local function ABS(v)
-	return sqrt(v[2]*v[2] + v[2]*v[2])
+local function AbsVal(v)
+	return sqrt(v[1]*v[1] + v[2]*v[2])
 end
 
 local function Unit(v)
-	local mag = ABS(v)
+	local mag = AbsVal(v)
 	if mag > 0 then
 		return {v[1]/mag, v[2]/mag}
 	else
@@ -120,17 +120,61 @@ local function Unit(v)
 end
 
 local function Norm(b, v)
-	local mag = ABS(v)
+	local mag = AbsVal(v)
 	if mag > 0 then
 		return {b*v[1]/mag, b*v[2]/mag}
 	else
 		return v
 	end
+end
 
+local function PolarToCart(mag, dir)
+	return {mag*math.cos(dir), mag*math.sin(dir)}
 end
 
 local function Add(v1, v2)
 	return {v1[1] + v2[1], v1[2] + v2[2]}
+end
+
+
+-------------------------------------------------------------------
+-------------------------------------------------------------------
+-- Movement Functions
+
+local mapWidth = Game.mapSizeX
+local mapHeight = Game.mapSizeZ
+local spGiveOrderToUnit = Spring.GiveOrderToUnit
+local CMD_INSERT = CMD.INSERT
+
+function IsValidPosition(x, z)
+	return x and z and x >= 1 and z >= 1 and x <= mapWidth-1 and z <= mapHeight-1
+end
+
+function ClampPosition(x, z)
+	if x and z then
+		if IsValidPosition(x, z) then
+			return x, z
+		else
+			if x < 1 then
+				x = 1
+			elseif x > mapWidth-1 then
+				x = mapWidth-1
+			end
+			if z < 1 then
+				z = 1
+			elseif z > mapHeight-1 then
+				z = mapHeight-1
+			end
+			return x, z
+		end
+	end
+end
+
+function GiveClampedOrderToUnit(unitID, cmdID, params, options)
+	local x, z = ClampPosition(params[1], params[3])
+	Spring.SetUnitMoveGoal(unitID, x, params[2], z, 8, nil, true)
+	--Spring.GiveOrderToUnit(unitID, cmdID, {x, params[2], z}, options)
+	return true
 end
 
 -------------------------------------------------------------------
@@ -216,7 +260,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 
 	local updateGap = frame - rabbitData.lastUpdate
 	rabbitData.lastUpdate = frame
-	rabbitData.nextUpdate = frame + math.random(10, 15)
+	rabbitData.nextUpdate = frame + math.random(15, 35)
 	
 	--// Update Rabbit disposition.
 	local scaryId, sX, sZ, scaryMag, scaryFear
@@ -234,19 +278,21 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 		scaryFear = scaryMag*updateGap
 	end
 	
-	if rabbitData.panicMode and scaryMag + 100 > rabbitData.fear then
+	if rabbitData.panicMode and (scaryMag + 100 > rabbitData.fear or scaryMag > 150)then
 		rabbitData.panicMode = {
 			x = sX,
 			z = sZ,
 			mag = scaryMag,
 		}
 	end
+
+	local goalId, gX, gZ, goalMag = GetBestThing(desirableThings, x, z)
 	
 	rabbitData.fear = (rabbitData.fear + scaryFear + rabbitData.fearAdd*updateGap)*(FEAR_DECAY^updateGap)
 	
-	rabbitData.boldness = (rabbitData.boldness + rabbitData.boldnessAdd*updateGap)*(1/(0.99 + rabbitData.fear/(10000 - math.min(5000, rabbitData.boldness*15))))^updateGap
-	
-	local goalId, gX, gZ, goalMag = GetBestThing(desirableThings, x, z)
+	rabbitData.boldness = (rabbitData.boldness + goalMag*updateGap + rabbitData.boldnessAdd*updateGap)*
+		(1/(0.99 + rabbitData.fear/(10000 - math.min(8000, rabbitData.boldness*15))))^updateGap
+
 	
 	if rabbitData.panicMode then
 		if rabbitData.fear < 150 then
@@ -273,39 +319,45 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	-- These vectors are scaled by fear and boldness
 	-- If fear is too high then the goal is ignored.
 	-- moveVec is the resultant move direction from fear and boldness.
-	scaryVec = Norm(rabbitData.fear, scaryVec)
+	scaryVec = Norm(-rabbitData.fear, scaryVec)
+	
+	local effectiveBoldness = rabbitData.boldness
 	
 	local moveVec
 	if rabbitData.fear < 180 then
 		local goalVec = {x - gX, z - gZ}
 		goalVec = Norm(rabbitData.boldness, goalVec)
 		moveVec = Add(scaryVec, goalVec)
+		effectiveBoldness = math.min(100, rabbitData.boldness)
 	else
 		moveVec = scaryVec
 	end 
 	
-	-- The movement direction is now randomized a bit because rabbits are not particularly bold.
+	-- At this point moveVec is the direction which a rabbit would go if it were bold.
 	
-	local moveDir = Spring.GetHeadingFromVector(moveVec[1], moveVec[2])/2^15*math.pi
+	-- Direction is 0 in positive x direction. Increases clockwise.
+	local moveDir = -Spring.GetHeadingFromVector(moveVec[1], moveVec[2])/2^15*math.pi + math.pi*3/2
+	local moveMag = AbsVal(moveVec)
 	
 	--Spring.MarkerAddPoint(moveVec[1], 0 ,moveVec[2])
-
-	--Spring.Echo("Move", moveVec[1], moveVec[2])
+	--Spring.Echo("Move", moveVec[1], moveVec[2], moveDir)
 	--Spring.Echo("Fear", rabbitData.fear)
 	--Spring.Echo("Boldness", rabbitData.boldness)
 	
-	local ranFocus = 2/4*math.pi
+	-- Rabbits become better able to move in one direction as boldness increases.
+	-- If their boldness is depleted they move about in a semi-random panic.
+	local dirRandomness = 20*(10 + rabbitData.boldness)^(-0.8)
+	--Spring.Echo("dirRandomness", dirRandomness*180/math.pi)
 	
-	local ranDir = math.random(2*math.pi)
-	local ranMag = 8 +  math.random(2)
-	local ranX = ranMag*math.cos(ranDir)
-	local ranZ = ranMag*math.sin(ranDir)
+	local moveDir = moveDir + math.random()*2*dirRandomness - dirRandomness
 	
-	if rabbitData.panicMode then
-		--GiveClampedOrderToUnit(unitID, CMD_INSERT, {0, CMD_MOVE, CMD_OPT_INTERNAL, cx,cy,cz }, {"alt"} )
-		
-	end
+	moveVec = PolarToCart(moveMag, moveDir)
 	
+	local randVec = PolarToCart(5 + math.random(10), math.random(2*math.pi))
+	
+	moveVec = Norm(200, Add(moveVec, randVec))
+	
+	GiveClampedOrderToUnit(unitID, CMD.MOVE, {moveVec[1] + x, 0, moveVec[2] + z}, 0 )
 end
 
 local function ScareRabbitsInArea(x, z, scaryAttributes)
@@ -315,7 +367,6 @@ local function ScareRabbitsInArea(x, z, scaryAttributes)
 		local distSq = DistSq(x, z, rx, rz)
 		if rx and distSq < scaryAttributes.radiusSq then
 			local magnitude = GetThingAdjustedMagnitude(sqrt(distSq), scaryAttributes)
-			Spring.Echo("Updating")
 			UpdateRabbit(unitID, frame, {x, z, magnitude})
 		end
 	end

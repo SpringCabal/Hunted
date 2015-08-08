@@ -14,8 +14,8 @@ local unitDef  =  {
     Upright = 0,
     
 --Pathfinding and related
-    Acceleration = 0.7,
-    BrakeRate = 1.0,
+    Acceleration = 0.3,
+    BrakeRate = 0.5,
     FootprintX = 2,
     FootprintZ = 2,
     MaxSlope = 15,
@@ -23,8 +23,12 @@ local unitDef  =  {
     MaxWaterDepth = 20,
     MovementClass = "Bot2x2",
 	TurnInPlace = false,
-	TurnInPlaceSpeedLimit = 1.8, 
-    TurnRate = 900,
+	TurnInPlaceSpeedLimit = 1.2, 
+    TurnRate = 3000,
+	
+	customParams = {
+		turnaccel = 200
+	},
     
 --Abilities
     Builder = 0,
