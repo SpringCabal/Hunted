@@ -2,7 +2,7 @@ local unitName  =  "rabbit"
 
 local unitDef  =  {
 --Internal settings
-    ObjectName = "rabbitProto.s3o",
+    ObjectName = "rabbit.s3o",
     name = "Rabbit",
     UnitName = unitName,
     script = unitName .. ".lua",
