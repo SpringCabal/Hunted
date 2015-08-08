@@ -168,7 +168,8 @@ return {
        //gl_FragColor.rgb = mix(gl_Fog.color.rgb, gl_FragColor.rgb, fogFactor); // fog
        //gl_FragColor.a = teamColor.a; // far fading
        //gl_FragColor.rgb = normal;
-       gl_FragColor.rgb = mix(gl_FragColor.rgb, (1 - gl_FragColor.rgb), 1 - distance);
+       
+       //gl_FragColor.rgb = mix(gl_FragColor.rgb, (1 - gl_FragColor.rgb), 1 - distance);
        gl_FragColor.a = 1 - distance;
        gl_FragColor.rgb *= 1 + (1 - distance) * sin(time / 4) / 10;
        //gl_FragColor.rgb += abs((1 - distance) * sin(time / 8) / 10);
