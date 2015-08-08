@@ -43,7 +43,7 @@ local function SpawnWaveWithAttributes(spawnSize, familySize, burrowFinder)
 		for rabbitNum = 1, familySize do
 			local burrowID = burrowFinder()
 			local x,y,z = Spring.GetUnitPosition(burrowID)
-			Spring.CreateUnit(RABBIT_DEF_ID, x,y,z, math.random(0,3), 0, false, false)
+			Spring.CreateUnit(RABBIT_DEF_ID, x,y,z, math.random(0,3), GAIA_TEAM_ID, false, false)
 		end
 	end
 end
