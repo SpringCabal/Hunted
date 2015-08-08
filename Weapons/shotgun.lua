@@ -1,4 +1,5 @@
 local shotgun = Weapon:New{
+				alwaysVisible = true,
 				areaofeffect = 8,
 				avoidfeature = false,
 				burst = 3,
