@@ -406,7 +406,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	moveVec = Norm(200*speedMult, Add(moveVec, Add(randVec, velVector)))
 	
 	--// Modify movement attributes and goal
-	--Spring.SetUnitRulesParam(unitID, "selfMoveSpeedChange", speedMult)
+	Spring.SetUnitRulesParam(unitID, "selfMoveSpeedChange", speedMult)
 	if scaryMag > 100 then
 		Spring.SetUnitRulesParam(unitID, "selfTurnSpeedChange", 1/speedMult)
 	else
