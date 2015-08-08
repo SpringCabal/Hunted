@@ -18,6 +18,8 @@ end
 
 local shotgunDefId = UnitDefNames["shotgun"].id
 local shotgunID = nil
+local targetx, targety, targetz
+local COB_ANGULAR = 182
 -------------------------------------------------------------------
 -------------------------------------------------------------------
 
@@ -77,16 +79,19 @@ local function FireShotgun(x, y, z)
 		SpawnShot(shotgunDef, spawnx, spawny, spawnz, dx, dy, dz)
 	end
 	
-	Spring.SetUnitVelocity(shotgunID, -dx * 10, -dy * 10, -dz * 10)
+	Spring.SetUnitVelocity(shotgunID, -dx * 20, -dy * 20, -dz * 20)
 	local env = Spring.UnitScript.GetScriptEnv(shotgunID)
 	Spring.UnitScript.CallAsUnit(shotgunID, env.Fire)
+	Spring.GiveOrderToUnit(shotgunID, CMD.STOP, {}, {})
+	if targetx then
+		Spring.GiveOrderToUnit(shotgunID, CMD.MOVE, {targetx + 100, targety, targetz - 100}, {})
+	end
 end
 
 -------------------------------------------------------------------
 -- Handling unit
 -------------------------------------------------------------------
-local targetx, targety, targetz
-local COB_ANGULAR = 182
+
 local function MoveShotgun(x, y, z)
 	targetx, targety, targetz = x, y, z
 	if not shotgunID then
@@ -95,13 +100,12 @@ local function MoveShotgun(x, y, z)
 		end
 		return
 	end
-	Spring.GiveOrderToUnit(shotgunID, CMD.MOVE, {targetx + 50, targety + 100, targetz + 50}, {})
+	Spring.GiveOrderToUnit(shotgunID, CMD.MOVE, {targetx + 100, targety, targetz - 100}, {})
 end
 
 function gadget:UnitCreated(unitID, unitDefID, unitTeam)
 	if unitDefID == shotgunDefId then
 		shotgunID = unitID
-		Spring.MoveCtrl.Disable(shotgunID)
 		Spring.GiveOrderToUnit(unitID, CMD.IDLEMODE, {0}, {}) --no land
 	end
 end
@@ -116,10 +120,14 @@ function gadget:GameFrame(n)
 	end
 	
 	local ux, uy, uz = Spring.GetUnitPosition(shotgunID)
-	local dx, dz = targetx - ux, targetz - uz
+	local dx, dy, dz = targetx - ux, uy - targety, targetz - uz
 	local newHeading = math.deg(math.atan2(dx, dz)) * COB_ANGULAR
+	local dist = math.sqrt(dx * dx + dz * dz)
+	local pitch = math.atan2(dy, dist)
 	
 	Spring.SetUnitCOBValue(shotgunID, COB.HEADING, newHeading)
+	local env = Spring.UnitScript.GetScriptEnv(shotgunID)
+	Spring.UnitScript.CallAsUnit(shotgunID, env.SetPitch, pitch)
 end
 
 function gadget:Initialize()
