@@ -14,20 +14,21 @@ local unitDef  =  {
     Upright = 0,
     
 --Pathfinding and related
-    Acceleration = 0.3,
-    BrakeRate = 0.5,
+    Acceleration = 0.2,
+    BrakeRate = 0.1,
     FootprintX = 2,
     FootprintZ = 2,
     MaxSlope = 15,
-    MaxVelocity = 2.0,
+    MaxVelocity = 16, -- max velocity is so high because Spring cannot increase max velocity beyond its maximum.
     MaxWaterDepth = 20,
     MovementClass = "Bot2x2",
 	TurnInPlace = false,
-	TurnInPlaceSpeedLimit = 1.2, 
+	TurnInPlaceSpeedLimit = 1.6, 
+	turnInPlaceAngleLimit = 90,
     TurnRate = 3000,
 	
 	customParams = {
-		turnaccel = 200
+		turnaccel = 500
 	},
     
 --Abilities

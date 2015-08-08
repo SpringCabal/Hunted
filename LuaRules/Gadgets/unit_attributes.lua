@@ -42,6 +42,8 @@ local spSetAirMoveTypeData     = Spring.MoveCtrl.SetAirMoveTypeData
 local spSetGunshipMoveTypeData = Spring.MoveCtrl.SetGunshipMoveTypeData
 local spSetGroundMoveTypeData  = Spring.MoveCtrl.SetGroundMoveTypeData
 
+local SPEED_FACTOR = 0.1
+
 local INLOS_ACCESS = {inlos = true}
 
 local function GetMovetype(ud)
@@ -158,7 +160,7 @@ local function updateMovementSpeed(unitID, ud, speedFactor, turnAccelFactor, max
 		local moveData = spGetUnitMoveTypeData(unitID)
     
 		origUnitSpeed[unitDefID] = {
-			origSpeed = ud.speed,
+			origSpeed = ud.speed*SPEED_FACTOR,
 			origReverseSpeed = (moveData.name == "ground") and moveData.maxReverseSpeed or ud.speed,
 			origTurnRate = ud.turnRate,
 			origTurnAccel = ud.turnRate,

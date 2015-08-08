@@ -10,7 +10,7 @@ local modRules = {
 		allowDirectionalPathing   = true,
 	},
 	system = {
-		pathFinderSystem = 1,
+		pathFinderSystem = 0, -- legacy
 	},
 }
 

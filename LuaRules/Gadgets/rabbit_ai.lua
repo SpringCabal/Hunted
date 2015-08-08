@@ -36,6 +36,7 @@ local burrowDefID = {
 -- For example 10 seconds after having 100 fear a rabbit will
 -- have 100*0.995^300 = 22.2 fear
 local FEAR_DECAY = 0.995
+local STAMINA_DECAY = 0.998
 
 local carrotAttributes = {
 	radius = 500,
@@ -172,7 +173,7 @@ end
 
 function GiveClampedOrderToUnit(unitID, cmdID, params, options)
 	local x, z = ClampPosition(params[1], params[3])
-	Spring.SetUnitMoveGoal(unitID, x, params[2], z, 8, nil, true)
+	Spring.SetUnitMoveGoal(unitID, x, params[2], z, 8, nil, false) -- The last argument is whether the goal is raw
 	--Spring.GiveOrderToUnit(unitID, cmdID, {x, params[2], z}, options)
 	return true
 end
@@ -238,7 +239,7 @@ local function AddRabbit(unitID)
 	Spring.Echo(unitID)
 	rabbits[unitID] = {
 		fear = 50,
-		boldness = 50,
+		boldness = 150,
 		hunger = 100,
 		stamina = 100,
 		fearAdd = 0.3, -- fear added every frame
@@ -278,7 +279,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 		scaryFear = scaryMag*updateGap
 	end
 	
-	if rabbitData.panicMode and (scaryMag + 100 > rabbitData.fear or scaryMag > 150)then
+	if rabbitData.panicMode and (scaryMag + 100 > rabbitData.fear or scaryMag > 100)then
 		rabbitData.panicMode = {
 			x = sX,
 			z = sZ,
@@ -288,17 +289,31 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 
 	local goalId, gX, gZ, goalMag = GetBestThing(desirableThings, x, z)
 	
+	-- fear and boldness are basic attributes which affect rabit behaviour.
+	-- A rabit wandering around with no goal or fear will have about:
+	-- 55 fear 
+	-- 340 boldness
+	-- 97 stamina
 	rabbitData.fear = (rabbitData.fear + scaryFear + rabbitData.fearAdd*updateGap)*(FEAR_DECAY^updateGap)
-	
 	rabbitData.boldness = (rabbitData.boldness + goalMag*updateGap + rabbitData.boldnessAdd*updateGap)*
 		(1/(0.99 + rabbitData.fear/(10000 - math.min(8000, rabbitData.boldness*15))))^updateGap
 
+	local speedMult = (((rabbitData.fear/55)^0.8)*(2 + (rabbitData.boldness/200)^0.45)/2.3)*rabbitData.stamina/150
+
+	rabbitData.stamina = (rabbitData.stamina - ((speedMult)^0.2)*updateGap + 1.3*updateGap)*STAMINA_DECAY^updateGap
+	
+	--speedMult = math.min(100, speedMult^5)
+	
+	--Spring.Echo("Fear", rabbitData.fear)
+	--Spring.Echo("Boldness", rabbitData.boldness)
+	--Spring.Echo("Stamina", rabbitData.stamina)
+	--Spring.Echo("speedMult", speedMult)
 	
 	if rabbitData.panicMode then
-		if rabbitData.fear < 150 then
+		if rabbitData.fear < 120 then
 			rabbitData.panicMode = false
 		end
-	elseif rabbitData.fear > 200 then
+	elseif rabbitData.fear > 150 then
 		rabbitData.panicMode = {
 			x = sX,
 			z = sZ,
@@ -321,14 +336,11 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	-- moveVec is the resultant move direction from fear and boldness.
 	scaryVec = Norm(-rabbitData.fear, scaryVec)
 	
-	local effectiveBoldness = rabbitData.boldness
-	
 	local moveVec
 	if rabbitData.fear < 180 then
 		local goalVec = {x - gX, z - gZ}
 		goalVec = Norm(rabbitData.boldness, goalVec)
 		moveVec = Add(scaryVec, goalVec)
-		effectiveBoldness = math.min(100, rabbitData.boldness)
 	else
 		moveVec = scaryVec
 	end 
@@ -341,21 +353,36 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	
 	--Spring.MarkerAddPoint(moveVec[1], 0 ,moveVec[2])
 	--Spring.Echo("Move", moveVec[1], moveVec[2], moveDir)
-	--Spring.Echo("Fear", rabbitData.fear)
-	--Spring.Echo("Boldness", rabbitData.boldness)
 	
 	-- Rabbits become better able to move in one direction as boldness increases.
 	-- If their boldness is depleted they move about in a semi-random panic.
-	local dirRandomness = 20*(10 + rabbitData.boldness)^(-0.8)
+	local dirRandomness = 20*(10 + rabbitData.boldness)^(-0.9)
+	dirRandomness = math.min(math.pi*0.4, dirRandomness)
 	--Spring.Echo("dirRandomness", dirRandomness*180/math.pi)
 	
 	local moveDir = moveDir + math.random()*2*dirRandomness - dirRandomness
 	
+	local vx, _, vz, velMag = Spring.GetUnitVelocity(unitID)
+	local velVector = Norm(10 + math.random(5), {vx, vz})
+	--Spring.Echo("velMag", velMag)
 	moveVec = PolarToCart(moveMag, moveDir)
 	
-	local randVec = PolarToCart(5 + math.random(10), math.random(2*math.pi))
+
 	
-	moveVec = Norm(200, Add(moveVec, randVec))
+	local randVec = PolarToCart(7 + math.random(10), math.random(2*math.pi))
+	
+	-- moveVec is now the direction which the rabbit will move in.
+	moveVec = Norm(200*speedMult, Add(moveVec, Add(randVec, velVector)))
+	
+	--// Modify movement attributes and goal
+	Spring.SetUnitRulesParam(unitID, "selfMoveSpeedChange", speedMult)
+	if scaryMag > 100 then
+		Spring.SetUnitRulesParam(unitID, "selfTurnSpeedChange", 1)
+	else
+		Spring.SetUnitRulesParam(unitID, "selfTurnSpeedChange", 1/(speedMult^1.1))
+	
+	end
+	GG.UpdateUnitAttributes(unitID)
 	
 	GiveClampedOrderToUnit(unitID, CMD.MOVE, {moveVec[1] + x, 0, moveVec[2] + z}, 0 )
 end
@@ -364,10 +391,12 @@ local function ScareRabbitsInArea(x, z, scaryAttributes)
 	local frame = Spring.GetGameFrame()
 	for unitID, data in pairs(rabbits) do
 		local rx,_,rz = Spring.GetUnitPosition(unitID)
-		local distSq = DistSq(x, z, rx, rz)
-		if rx and distSq < scaryAttributes.radiusSq then
-			local magnitude = GetThingAdjustedMagnitude(sqrt(distSq), scaryAttributes)
-			UpdateRabbit(unitID, frame, {x, z, magnitude})
+		if rx then
+			local distSq = DistSq(x, z, rx, rz)
+			if distSq < scaryAttributes.radiusSq then
+				local magnitude = GetThingAdjustedMagnitude(sqrt(distSq), scaryAttributes)
+				UpdateRabbit(unitID, frame, {x, z, magnitude})
+			end
 		end
 	end
 end
