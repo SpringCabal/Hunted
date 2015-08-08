@@ -17,7 +17,13 @@ function widget:Initialize()
 end
 
 function widget:GameStart()
-	Spring.SendCommands('cheat')
+	local cheat = Spring.IsCheatingEnabled()
+	if not cheat then
+		Spring.SendCommands('cheat')
+	end
 	Spring.SendCommands('globallos')
-	Spring.SendCommands('cheat')
+	if not cheat then
+		Spring.SendCommands('cheat')
+	end
+	Spring.SendCommands('disticon 99999')
 end
