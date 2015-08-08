@@ -25,11 +25,21 @@ local sqrt = math.sqrt
 local rabbitDefID = {
 	[UnitDefNames["rabbit"].id] = true
 }
-local carrotDefID = {
-	[UnitDefNames["carrot"].id] = true
-}
-local burrowDefID = {
-	[UnitDefNames["burrow"].id] = true
+local desirableUnitDefs = {
+	[UnitDefNames["carrot"].id] = {
+		radius = 1500,
+		radiusSq = 1500^2,
+		edgeMagnitude = 0.1, -- Magnitude once within radius (per frame)
+		proximityMagnitude = 2, -- Maximum agnitude gained by being close (per frame)
+		thingType = 1, -- Food
+	},
+	[UnitDefNames["burrow"].id] = {
+		radius = 2000,
+		radiusSq = 2000^2,
+		edgeMagnitude = 0.1, -- Magnitude once within radius (per frame)
+		proximityMagnitude = 2, -- Maximum magnitude gained by being close (per frame)
+		thingType = 2, -- Safety
+	},
 }
 
 -- Rabbit fear goes down by (1 - FEAR_DECAY)*100% per frame.
@@ -37,14 +47,8 @@ local burrowDefID = {
 -- have 100*0.995^300 = 22.2 fear
 local FEAR_DECAY = 0.995
 local STAMINA_DECAY = 0.998
-
-local carrotAttributes = {
-	radius = 500,
-	radiusSq = 500^2,
-	edgeMagnitude = 50, -- Magnitude once within radius
-	proximityMagnitude = 150, -- Maximum agnitude gained by being close
-	thingType = 1, -- Food
-}
+local FEAR_ADDED = 0.3 -- fear added every frame
+local BOLDNESS_ADDED = 0.3 -- boldness added every frame
 
 -- Fields are manually placed groups of carrots. They need to span the whole
 -- map to attract rabbits.
@@ -54,14 +58,6 @@ local desirableFieldAttributes = {
 	edgeMagnitude = 0, -- Magnitude once within radius
 	proximityMagnitude = 80, -- Maximum agnitude gained by being close
 	thingType = 1, -- Food
-}
-
-local burrowAttributes = {
-	radius = 2000,
-	radiusSq = 2000^2,
-	edgeMagnitude = 0, -- Magnitude once within radius
-	proximityMagnitude = 100, -- Maximum magnitude gained by being close
-	thingType = 2, -- Safety
 }
 
 -------------------------------------------------------------------
@@ -89,15 +85,14 @@ depending on how hungry/scared a rabbit is. Some desirable things:
 local desirableThings = {}
 -- {[1] = {x, z, attributes = {radius, radiusSq, edgeMagnitude, proximityMagnitude, thingType}}, [2] = {...}, ...}
 
-local carrots = {}
-local burrows = {}
+local desirableUnits = {}
 local rabbits = {}
 
 -- Rabbit AI is created by taking into account only the closest scary and desirable thing.
  
 -------------------------------------------------------------------
 -------------------------------------------------------------------
--- 2DVector Functions
+-- 2D Vector Functions
 
 local function DistSq(x1,z1,x2,z2)
 	return (x1 - x2)*(x1 - x2) + (z1 - z2)*(z1 - z2)
@@ -228,28 +223,52 @@ end
 
 local function AddThing(thingTable, data)
 	thingTable[#thingTable + 1] = data
+	thingTable[#thingTable].index = #thingTable
+	return #thingTable
 end
 
 local function RemoveThing(thingTable, index)
 	thingTable[index] = thingTable[#thingTable]
+	thingTable[index].index = index
 	thingTable[#thingTable] = nil
 end
 
 -------------------------------------------------------------------
 -------------------------------------------------------------------
+-- Desirable Unit Handling
+
+local function AddDesirableUnit(unitID, unitDefID)
+	local x,_,z = Spring.GetUnitPosition(unitID)
+	local index = AddThing(desirableThings, {
+		x = x,
+		z = z,
+		attributes = desirableUnitDefs[unitDefID]
+	})
+	
+	desirableUnits[unitID] = {thingTableEntry = desirableThings[index]}
+end
+
+local function RemoveDesirableUnit(unitID, unitDefID)
+	local index = desirableUnits[unitID].thingTableEntry.index
+	RemoveThing(desirableThings, index)
+	desirableUnits[unitID] = nil
+end
+-------------------------------------------------------------------
+-------------------------------------------------------------------
 -- Rabbit Handling
 
 local function AddRabbit(unitID)
-	Spring.Echo(unitID)
 	rabbits[unitID] = {
 		fear = 50,
 		boldness = 150,
-		hunger = 100,
 		stamina = 100,
-		fearAdd = 0.3, -- fear added every frame
-		boldnessAdd = 0.5,
+		carrots = 100,
 		lastUpdate = Spring.GetGameFrame(),
 	}
+end
+
+local function RemoveRabbit(unitID)
+	rabbits[unitID] = nil
 end
 
 local function UpdateRabbit(unitID, frame, scaryOverride)
@@ -298,9 +317,9 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	-- 55 fear 
 	-- 340 boldness
 	-- 97 stamina
-	rabbitData.fear = (rabbitData.fear + scaryFear + rabbitData.fearAdd*updateGap)*(FEAR_DECAY^updateGap)
-	rabbitData.boldness = (rabbitData.boldness + goalMag*updateGap + rabbitData.boldnessAdd*updateGap)*
-		(1/(0.99 + rabbitData.fear/(10000 - math.min(8000, rabbitData.boldness*15))))^updateGap
+	rabbitData.fear = (rabbitData.fear + scaryFear + FEAR_ADDED*updateGap)*(FEAR_DECAY^updateGap)
+	rabbitData.boldness = (rabbitData.boldness + goalMag*updateGap + BOLDNESS_ADDED*updateGap)*
+		(1/(0.99 + rabbitData.fear/(10000 - math.min(8000, rabbitData.boldness*20))))^updateGap
 
 	local speedMult = (((rabbitData.fear/55)^0.8)*(2 + (rabbitData.boldness/200)^0.45)/2.3)*rabbitData.stamina/150
 
@@ -314,10 +333,10 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	--Spring.Echo("speedMult", speedMult)
 	
 	if rabbitData.panicMode then
-		if rabbitData.fear < 120 then
+		if rabbitData.fear < 150 then
 			rabbitData.panicMode = false
 		end
-	elseif rabbitData.fear > 150 then
+	elseif rabbitData.fear > 180 then
 		rabbitData.panicMode = {
 			x = sX,
 			z = sZ,
@@ -338,12 +357,18 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	-- These vectors are scaled by fear and boldness
 	-- If fear is too high then the goal is ignored.
 	-- moveVec is the resultant move direction from fear and boldness.
-	scaryVec = Norm(-rabbitData.fear, scaryVec)
+	scaryVec = Norm(-rabbitData.fear/10, scaryVec)
 	
-	local moveVec
+	local moveVec, goalMag
 	if rabbitData.fear < 180 then
 		local goalVec = {x - gX, z - gZ}
-		goalVec = Norm(rabbitData.boldness, goalVec)
+		goalMag = AbsVal(goalVec)
+		if goalMag < 80 then
+			speedMult = speedMult*1.2
+			goalVec = Norm(rabbitData.boldness/10, goalVec)
+		else
+			goalVec = Norm(rabbitData.boldness/30, goalVec)
+		end
 		moveVec = Add(scaryVec, goalVec)
 	else
 		moveVec = scaryVec
@@ -374,7 +399,6 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	
 	local randVec = PolarToCart(5 + math.random()*10, math.random()*2*math.pi)
 	
-	--Spring.Echo("moveVec Mag", AbsVal(moveVec))
 	--Spring.Echo("moveVec Angle", Angle(moveVec)*180/math.pi)
 	--Spring.Echo("randVec", AbsVal(randVec))
 	
@@ -382,7 +406,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	moveVec = Norm(200*speedMult, Add(moveVec, Add(randVec, velVector)))
 	
 	--// Modify movement attributes and goal
-	Spring.SetUnitRulesParam(unitID, "selfMoveSpeedChange", speedMult)
+	--Spring.SetUnitRulesParam(unitID, "selfMoveSpeedChange", speedMult)
 	if scaryMag > 100 then
 		Spring.SetUnitRulesParam(unitID, "selfTurnSpeedChange", 1/speedMult)
 	else
@@ -417,11 +441,17 @@ function gadget:UnitCreated(unitID, unitDefID)
 	if rabbitDefID[unitDefID] then
 		AddRabbit(unitID)
 	end
-	if carrotDefID[unitDefID] then
-		carrots[unitID] = true
+	if desirableUnitDefs[unitDefID] then
+		AddDesirableUnit(unitID, unitDefID)
 	end
-	if burrowDefID[unitDefID] then
-		burrows[unitID] = true
+end
+
+function gadget:UnitDestroyed(unitID, unitDefID)
+	if rabbitDefID[unitDefID] then
+		RemoveRabbit(unitID)
+	end
+	if desirableUnitDefs[unitDefID] then
+		RemoveDesirableUnit(unitID, unitDefID)
 	end
 end
 
