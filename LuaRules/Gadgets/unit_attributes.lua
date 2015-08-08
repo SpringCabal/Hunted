@@ -285,7 +285,7 @@ function UpdateUnitAttributes(unitID, frame)
 	if selfMoveSpeedChange or selfTurnSpeedChange or selfAccelerationChange then
 		local slowMult   = 1-(slowState or 0)
 		local moveMult   = (slowMult)*(selfMoveSpeedChange or 1)
-		local turnMult   = (slowMult)*(selfMoveSpeedChange or 1)*(selfTurnSpeedChange or 1)
+		local turnMult   = (slowMult)*(selfTurnSpeedChange or 1)
 		local reloadMult = 1
 		local maxAccMult = (slowMult)*(selfMoveSpeedChange or 1)*(selfMaxAccelerationChange or 1)
 		

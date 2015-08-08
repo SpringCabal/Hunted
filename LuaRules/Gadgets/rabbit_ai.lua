@@ -32,6 +32,8 @@ local desirableUnitDefs = {
 		edgeMagnitude = 0.1, -- Magnitude once within radius (per frame)
 		proximityMagnitude = 2, -- Maximum agnitude gained by being close (per frame)
 		thingType = 1, -- Food
+		eatTime = 60,
+		isEdible = true
 	},
 	[UnitDefNames["burrow"].id] = {
 		radius = 2000,
@@ -125,7 +127,7 @@ local function Norm(b, v)
 end
 
 local function Angle(v)
-	return -Spring.GetHeadingFromVector(v[1], v[2])/2^15*math.pi + math.pi*3/2
+	return -Spring.GetHeadingFromVector(v[1], v[2])/2^15*math.pi + math.pi/2
 end
 
 local function PolarToCart(mag, dir)
@@ -199,16 +201,18 @@ local function GetBestThing(thingTable, x, z, typeMultiplier)
 	
 	for i = 1, #thingTable do
 		thing = thingTable[i]
-		thingAtt = thing.attributes
-		distanceSquare = DistSq(x, z, thing.x, thing.z)
-		if distanceSquare < thingAtt.radiusSq then
-			distance = sqrt(distanceSquare)
-			adjustedMagnitude = GetThingAdjustedMagnitude(distance, thingAtt, typeMultiplier)
-			if adjustedMagnitude > bestMagnitude then
-				bestIndex = i
-				bestMagnitude = adjustedMagnitude
-				bestX = thing.x
-				bestZ = thing.z
+		if not thing.inactive then
+			thingAtt = thing.attributes
+			distanceSquare = DistSq(x, z, thing.x, thing.z)
+			if distanceSquare < thingAtt.radiusSq then
+				distance = sqrt(distanceSquare)
+				adjustedMagnitude = GetThingAdjustedMagnitude(distance, thingAtt, typeMultiplier)
+				if adjustedMagnitude > bestMagnitude then
+					bestIndex = i
+					bestMagnitude = adjustedMagnitude
+					bestX = thing.x
+					bestZ = thing.z
+				end
 			end
 		end
 	end
@@ -237,18 +241,43 @@ end
 -------------------------------------------------------------------
 -- Desirable Unit Handling
 
+local function StartEating(rabbitData, thingRef)
+	if Spring.ValidUnitID(unitID) then
+		Spring.SetUnitRulesParam(unitID, "eating", 1)
+	end
+	rabbitData.eatingProgress = 0
+	rabbitData.eatingThingRef = thingRef
+	thingRef.inactive = true
+	thingRef.eater = rabbitData
+end
+
+local function StopEating(rabbitData)
+	if Spring.ValidUnitID(unitID) then
+		Spring.SetUnitRulesParam(unitID, "eating", 0)
+	end
+	rabbitData.eatingProgress = false
+	rabbitData.eatingThingRef.inactive = false
+	rabbitData.eatingThingRef.eater = nil
+	rabbitData.eatingThingRef = nil
+end
+
 local function AddDesirableUnit(unitID, unitDefID)
 	local x,_,z = Spring.GetUnitPosition(unitID)
 	local index = AddThing(desirableThings, {
 		x = x,
 		z = z,
+		unitID = unitID,
 		attributes = desirableUnitDefs[unitDefID]
 	})
 	
 	desirableUnits[unitID] = {thingTableEntry = desirableThings[index]}
 end
 
-local function RemoveDesirableUnit(unitID, unitDefID)
+local function RemoveDesirableUnit(unitID)
+	if desirableUnits[unitID].eater then
+		StopEating(desirableUnits[unitID].eater)
+	end
+
 	local index = desirableUnits[unitID].thingTableEntry.index
 	RemoveThing(desirableThings, index)
 	desirableUnits[unitID] = nil
@@ -259,16 +288,29 @@ end
 
 local function AddRabbit(unitID)
 	rabbits[unitID] = {
+		unitID = unitID,
 		fear = 50,
 		boldness = 150,
 		stamina = 100,
-		carrots = 100,
+		foodEaten = 0,
 		lastUpdate = Spring.GetGameFrame(),
 	}
 end
 
 local function RemoveRabbit(unitID)
+	if rabbits[unitID].eatingProgress then
+		StopEating(rabbits[unitID])
+	end
 	rabbits[unitID] = nil
+end
+
+
+local function SetRabbitMovement(unitID, x, z, goalVec, speedMult, turnMult)
+	--Spring.MarkerAddPoint(goalVec[1] + x,0,goalVec[2] + z)
+	Spring.SetUnitRulesParam(unitID, "selfMoveSpeedChange", speedMult)
+	Spring.SetUnitRulesParam(unitID, "selfTurnSpeedChange", turnMult)
+	GG.UpdateUnitAttributes(unitID)
+	GiveClampedOrderToUnit(unitID, CMD.MOVE, {goalVec[1] + x, 0, goalVec[2] + z}, 0 )
 end
 
 local function UpdateRabbit(unitID, frame, scaryOverride)
@@ -344,14 +386,31 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 		}
 	end
 	
+	--// Handle Carrot Eating
+	if rabbitData.eatingProgress then
+		if rabbitData.panicMode then
+			StopEating(rabbitData)
+		else
+			rabbitData.eatingProgress = rabbitData.eatingProgress + updateGap
+			if rabbitData.eatingProgress > rabbitData.eatingThingRef.attributes.eatTime then
+				Spring.DestroyUnit(rabbitData.eatingThingRef.unitID)
+				rabbitData.foodEaten = rabbitData.foodEaten + 1
+				StopEating(rabbitData)
+			else
+				SetRabbitMovement(unitID, x, z, {rabbitData.eatingThingRef.x - x, rabbitData.eatingThingRef.z - z}, 0.5, 1)
+				return
+			end
+		end
+	end
+	
 	--// Determine move direction and speed
 	-- scaryVec is the direction and magnitude to the scariest thing.
 	-- goalVec is the same for the goal
 	local scaryVec
 	if rabbitData.panicMode then
-		scaryVec = {x - rabbitData.panicMode.x, z - rabbitData.panicMode.z}
+		scaryVec = {rabbitData.panicMode.x - x, rabbitData.panicMode.z - z}
 	else
-		scaryVec = {x - sX, z - sZ}
+		scaryVec = {sX - x, sZ - z}
 	end
 	
 	-- These vectors are scaled by fear and boldness
@@ -361,9 +420,9 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	
 	local moveVec, goalMag
 	if rabbitData.fear < 180 then
-		local goalVec = {x - gX, z - gZ}
+		local goalVec = {gX - x, gZ - z}
 		goalMag = AbsVal(goalVec)
-		if goalMag < 80 then
+		if goalMag < 200 then
 			speedMult = speedMult*1.2
 			goalVec = Norm(rabbitData.boldness/10, goalVec)
 		else
@@ -374,8 +433,14 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 		moveVec = scaryVec
 	end 
 	
-	-- At this point moveVec is the direction which a rabbit would go if it were bold.
+	--// Start eating a nearby carrot
+	if goalId and (not rabbitData.eatingProgress) and (not rabbitData.panicMode) and goalMag < 60 and desirableThings[goalId].attributes.isEdible then
+		StartEating(rabbitData, desirableThings[goalId])
+		SetRabbitMovement(unitID, x, z, {gX - x, gZ - z}, 0.5, 1)
+		return
+	end
 	
+	-- At this point moveVec is the direction which a rabbit would go if it were bold.
 	-- Direction is 0 in positive x direction. Increases clockwise.
 	local moveDir = Angle(moveVec)
 	local moveMag = AbsVal(moveVec)
@@ -396,7 +461,6 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	--Spring.Echo("velMag", velMag)
 	moveVec = PolarToCart(moveMag, moveDir)
 	
-	
 	local randVec = PolarToCart(5 + math.random()*10, math.random()*2*math.pi)
 	
 	--Spring.Echo("moveVec Angle", Angle(moveVec)*180/math.pi)
@@ -406,16 +470,11 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	moveVec = Norm(200*speedMult, Add(moveVec, Add(randVec, velVector)))
 	
 	--// Modify movement attributes and goal
-	Spring.SetUnitRulesParam(unitID, "selfMoveSpeedChange", speedMult)
 	if scaryMag > 100 then
-		Spring.SetUnitRulesParam(unitID, "selfTurnSpeedChange", 1/speedMult)
+		SetRabbitMovement(unitID, x, z, moveVec, speedMult, 1)
 	else
-		Spring.SetUnitRulesParam(unitID, "selfTurnSpeedChange", 1/(speedMult^1.1))
-	
+		SetRabbitMovement(unitID, x, z, moveVec, speedMult, speedMult^-0.1)
 	end
-	GG.UpdateUnitAttributes(unitID)
-	
-	GiveClampedOrderToUnit(unitID, CMD.MOVE, {moveVec[1] + x, 0, moveVec[2] + z}, 0 )
 end
 
 local function ScareRabbitsInArea(x, z, scaryAttributes)
@@ -451,7 +510,7 @@ function gadget:UnitDestroyed(unitID, unitDefID)
 		RemoveRabbit(unitID)
 	end
 	if desirableUnitDefs[unitDefID] then
-		RemoveDesirableUnit(unitID, unitDefID)
+		RemoveDesirableUnit(unitID)
 	end
 end
 
