@@ -181,7 +181,7 @@ end
 
 function GiveClampedOrderToUnit(unitID, cmdID, params, options)
 	local x, z = ClampPosition(params[1], params[3])
-	Spring.SetUnitMoveGoal(unitID, x, params[2], z, 8, nil, false) -- The last argument is whether the goal is raw
+	Spring.SetUnitMoveGoal(unitID, x, params[2], z, 8, nil, true) -- The last argument is whether the goal is raw
 	--Spring.GiveOrderToUnit(unitID, cmdID, {x, params[2], z}, options)
 	return true
 end
@@ -382,10 +382,10 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	--Spring.Echo("speedMult", speedMult)
 	
 	if rabbitData.panicMode then
-		if rabbitData.fear < 150 then
+		if rabbitData.fear < 140 then
 			rabbitData.panicMode = false
 		end
-	elseif rabbitData.fear > 180 then
+	elseif rabbitData.fear > 140 then
 		rabbitData.panicMode = {
 			x = sX,
 			z = sZ,
