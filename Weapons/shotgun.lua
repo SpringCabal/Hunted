@@ -23,7 +23,7 @@ local shotgun = Weapon:New{
 				turret = true,
 				weapontimer = 0.1,
 				weapontype = "Cannon",
-				weaponvelocity = 1000,
+				weaponvelocity = 2000,
 				damage = {
 					default = 50000,
 				},
