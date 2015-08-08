@@ -53,7 +53,9 @@ local function DrawUnit(unitid, material, materialID)
 -- 
 --   gl.Uniform(material.frameLoc, Spring.GetGameFrame()%360)
 --   gl.Uniform(material.speedLoc, info.dir,0,speed)
-
+  if materialID == 2 then
+      return true
+  end
   return false --// engine should still draw it (we just set the uniforms for the shader)
 end
 

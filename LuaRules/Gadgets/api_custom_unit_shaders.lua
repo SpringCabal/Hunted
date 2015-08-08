@@ -386,10 +386,10 @@ function gadget:UnitDestroyed(unitID,unitDefID)
 end
 
 
-function gadget:DrawUnit(unitID)
+function gadget:DrawUnit(unitID, drawMode)
   local mat = drawUnitList[unitID]
   if (mat) then
-    return mat.DrawUnit(unitID, mat)
+    return mat.DrawUnit(unitID, mat, drawMode)
   end
 end
 
