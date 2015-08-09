@@ -2,17 +2,17 @@
  include "lib_UnitScript.lua"
  include "lib_Build.lua" 
 --pieces
-Head=piece"Head"
-WiggleTail=piece"WiggleTail"
-Body  =piece"Body"   
-BLeg1 =piece"BLeg1"
-BLeg2 =piece"BLeg2"
-FLeg1 =piece"FLeg1"
-FLeg2 =piece"FLeg2"
+local Head=piece"Head"
+local WiggleTail=piece"WiggleTail"
+local Body  =piece"Body"   
+local BLeg1 =piece"BLeg1"
+local BLeg2 =piece"BLeg2"
+local FLeg1 =piece"FLeg1"
+local FLeg2 =piece"FLeg2"
 
 
-center=piece"center"
-piecesTable=makeKeyPiecesTable(unitID, piece)
+local center=piece"center"
+local piecesTable=makeKeyPiecesTable(unitID, piece)
 
 --Signals
 local SIG_MOVE=2
@@ -20,18 +20,11 @@ local SIG_MOVE=2
 function script.HitByWeapon (x, z, weaponDefID, damage) 
 end
 
-
 function script.Create()
 	StartThread(MoveAnimationController)
 end
 
-function script.Killed(recentDamage, _)
-	return 0
-end
-
-
-
-offSet=math.random(-0.2,0.2)
+local offSet=math.random(-0.2,0.2)
 function MoveAnimation()
 	Move(center, y_axis, 5, 15)
 
@@ -120,5 +113,7 @@ function script.Killed()
 		Explode(BLeg2, SFX.EXPLODE_ON_HIT)
 		Explode(FLeg1, SFX.EXPLODE_ON_HIT)
 		Explode(FLeg2, SFX.EXPLODE_ON_HIT)
+		local ux, uy, uz = Spring.GetUnitPosition(unitID)
+		Spring.PlaySoundFile("sounds/splat1.wav", 100, ux, uy, uz)
 		return 1   -- spawn ARMSTUMP_DEAD corpse / This is the equivalent of corpsetype = 1; in bos
 end
