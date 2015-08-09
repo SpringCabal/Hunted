@@ -78,7 +78,7 @@ local function RabbitScoreCarrot(unitID)
 	
 	local stolen = Spring.GetGameRulesParam("carrots_stolen")
 	Spring.SetGameRulesParam("carrots_stolen", stolen + 1)
-	Spring.Echo("A Rabbit return a Carrot to their Burrow!!")
+	--Spring.Echo("A Rabbit return a Carrot to their Burrow!!")
 end
 
 function gadget:UnitDestroyed(unitID, unitDefID)

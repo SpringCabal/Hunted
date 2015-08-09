@@ -21,39 +21,25 @@ function widget:Initialize()
     for k, v in pairs(Spring.GetCameraState()) do
         print(k .. " = " .. tostring(v) .. ",")
     end
-    local devMode = (tonumber(Spring.GetModOptions().play_mode) or 0) == 0
-    if devMode then
-        widgetHandler:RemoveWidget(widget)
-        return
-    end
---     s = {
---         dist = 450,
---         px = 1998.0675048828,
---         py = 91.71875,
---         pz = 3952.1501464844,
---         rz = 0,
---         dx = -0,
---         dy = -0.7716411948204,
---         dz = -0.63605803251266,
---         fov = 45,
---         ry = -0.37921515107155,
---         mode = 2,
---         rx = 2.4522137641907,
---         name = spring,
---     }
+--     local devMode = (tonumber(Spring.GetModOptions().play_mode) or 0) == 0
+--     if devMode then
+--         widgetHandler:RemoveWidget(widget)
+--         return
+--     end
     s = {
-        px = 508.40655517578,
-        py = 144.25389099121,
-        pz = 3262.1345214844,
-        mode = 1,
-        flipped = -1,
-        dy = -0.84741073846817,
-        dz = -0.53217732906342,
-        fov = 45,
-        height = 938.35638427734,
-        angle = 0.53412485122681,
+        dist = 1389.7800292969,
+        px = 1902.5513916016,
+        py = 103.51550292969,
+        pz = 2218.6779785156,
+        rz = 0,
         dx = 0,
-        name = "ta",
+        dy = -0.8170080780983,
+        dz = -0.57662618160248,
+        fov = 45,
+        ry = 0,
+        mode = 2,
+        rx = 2.5269994735718,
+        name = "spring",
     }
     Spring.SetCameraState(s, 0)
 end
