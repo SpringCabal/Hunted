@@ -34,8 +34,9 @@ function gadget:GameFrame(frame)
 	if frame > initializeFrame + 2 then
 		local carrotCount = Spring.GetGameRulesParam("carrot_count")
 		
-		if carrotCount <= 0 then
-			Spring.GameOver({})
-		end
+        -- We're doing widget-only game overs which makes restarts easier
+-- 		if carrotCount <= 0 then
+-- 			Spring.GameOver({})
+-- 		end
 	end
 end

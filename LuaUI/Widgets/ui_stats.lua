@@ -91,7 +91,9 @@ function UpdateRabbits()
 	local rabbitsKilled = Spring.GetGameRulesParam("rabbits_killed") or 0
 	if rabbitsKilled ~= 0 then
 		lblRabbitsKilled:SetCaption("\255\30\144\255Killed: " .. rabbitsKilled .. "\b")
-	end
+    else
+        lblRabbitsKilled:SetCaption("")
+    end
 end
 
 function UpdateCarrots()
@@ -101,12 +103,16 @@ function UpdateCarrots()
 	local carrotsStolen = Spring.GetGameRulesParam("carrots_stolen") or 0
 	if carrotsStolen ~= 0 then
 		lblCarrotsStolen:SetCaption("\255\255\165\0Stolen: " .. carrotsStolen .. "\b")
-	end
+    else
+        lblCarrotsStolen:SetCaption("")
+    end
 	
 	local carrotsDestroyed = Spring.GetGameRulesParam("carrots_destroyed") or 0
 	if carrotsDestroyed ~= 0 then
 		lblCarrotsDestroyed:SetCaption("\255\255\165\0Destroyed: " .. carrotsDestroyed .. "\b")
-	end
+    else
+        lblCarrotsDestroyed:SetCaption("")
+    end
 end
 
 function widget:GameFrame()
