@@ -40,6 +40,11 @@ function gadget:GameFrame()
                 if Spring.GetUnitDefID(nearbyUnitID) == rabbitDefId then
                     mineObj.exploding = true
                     mineObj.explodingTimer = 3 * 30 -- 3 seconds exploding timer
+					
+					local env = Spring.UnitScript.GetScriptEnv(mineID)
+					if env and env.StartFuse then
+						Spring.UnitScript.CallAsUnit(mineID, env.StartFuse)
+					end
                     break
                 end
             end
@@ -48,7 +53,7 @@ function gadget:GameFrame()
             if mineObj.explodingTimer <= 0 then
                 Spring.DestroyUnit(mineID)
             else
-                SendToUnsynced("UpdateMineTimer", mineID, mineObj.explodingTimer) 
+                --SendToUnsynced("UpdateMineTimer", mineID, mineObj.explodingTimer) 
                 mineObj.explodingTimer = mineObj.explodingTimer - 1
             end
         end
