@@ -6,6 +6,7 @@ local unitDef  =  {
     name = "Rabbit",
     UnitName = unitName,
     script = unitName .. ".lua",
+	explodeAs = "smallBunnyExplosion",
     
 --Unit limitations and properties
     MaxDamage = 800,
