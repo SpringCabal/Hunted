@@ -54,7 +54,6 @@ local function SpawnField(topX, topZ, botX, botZ, rows, cols)
 	
 	fieldCount = fieldCount + 1
 	fields[fieldCount] = {
-		carrots = {}, 
 		carrotCount = rows*cols,
 		area = GG.AddDesirableArea({x = midX, z = midZ, attributes = desirableFieldAttributes})
 	}
@@ -79,6 +78,17 @@ function gadget:UnitDestroyed(unitID, unitDefID)
 	if unitDefID ~= carrotDefID and unitDefID ~= dropDefID then
 		return
 	end
+	
+	local fieldIndex = carrotSpot[unitID]
+	if fieldIndex and fields[fieldIndex] then
+		fields[fieldIndex].carrotCount = fields[fieldIndex].carrotCount - 1
+		if fields[fieldIndex].carrotCount < 1 then
+			GG.RemoveDesirableArea(fields[fieldIndex].area)
+			fields[fieldIndex] = nil
+		end
+		carrotSpot[unitID] = nil
+	end
+	
 	if Spring.GetUnitRulesParam(unitID, "internalDestroy") then
 		return
 	end
@@ -86,18 +96,6 @@ function gadget:UnitDestroyed(unitID, unitDefID)
 	if not Spring.GetUnitRulesParam(unitID, "carrotScored") then
 		local destroyed = Spring.GetGameRulesParam("carrots_destroyed")
 		Spring.SetGameRulesParam("carrots_destroyed", destroyed + 1)
-	end
-	
-	local fieldIndex = carrotSpot[unitID]
-	if fieldIndex and fields[fieldIndex] then
-		fields[fieldIndex].carrots = fields[fieldIndex].carrots - 1
-		Spring.Echo("fields[fieldIndex].carrots", fields[fieldIndex].carrots)
-		if fields[fieldIndex].carrots < 1 then
-			Spring.Echo("RemoveDesirableArea")
-			GG.RemoveDesirableArea(fields[fieldIndex].area)
-			fields[fieldIndex] = nil
-		end
-		carrotSpot[unitID] = nil
 	end
 	
 	local carrotCount = Spring.GetGameRulesParam("carrot_count") or 0
