@@ -15,7 +15,7 @@ if not Script.GetSynced() then
 
 VFS.Include("LuaUI/widgets/glVolumes.lua")
 
-local FLASHLIGHT_SIZE = 100
+local FLASHLIGHT_SIZE = 150
 
 function gadget:Initialize()
     self.x, self.z = math.huge, math.huge
