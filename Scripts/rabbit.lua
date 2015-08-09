@@ -96,6 +96,10 @@ function AttachCarrot(carrotID)
 	Spring.UnitScript.AttachUnit(center, carrotID)
 end
 
+function DropCarrot(carrotID)
+	Spring.UnitScript.DropUnit(carrotID)
+end
+
 function MoveEnded()
 	Signal(SIG_MOVE)
 	SetSignalMask(SIG_MOVE)

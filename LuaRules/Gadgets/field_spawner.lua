@@ -8,7 +8,7 @@ function gadget:GetInfo()
       author    = "Google Frog",
       date      = "9 August 2015",
       license   = "GNU GPL, v2 or later",
-      layer     = 5,
+      layer     = 15,
       enabled   = true
    }
 end
@@ -20,6 +20,7 @@ end
 if (not gadgetHandler:IsSyncedCode()) then
    return false
 end
+
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
@@ -40,7 +41,8 @@ local function SpawnField(topX, topZ, botX, botZ, rows, cols)
 	local x, z = topX, topZ
 	for i = 1, cols do
 		for j = 1, rows do
-			Spring.CreateUnit(carrotDefID, x, 0, z, 0, 0, false, false)
+			local carrotID = Spring.CreateUnit(carrotDefID, x, 0, z, 0, 0, false, false)
+			Spring.SetUnitRotation(carrotID, 0, math.random()*2*math.pi, 0)
 			x = x + colSpace
 		end
 		z = z + rowSpace
@@ -58,6 +60,5 @@ function gadget:Initialize()
 	end
 	
 	Spring.SetGameRulesParam("carrot_count", 0)
-	SpawnField(1000, 1800, 1600, 2200, 10, 5)
-	SpawnField(2200, 2100, 2700, 2350, 8, 4)
+	GG.SpawnField = SpawnField
 end

@@ -3,12 +3,12 @@
 
 function gadget:GetInfo()
    return {
-      name      = "Blocking",
-      desc      = "Makes some units non-blocking.",
+      name      = "Wave Handler",
+      desc      = "Handles the beginning and end of waves.",
       author    = "Google Frog",
-      date      = "8 August 2015",
+      date      = "9 August 2015",
       license   = "GNU GPL, v2 or later",
-      layer     = 0,
+      layer     = 20,
       enabled   = true
    }
 end
@@ -23,14 +23,10 @@ end
 
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
-local nonBlockingUnitDefID = {
-	[UnitDefNames["carrot_carried"].id] = true,
-	[UnitDefNames["burrow"].id] = true,
-}
 
+function gadget:Initialize()
+	GG.SpawnField(1000, 1800, 1600, 2200, 10, 5)
+	GG.SpawnField(2200, 2100, 2700, 2350, 8, 4)
+	
 
-function gadget:UnitCreated(unitID, unitDefID)
-	if nonBlockingUnitDefID[unitDefID] then
-		Spring.SetUnitBlocking(unitID, false, false)
-	end
 end

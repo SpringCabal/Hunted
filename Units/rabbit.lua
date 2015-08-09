@@ -14,7 +14,7 @@ local unitDef  =  {
     Upright = 0,
 	
 -- Transporting
-	releaseHeld = false,
+	releaseHeld = true,
 	holdSteady = true,
 	transportCapacity = 10,
 	transportSize = 10,

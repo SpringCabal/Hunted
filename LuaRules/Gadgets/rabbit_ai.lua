@@ -16,8 +16,6 @@ function gadget:GetInfo()
 	}
 end
 
-
-
 -------------------------------------------------------------------
 -------------------------------------------------------------------
 -- Configs/Speedups
@@ -45,7 +43,7 @@ local desirableUnitDefs = {
 		proximityMagnitude = 2.15, -- Maximum agnitude gained by being close (per frame)
 		thingType = 1, -- Food
 		eatTime = 10,
-		isEdible = true
+		isEdible = true,
 	},
 	[UnitDefNames["mine"].id] = {
 		radius = 1500,
@@ -251,7 +249,6 @@ local function GetBestThing(thingTable, x, z, typeMultiplier)
 	end
 end
 
-
 local function AddThing(thingTable, data)
 	thingTable[#thingTable + 1] = data
 	thingTable[#thingTable].index = #thingTable
@@ -264,6 +261,7 @@ local function RemoveThing(thingTable, index)
 	thingTable[#thingTable] = nil
 	--GG.TableEcho(thingTable)
 end
+
 
 -------------------------------------------------------------------
 -------------------------------------------------------------------
@@ -311,11 +309,12 @@ end
 
 local function AddDesirableUnit(unitID, unitDefID)
 	local x,_,z = Spring.GetUnitPosition(unitID)
+	local attributes = desirableUnitDefs[unitDefID]
 	local index = AddThing(desirableThings, {
 		x = x,
 		z = z,
 		unitID = unitID,
-		attributes = desirableUnitDefs[unitDefID]
+		attributes = attributes,
 	})
 	
 	desirableUnits[unitID] = {thingTableEntry = desirableThings[index]}
@@ -330,6 +329,7 @@ local function RemoveDesirableUnit(unitID)
 	RemoveThing(desirableThings, index)
 	desirableUnits[unitID] = nil
 end
+
 -------------------------------------------------------------------
 -------------------------------------------------------------------
 -- Rabbit Handling

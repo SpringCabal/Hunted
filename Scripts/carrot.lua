@@ -2,14 +2,14 @@ local base = piece "base"
 
 local SIG_STEAL = 0
 local riseSpeed = 6.5
-local x,y,z = Spring.GetUnitPosition(unitID)
+local x,y,z
 
 local function StolenThread(progress)
 	Signal(SIG_STEAL)
 	SetSignalMask(SIG_STEAL)
 	while true do
 		Spring.PlaySoundFile("sounds/digitout.wav", 1, x, y, z)
-		Spring.SpawnCEG("dirtfling", x, y, z)
+		Spring.SpawnCEG("flashnuke", x, y, z)
 		Sleep(128)
 	end
 end
@@ -28,6 +28,7 @@ end
 
 
 function script.Create()
+	x,y,z = Spring.GetUnitPosition(unitID)
 	Move(base, y_axis, -10)
 end
 
