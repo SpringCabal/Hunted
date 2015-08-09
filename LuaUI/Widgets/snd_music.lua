@@ -2,7 +2,7 @@ function widget:GetInfo()
   return {
     name      = "Music for dummies",
     desc      = "",
-    author    = "ashdnazg",
+    author    = "ashdnazg, gajop",
     date      = "yesterday",
     license   = "GPL-v2",
     layer     = 1001,
@@ -16,19 +16,29 @@ local BUFFER = 0.015
 local playingTime = 0
 local dtTime = 0
 local trackTime
-local gameStarted = false
+local startedPlaying = false
 local musicFile = "LuaUI/sounds/Zeus_vs_Bunnies.ogg"
 
---function widget:GameStart()
-function widget:Initialize()
-    Spring.PlaySoundStream(musicFile, VOLUME)
-    _, trackTime = Spring.GetSoundStreamTime()
-    gameStarted = true
+local function StartPlaying()
+    if not startedPlaying then
+        Spring.PlaySoundStream(musicFile, VOLUME)
+        _, trackTime = Spring.GetSoundStreamTime()
+    end
+    startedPlaying = true
 end
 
+function widget:Initialize()
+    if Spring.GetGameFrame() > 0 then
+        StartPlaying()
+    end
+end
+
+function widget:GameStart()
+    StartPlaying()
+end
 
 function widget:Update(dt)
-    if gameStarted then
+    if startedPlaying then
         playingTime = playingTime + dt
         --playingTime = Spring.GetSoundStreamTime()
         if playingTime > trackTime - BUFFER then
