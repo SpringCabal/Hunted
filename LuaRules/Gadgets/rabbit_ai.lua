@@ -11,7 +11,7 @@ function gadget:GetInfo()
 		author	= "Google Frog",
 		date	= "8 August 2015",
 		license	= "GNU GPL, v2 or later",
-		layer	= 0,
+		layer	= 2,
 		enabled = true
 	}
 end
@@ -50,7 +50,7 @@ local desirableUnitDefs = {
 		radiusSq = 1500^2,
 		edgeMagnitude = 0.1, -- Magnitude once within radius (per frame)
 		proximityMagnitude = 2, -- Maximum agnitude gained by being close (per frame)
-		thingType = 1, -- Food
+		thingType = 1, -- "Food"
 	},
 	[UnitDefNames["burrow"].id] = {
 		radius = 2000,
@@ -58,6 +58,7 @@ local desirableUnitDefs = {
 		edgeMagnitude = 0.1, -- Magnitude once within radius (per frame)
 		proximityMagnitude = 2, -- Maximum magnitude gained by being close (per frame)
 		thingType = 2, -- Safety
+		isCarrotRepository = true,
 	},
 }
 
@@ -419,7 +420,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	-- 1 carrot
 	local deisrableTypeTable = {
 		math.max(0, 1 - rabbitData.foodCarried), -- Desirability of food
-		math.min(0, rabbitData.foodCarried), -- Desirability of Burrow
+		math.min(1, rabbitData.foodCarried), -- Desirability of Burrow
 	}
 	
 	local goalRef, gX, gZ, goalMag = GetBestThing(desirableThings, x, z, deisrableTypeTable)
@@ -498,6 +499,13 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	end
 	
 	-- Deposit a carrot in a burrow
+	if goalRef and goalMag and goalMag < 60 and goalRef.attributes.isCarrotRepository and 
+			rabbitData.foodCarried > 0 and (not rabbitData.panicMode) then
+		rabbitData.foodCarried = 0
+		GG.RabbitScoreCarrot(unitID)
+		SetRabbitMovement(unitID, x, z, {gX - x, gZ - z}, 0.05, 1)
+		return
+	end
 	
 	--// Normal Movement
 	-- At this point moveVec is the direction which a rabbit would go if it were bold.
