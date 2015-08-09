@@ -22,15 +22,12 @@ local shotgun = Weapon:New{
 				rgbcolor = "1 0.95 0.4",
 				size = 1.75,
 				soundstart = "shotgun1.wav",
-				sprayangle = 1180,
+				sprayangle = 2000,
 				tolerance = 5000,
 				turret = true,
 				weapontimer = 0.1,
 				weapontype = "Cannon",
 				weaponvelocity = 2000,
-				customparams = {
-					nofriendlyfire = true
-				},
 				damage = {
 					default = 50000,
 				},

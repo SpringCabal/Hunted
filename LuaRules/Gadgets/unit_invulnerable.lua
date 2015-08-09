@@ -22,14 +22,14 @@ end
 
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
-local invunerableUnitDefs = {
-	[UnitDefNames["burrow"].id] = true,
+local vulnerableUnitDefs = {
+	[UnitDefNames["rabbit"].id] = true,
 }
 
 
 function gadget:UnitPreDamaged(unitID, unitDefID, unitTeam, damage, paralyzer, 
                             weaponDefID, attackerID, attackerDefID, attackerTeam)
-	if invunerableUnitDefs[unitDefID] then
+	if not vulnerableUnitDefs[unitDefID] then
 		return 0
 	end
 	return damage
