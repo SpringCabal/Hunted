@@ -50,11 +50,24 @@ local function SpawnField(topX, topZ, botX, botZ, rows, cols)
 	end
 end
 
+function gadget:UnitDestroyed(unitID, unitDefID)
+	if unitDefID ~= carrotDefID and unitDefID ~= dropDefID then
+		return
+	end
+	if Spring.GetUnitRulesParam(unitID, "internalDestroy") then
+		return
+	end
+	
+	local carrotCount = Spring.GetGameRulesParam("carrot_count") or 0
+	Spring.SetGameRulesParam("carrot_count", carrotCount - 1)
+end
+
 function gadget:Initialize()
 	-- Clean up carried carrots as rabbits will not remember that they exist.
 	for _, unitID in ipairs(Spring.GetAllUnits()) do
 		local unitDefID = Spring.GetUnitDefID(unitID)
 		if unitDefID == dropDefID or unitDefID == carrotDefID then
+			Spring.SetUnitRulesParam(unitID, "internalDestroy", 1)
 			Spring.DestroyUnit(unitID, false, false)
 		end
 	end

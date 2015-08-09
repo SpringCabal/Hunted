@@ -16,6 +16,7 @@ local function BeDroppedThread()
 	local droppedID = Spring.CreateUnit(dropDefID, x, y, z, 0, 0, false, false)
 	Spring.SetUnitDirection(droppedID, dx, dy, dz)
 	
+	Spring.SetUnitRulesParam(unitID, "internalDestroy", 1)
 	Spring.DestroyUnit(unitID, false, false)
 end
 

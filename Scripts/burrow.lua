@@ -1,5 +1,5 @@
 
-local SIG_SPAWN = 0
+local SIG_SPAWN = 1
 
 local RABBIT_DEF_ID = UnitDefNames["rabbit"].id
 

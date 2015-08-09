@@ -356,6 +356,12 @@ local function RemoveRabbit(unitID)
 	rabbits[unitID] = nil
 end
 
+local function RabbitFoodDestroyed(unitID)
+	local rabbitData = rabbits[unitID]
+	if rabbitData and rabbitData.foodCarried then
+		rabbitData.foodCarried = 0
+	end
+end
 
 local function SetRabbitMovement(unitID, x, z, goalVec, speedMult, accelMult, turnMult)
 	--Spring.MarkerAddPoint(goalVec[1] + x,0,goalVec[2] + z)
@@ -454,6 +460,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 			if rabbitData.eatingProgress > rabbitData.eatingThingRef.attributes.eatTime then
 				GG.RabbitPickupCarrot(unitID)
 				--Spring.Echo("Destroying", rabbitData.eatingThingRef.unitID, Spring.ValidUnitID(rabbitData.eatingThingRef.unitID))
+				Spring.SetUnitRulesParam(rabbitData.eatingThingRef.unitID, "internalDestroy", 1)
 				Spring.DestroyUnit(rabbitData.eatingThingRef.unitID, false, false)
 				rabbitData.foodCarried = rabbitData.foodCarried + 1
 				rabbitData.boldness = rabbitData.boldness + 150 -- Bonus boldness for being a good theif!
@@ -613,9 +620,14 @@ function gadget:GameFrame(frame)
 end
 
 function gadget:Initialize()
+	GG.RabbitFoodDestroyed = RabbitFoodDestroyed
 	GG.ScareRabbitsInArea = ScareRabbitsInArea
 	for _, unitID in ipairs(Spring.GetAllUnits()) do
 		local unitDefID = Spring.GetUnitDefID(unitID)
-		gadget:UnitCreated(unitID, unitDefID)
+		if rabbitDefID[unitDefID] then
+			Spring.DestroyUnit(unitID, false, false)
+		else
+			gadget:UnitCreated(unitID, unitDefID)
+		end
 	end
 end

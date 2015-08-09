@@ -1,6 +1,6 @@
 local base = piece "base"
 
-local SIG_STEAL = 0
+local SIG_STEAL = 1
 local riseSpeed = 6.5
 local x,y,z
 
@@ -10,7 +10,7 @@ local function StolenThread(progress)
 	while true do
 		Spring.PlaySoundFile("sounds/digitout.wav", 1, x, y, z)
 		Spring.SpawnCEG("flashnuke", x, y, z)
-		Sleep(128)
+		Sleep(500)
 	end
 end
 
