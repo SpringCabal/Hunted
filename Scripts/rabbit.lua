@@ -113,3 +113,12 @@ end
 function script.StopMoving()
 	StartThread(MoveEnded)
 end
+
+function script.Killed()
+		Explode(Body, SFX.EXPLODE_ON_HIT)
+		Explode(BLeg1, SFX.EXPLODE_ON_HIT)
+		Explode(BLeg2, SFX.EXPLODE_ON_HIT)
+		Explode(FLeg1, SFX.EXPLODE_ON_HIT)
+		Explode(FLeg2, SFX.EXPLODE_ON_HIT)
+		return 1   -- spawn ARMSTUMP_DEAD corpse / This is the equivalent of corpsetype = 1; in bos
+end

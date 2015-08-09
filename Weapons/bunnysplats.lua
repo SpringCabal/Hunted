@@ -1,12 +1,12 @@
 --------------------------------------------------------------------------------
 -- These represent both the area of effect and the camerashake amount
-local smallExplosion = 200
+local smallExplosion = 0
 local smallExplosionImpulseFactor = 0
-local mediumExplosion = 400
+local mediumExplosion = 0
 local mediumExplosionImpulseFactor = 0
-local largeExplosion = 600
+local largeExplosion = 0
 local largeExplosionImpulseFactor = 0
-local hugeExplosion = 1000
+local hugeExplosion = 0
 local hugeExplosionImpulseFactor = 0
 
 unitDeaths = {
