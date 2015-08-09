@@ -50,14 +50,14 @@ function widget:Initialize()
     
     
     bindText = { -- keybinds told to player
-        purple .. "Q : " .. white .. "swap pull / push",
-        purple .. "A : " .. white .. "stop shooting",
-        purple .. "W : " .. white .. "jump (+ left mouse)",
-        purple .. "S : " .. white .. "stop shooting & moving",
+        --purple .. "Q : " .. white .. "swap pull / push",
+        --purple .. "A : " .. white .. "stop shooting",
+        --purple .. "W : " .. white .. "jump (+ left mouse)",
+        --purple .. "S : " .. white .. "stop shooting & moving",
     }
     
     mouseText = {
-        purple .. "Right mouse : " .. white .. "move / use gravity gun",
+       -- purple .. "Right mouse : " .. white .. "move / use gravity gun",
     }
 
 
