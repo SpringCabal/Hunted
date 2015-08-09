@@ -1,4 +1,5 @@
-local base = piece "base"
+local base = piece "LightHead"
+local LightPitch = piece "LightPitch"
 
 local color = {0.69, 0.61, 0.85, 0.3}
 local lightRange = 280
@@ -48,7 +49,7 @@ function script.Create()
 	ux,_,uz = Spring.GetUnitPosition(unitID)
 	
 	Move(base, y_axis, 10)
-	Turn(base, x_axis, math.pi*0.5)
+	Turn(LightPitch, x_axis, math.pi*0.5)
 	Turn(base, y_axis, -lightAngle + math.pi/2)
 	local x,z = GetLightCoordinates()
 	
