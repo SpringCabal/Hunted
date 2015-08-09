@@ -107,17 +107,19 @@ end
 function gadget:DrawWorld()
     for mineID, mineTimer in pairs(mineTimers) do
         local x, y, z = Spring.GetUnitPosition(mineID)
-        local fontSize = 38
-        local time = math.ceil(mineTimer / 30)
-        gl.PushMatrix()
-        gl.Translate(x-38/2, y+20, z-38/2)
---        gl.Rotate(90, 1, 0, 0)
-        local txt = tostring(time)
-        gl.Color(1, 0, 0, 1)
-        --gl.Rotate(180, 0, 0, 1)
-        --gl.Scale(-1, 1, 1)
-        gl.Text(txt, 0, 0, fontSize)
-        gl.PopMatrix()
+        if x ~= nil then
+            local fontSize = 38
+            local time = math.ceil(mineTimer / 30)
+            gl.PushMatrix()
+            gl.Translate(x-38/2, y+20, z-38/2)
+    --        gl.Rotate(90, 1, 0, 0)
+            local txt = tostring(time)
+            gl.Color(1, 0, 0, 1)
+            --gl.Rotate(180, 0, 0, 1)
+            --gl.Scale(-1, 1, 1)
+            gl.Text(txt, 0, 0, fontSize)
+            gl.PopMatrix()
+        end
     end
 end
 
