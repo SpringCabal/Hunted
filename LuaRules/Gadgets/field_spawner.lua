@@ -58,6 +58,11 @@ function gadget:UnitDestroyed(unitID, unitDefID)
 		return
 	end
 	
+	if not Spring.GetUnitRulesParam(unitID, "carrotScored") then
+		local destroyed = Spring.GetGameRulesParam("carrots_destroyed")
+		Spring.SetGameRulesParam("carrots_destroyed", destroyed + 1)
+	end
+	
 	local carrotCount = Spring.GetGameRulesParam("carrot_count") or 0
 	Spring.SetGameRulesParam("carrot_count", carrotCount - 1)
 end
@@ -72,6 +77,8 @@ function gadget:Initialize()
 		end
 	end
 	
+	Spring.SetGameRulesParam("carrots_destroyed", 0)
+	Spring.SetGameRulesParam("carrots_stolen", 0)
 	Spring.SetGameRulesParam("carrot_count", 0)
 	GG.SpawnField = SpawnField
 end

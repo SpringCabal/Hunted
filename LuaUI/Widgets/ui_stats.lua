@@ -14,7 +14,7 @@ end
 local carrotDefID = UnitDefNames["carrot"].id
 local rabbitDefID = UnitDefNames["rabbit"].id
 
-local lblRabbits, lblCarrots
+local lblRabbits, lblRabbitsKilled, lblCarrots, lblCarrotsStolen, lblCarrotsDestroyed
 
 function widget:Initialize()
 	if (not WG.Chili) then
@@ -33,9 +33,10 @@ function widget:Initialize()
         parent = screen0,
         font = {
             size = 24,
-        }
+        },
+		caption = "",
     }
-    lblCarrots = Chili.Label:New {
+    lblRabbitsKilled = Chili.Label:New {
         right = 10,
         width = 100,
         y = 45,
@@ -43,20 +44,69 @@ function widget:Initialize()
         parent = screen0,
         font = {
             size = 24,
-        }
+        },
+		caption = "",
+    }
+    lblCarrots = Chili.Label:New {
+        right = 10,
+        width = 100,
+        y = 125,
+        height = 50,
+        parent = screen0,
+        font = {
+            size = 24,
+        },
+		caption = "",
+    }
+    lblCarrotsStolen = Chili.Label:New {
+        right = 10,
+        width = 100,
+        y = 160,
+        height = 50,
+        parent = screen0,
+        font = {
+            size = 24,
+        },
+		caption = "",
+    }
+    lblCarrotsDestroyed = Chili.Label:New {
+        right = 10,
+        width = 100,
+        y = 195,
+        height = 50,
+        parent = screen0,
+        font = {
+            size = 24,
+        },
+		caption = "",
     }
     UpdateRabbits()
     UpdateCarrots()
 end
 
-function widget:UpdateRabbits()
+function UpdateRabbits()
     local rabbitCount = Spring.GetTeamUnitDefCount(Spring.GetMyTeamID(), rabbitDefID)
     lblRabbits:SetCaption("\255\30\144\255Rabbits: " .. rabbitCount .. "\b")
+	
+	local rabbitsKilled = Spring.GetGameRulesParam("rabbits_killed") or 0
+	if rabbitsKilled ~= 0 then
+		lblRabbitsKilled:SetCaption("\255\30\144\255Killed: " .. rabbitsKilled .. "\b")
+	end
 end
 
-function widget:UpdateCarrots()
+function UpdateCarrots()
     local carrotCount = Spring.GetGameRulesParam("carrot_count") or -1
     lblCarrots:SetCaption("\255\255\165\0Carrots: " .. carrotCount .. "\b")
+	
+	local carrotsStolen = Spring.GetGameRulesParam("carrots_stolen") or 0
+	if carrotsStolen ~= 0 then
+		lblCarrotsStolen:SetCaption("\255\255\165\0Stolen: " .. carrotsStolen .. "\b")
+	end
+	
+	local carrotsDestroyed = Spring.GetGameRulesParam("carrots_destroyed") or 0
+	if carrotsDestroyed ~= 0 then
+		lblCarrotsDestroyed:SetCaption("\255\255\165\0Destroyed: " .. carrotsDestroyed .. "\b")
+	end
 end
 
 function widget:GameFrame()

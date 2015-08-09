@@ -71,9 +71,13 @@ end
 local function RabbitScoreCarrot(unitID)
 	local carryID = rabbitCarrying[unitID]
 	if carryID and Spring.ValidUnitID(carryID) then
+		Spring.SetUnitRulesParam(carryID, "carrotScored", 1)
 		Spring.DestroyUnit(carryID, false, false)
 	end
 	rabbitCarrying[unitID] = nil
+	
+	local stolen = Spring.GetGameRulesParam("carrots_stolen")
+	Spring.SetGameRulesParam("carrots_stolen", stolen + 1)
 	Spring.Echo("A Rabbit return a Carrot to their Burrow!!")
 end
 
@@ -88,6 +92,11 @@ function gadget:UnitDestroyed(unitID, unitDefID)
 	
 	local carrotCount = Spring.GetGameRulesParam("carrot_count") or 0
 	Spring.SetGameRulesParam("carrot_count", carrotCount - 1)
+	
+	if not Spring.GetUnitRulesParam(unitID, "carrotScored") then
+		local destroyed = Spring.GetGameRulesParam("carrots_destroyed")
+		Spring.SetGameRulesParam("carrots_destroyed", destroyed + 1)
+	end
 	
 	if GG.RabbitFoodDestroyed then
 		GG.RabbitFoodDestroyed(carrriedCarrotRabbit[unitID])

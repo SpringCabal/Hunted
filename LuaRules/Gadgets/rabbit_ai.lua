@@ -354,6 +354,11 @@ local function RemoveRabbit(unitID)
 		StopStealing(rabbits[unitID])
 	end
 	rabbits[unitID] = nil
+	
+	if not Spring.GetUnitRulesParam(unitID, "internalDestroy") then
+		local killed = Spring.GetGameRulesParam("rabbits_killed")
+		Spring.SetGameRulesParam("rabbits_killed", killed + 1)
+	end
 end
 
 local function RabbitFoodDestroyed(unitID)
@@ -625,9 +630,12 @@ function gadget:Initialize()
 	for _, unitID in ipairs(Spring.GetAllUnits()) do
 		local unitDefID = Spring.GetUnitDefID(unitID)
 		if rabbitDefID[unitDefID] then
+			Spring.SetUnitRulesParam(unitID, "internalDestroy", 1)
 			Spring.DestroyUnit(unitID, false, false)
 		else
 			gadget:UnitCreated(unitID, unitDefID)
 		end
 	end
+	
+	Spring.SetGameRulesParam("rabbits_killed", 0)
 end
