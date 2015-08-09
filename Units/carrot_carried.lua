@@ -14,16 +14,22 @@ local unitDef  =  {
     Upright = 0,
     
 --Pathfinding and related
+    Acceleration = 0.2,
+    BrakeRate = 0.1,
     FootprintX = 1,
     FootprintZ = 1,
     MaxSlope = 15,
+    MaxVelocity = 1,
+    MaxWaterDepth = 20,
+    MovementClass = "Bot2x2",
+    TurnRate = 500,
     
 --Abilities
     Builder = 0,
     CanAttack = 1,
     CanGuard = 0,
-    CanMove = 0,
-    CanPatrol = 0,
+    CanMove = 1,
+    CanPatrol = 1,
     CanStop = 1,
     LeaveTracks = 0,
     Reclaimable = 0,

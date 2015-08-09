@@ -12,7 +12,13 @@ local unitDef  =  {
     RadarDistance = 0,
     SightDistance = 400,
     Upright = 0,
-    
+	
+-- Transporting
+	releaseHeld = true,
+	holdSteady = true,
+	transportCapacity = 10,
+	transportSize = 10,
+	
 --Pathfinding and related
     Acceleration = 0.2,
     BrakeRate = 0.1,

@@ -24,7 +24,8 @@ end
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 local nonBlockingUnitDefID = {
-	[UnitDefNames["carrot"].id] = true,
+	[UnitDefNames["carrot_dropped"].id] = true,
+	[UnitDefNames["carrot_carried"].id] = true,
 	[UnitDefNames["burrow"].id] = true,
 }
 

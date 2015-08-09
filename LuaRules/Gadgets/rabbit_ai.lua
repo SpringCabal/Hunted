@@ -115,7 +115,7 @@ local desirableUnits = {}
 local rabbits = {}
 
 -- Rabbit AI is created by taking into account only the closest scary and desirable thing.
- 
+
 -------------------------------------------------------------------
 -------------------------------------------------------------------
 -- 2D Vector Functions
@@ -198,7 +198,7 @@ end
 
 function GiveClampedOrderToUnit(unitID, cmdID, params, options)
 	local x, z = ClampPosition(params[1], params[3])
-	Spring.SetUnitMoveGoal(unitID, x, params[2], z, 8, nil, true) -- The last argument is whether the goal is raw
+	Spring.SetUnitMoveGoal(unitID, x, params[2], z, 16, nil, true) -- The last argument is whether the goal is raw
 	--Spring.GiveOrderToUnit(unitID, cmdID, {x, params[2], z}, options)
 	return true
 end
@@ -272,7 +272,7 @@ local function StartStealing(rabbitData, thingRef)
 	
 	rabbitData.eatingProgress = thingRef.carryoverEatProgress or 0
 	rabbitData.eatingThingRef = thingRef
-	Spring.Echo(rabbitData.eatingProgress)
+	
 	local env = Spring.UnitScript.GetScriptEnv(thingRef.unitID)
 	if env and env.StartBeingStolen then
 		Spring.UnitScript.CallAsUnit(thingRef.unitID, env.StartBeingStolen, rabbitData.eatingProgress)
@@ -291,6 +291,8 @@ local function StopStealing(rabbitData)
 	if thingRef.attributes.eatTimeReduces then
 		thingRef.carryoverEatProgress = rabbitData.eatingProgress
 	end
+	thingRef.inactive = false
+	thingRef.eater = nil
 	
 	local env = Spring.UnitScript.GetScriptEnv(thingRef.unitID)
 	if env and env.StopBeingStolen then
@@ -298,8 +300,6 @@ local function StopStealing(rabbitData)
 	end
 	
 	rabbitData.eatingProgress = false
-	thingRef.inactive = false
-	thingRef.eater = nil
 	rabbitData.eatingThingRef = nil
 end
 
@@ -441,7 +441,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 			rabbitData.eatingProgress = rabbitData.eatingProgress + updateGap
 			if rabbitData.eatingProgress > rabbitData.eatingThingRef.attributes.eatTime then
 				GG.RabbitPickupCarrot(unitID)
-				Spring.DestroyUnit(rabbitData.eatingThingRef.unitID)
+				Spring.DestroyUnit(rabbitData.eatingThingRef.unitID, false, false)
 				rabbitData.foodCarried = rabbitData.foodCarried + 1
 				StopStealing(rabbitData)
 			else

@@ -16,12 +16,38 @@ function gadget:GetInfo()
 	}
 end
 
-local function RabbitPickupCarrot(unitID)
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
+local carryDefID = UnitDefNames["carrot_carried"].id
+local dropDefID = UnitDefNames["carrot_dropped"].id
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+local rabbitCarrying = {}
+
+local function RabbitPickupCarrot(unitID)
+	local _,_,_,x,y,z = Spring.GetUnitPosition(unitID, true)
+	
+	local carryID = Spring.CreateUnit(carryDefID, x, y, z, 0, 0, false, false)
+
+	rabbitCarrying[unitID] = carryID
+	
+	local env = Spring.UnitScript.GetScriptEnv(unitID)
+	if env and env.AttachCarrot then
+		Spring.UnitScript.CallAsUnit(unitID, env.AttachCarrot, carryID)
+	end
 end
 
 local function RabbitDropCarrot(unitID)
+	local carryID = rabbitCarrying[unitID]
+	
+	Spring.DestroyUnit(carryID, false, false)
+	local _,_,_,x,y,z = Spring.GetUnitPosition(unitID, true)
+	Spring.CreateUnit(dropDefID, x, y, z, 0, 0, false, false)
 
+	rabbitCarrying[unitID] = nil
 end
 
 function gadget:Initialize()
