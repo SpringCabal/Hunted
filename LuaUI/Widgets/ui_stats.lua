@@ -99,11 +99,17 @@ local function UpdateAmmo()
     lblMine:SetCaption("\255\255\255\0Mines: " .. mineAmmo .. "\b")
 end
 
+function UpdateFlash()
+    local value = math.floor(Spring.GetGameRulesParam("flare_progress"))
+    pbFlash:SetValue(value)
+end
+
 function widget:GameFrame()
     UpdateRabbits()
     UpdateCarrots()
 	UpdateScores()
 	UpdateAmmo()
+    UpdateFlash()
 end
 
 --------------------------------------------------------------------------------
@@ -197,7 +203,27 @@ function widget:Initialize()
         },
 		caption = "",
     }
-	
+
+    lblFlash = Chili.Label:New {
+        right = "45%",
+        width = "10%",
+        bottom = 30,
+        height = 50,
+        parent = screen0,
+        font = {
+            size = 20,
+        },
+        align = "center",
+		caption = "\255\147\112\219Flash\b",
+    }
+    pbFlash = Chili.Progressbar:New {
+        value = 0,
+        right = "45%",
+        width = "10%",
+        bottom = 20,
+        height = 30,
+        parent = screen0,
+    }
     lblShotgun = Chili.Label:New {
         x = 10,
         width = 100,
@@ -222,6 +248,7 @@ function widget:Initialize()
         },
 		caption = "",
     }
+
 	
     UpdateRabbits()
     UpdateCarrots()
