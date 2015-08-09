@@ -8,7 +8,7 @@ local function Sound()
 	SetSignalMask(SIG_STEAL)
 	while true do
 		if math.random() < 0.7 then
-			Spring.PlaySoundFile("sounds/digitout.wav", 10, x, y, z)
+			Spring.PlaySoundFile("sounds/digitout.wav", 4, x, y, z)
 		end
 		Sleep(600)
 	end
