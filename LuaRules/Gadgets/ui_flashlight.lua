@@ -84,15 +84,24 @@ function RemoveFlashlight(id)
     flashlights[id] = nil
 end
 
--- SYNCED API
-GG.Flashlight = {
-    Create = CreateFlashlight,
-    Update = UpdateFlashlight,
-    Remove = RemoveFlashlight,
-}
+function _CreateFlashlight(_, ...) CreateFlashlight(...) end
+function _UpdateFlashlight(_, ...) UpdateFlashlight(...) end
+function _RemoveFlashlight(_, ...) RemoveFlashlight(...) end
+
+function gadget:Initialize()
+    gadgetHandler:AddSyncAction("CreateFlashlight", _CreateFlashlight)
+    gadgetHandler:AddSyncAction("UpdateFlashlight", _UpdateFlashlight)
+    gadgetHandler:AddSyncAction("RemoveFlashlight", _RemoveFlashlight)
+end
+
 -- direct access is also available in UNSYNCED (useful for shaders)
 GG.flashlights = flashlights
 
 else
-    -- no synced API for now
+    -- SYNCED API
+    GG.Flashlight = {
+        Create = function(...) SendToUnsynced("CreateFlashlight", ...) end,
+        Update = function(...) SendToUnsynced("UpdateFlashlight", ...) end,
+        Remove = function(...) SendToUnsynced("RemoveFlashlight", ...) end,
+    }
 end
