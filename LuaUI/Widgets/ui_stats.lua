@@ -42,7 +42,6 @@ local function UpdateRabbits()
 	
 	if newKilled > 0 then
 		local frame = Spring.GetGameFrame()
-		Spring.Echo(frame, streakFrame)
 		if not streakFrame or (frame - streakFrame) > 120 then
 			streakKilled = 0
 		end
