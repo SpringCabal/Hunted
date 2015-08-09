@@ -446,7 +446,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 				rabbitData.foodCarried = rabbitData.foodCarried + 1
 				StopStealing(rabbitData)
 			else
-				SetRabbitMovement(unitID, x, z, {rabbitData.eatingThingRef.x - x, rabbitData.eatingThingRef.z - z}, 0.05, 1)
+				SetRabbitMovement(unitID, x, z, {rabbitData.eatingThingRef.x - x, rabbitData.eatingThingRef.z - z}, 0.01, 0.2)
 				return
 			end
 		end
@@ -494,7 +494,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	if goalRef and goalMag and goalMag < 60 and goalRef.attributes.isEdible and 
 			(not rabbitData.eatingProgress) and rabbitData.foodCarried == 0 and (not rabbitData.panicMode) then
 		StartStealing(rabbitData, goalRef)
-		SetRabbitMovement(unitID, x, z, {gX - x, gZ - z}, 0.05, 1)
+		SetRabbitMovement(unitID, x, z, {gX - x, gZ - z}, 0.01, 0.2)
 		return
 	end
 	
