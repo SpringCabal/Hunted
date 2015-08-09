@@ -5,7 +5,7 @@ function widget:GetInfo()
 		author	= "Google Frog",
 		date	= "8 August 2015",
 		license	= "GNU GPL, v2 or later",
-		layer	= 0,
+		layer	= 20, -- Placed after other click stealing widgets (eg structure placer)
 		enabled = true
 	}
 end

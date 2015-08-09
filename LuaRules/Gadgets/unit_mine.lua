@@ -12,14 +12,14 @@ end
 
 local LOG_SECTION = "mine"
 local LOG_LEVEL = LOG.DEBUG
-local triggerRadius = 150
-local explosionRadius = 250
+local triggerRadius = 80
+local explosionRadius = 100
 local mineDefID = UnitDefNames["mine"].id
 local rabbitDefId = UnitDefNames["rabbit"].id
 
 local scareAttributes = {
-	radius = 500,
-	radiusSq = 500^2,
+	radius = 250,
+	radiusSq = 250^2,
 	edgeMagnitude = 50,
 	proximityMagnitude = 500,
 }
