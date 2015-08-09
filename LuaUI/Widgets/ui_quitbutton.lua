@@ -7,7 +7,7 @@ function widget:GetInfo()
 		date    = 'April, 2015',
 		license = 'Horses',
         layer = 0,
-		enabled = true,
+		enabled = false,
 	}
 end
 
@@ -28,17 +28,17 @@ function widget:Initialize()
 	Chili = WG.Chili
     Screen0 = Chili.Screen0
     
-    quitButton = Chili.Button:New{
-		caption   = "Quit",
-		padding   = {0,0,0,0},
-		margin    = {0,0,0,0},
-		OnClick = {function() Spring.SendCommands("quitforce")end },
-        font = {
-            size = 14,
-        },
-        parent = Chili.Screen0,
-		--backgroundColor = black,
-	}
+    --quitButton = Chili.Button:New{
+	--	caption   = "Quit",
+	--	padding   = {0,0,0,0},
+	--	margin    = {0,0,0,0},
+	--	OnClick = {function() Spring.SendCommands("quitforce")end },
+    --    font = {
+    --        size = 14,
+    --    },
+    --    parent = Chili.Screen0,
+	--	--backgroundColor = black,
+	--}
     
     local vsx,vsy = Spring.GetViewGeometry()
     resizeUI(vsx,vsy)

@@ -2,8 +2,8 @@ local lighthead = piece "LightHead"
 local lightpitch = piece "LightPitch"
 
 local color = {0.69, 0.61, 0.85, 0.3}
-local lightRange = 280
-local lightRadius = 200
+local lightRange = 300
+local lightRadius = 250
 local rotationSpeed = 2*math.pi/(250)
  
  
@@ -11,7 +11,7 @@ local torchAttributes = {
 	radius = 250,
 	radiusSq = 250^2,
 	edgeMagnitude = 0.1,
-	proximityMagnitude = 2.2,
+	proximityMagnitude = 1.6,
 }
  
 local ux, uz, lightAngle, torchScaryArea

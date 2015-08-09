@@ -22,15 +22,11 @@ function SetBindings()
     local binds = { --real keybinds
         
         "Any+pause  pause",
-        -- space pause (widget)
         
         "Alt+b  debug",
         "Alt+v  debugcolvol",
 
-        "a canceltarget",
-        "s stop",
-        "w jump",
-        "q onoff",         
+		"ctrl+q quitforce",
     }
 
     for _,binding in pairs(binds) do
@@ -57,8 +53,9 @@ function widget:Initialize()
     }
     
     mouseText = {
-        purple .. "Left click: " .. white .. "shoot",
-        purple .. "Right click : " .. white .. "throw grenades",
+        purple .. "Left click: " .. white .. "Shoot",
+        purple .. "Right click : " .. white .. "Place Mines",
+        purple .. "Ctrl+Q : " .. white .. "Quit",
     }
 
 

@@ -425,7 +425,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	end
 	
 	-- Panic mode causes a rabbit to run away from a scary location until it calms down.
-	if rabbitData.panicMode and (scaryMag + 100*global_rabbitPanicResist > rabbitData.fear or scaryMag > 100*global_rabbitPanicResist) then
+	if rabbitData.panicMode and (scaryMag + 80*global_rabbitPanicResist > rabbitData.fear or scaryMag > 80*global_rabbitPanicResist) then
 		rabbitData.panicMode = {
 			x = sX,
 			z = sZ,
@@ -471,9 +471,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 
 	-- High scaryMag means that something scary is happening right now!
 	-- (Suddden blast or near center of a torch)
-	if scaryMag > 0.9 then
-		speedMult = speedMult*2
-	end
+	speedMult = speedMult*math.max(1, math.min(2, (scaryMag - 0.7)*2))
 	
 	rabbitData.stamina = (rabbitData.stamina - ((speedMult)^0.2)*updateGap + 1.3*updateGap)*STAMINA_DECAY^updateGap
 	

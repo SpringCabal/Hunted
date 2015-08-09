@@ -27,6 +27,10 @@ end
 local carrotDefID = UnitDefNames["carrot"].id
 local dropDefID = UnitDefNames["carrot_dropped"].id
 
+local fields = {}
+local carrotSpot = {}
+local fieldCount = 0
+
 -- Fields are manually placed groups of carrots. They need to span the whole
 -- map to attract rabbits.
 local desirableFieldAttributes = {
@@ -48,7 +52,12 @@ local function SpawnField(topX, topZ, botX, botZ, rows, cols)
 	local midX = (topX + botX)/2
 	local midZ = (topZ + botZ)/2
 	
-	GG.AddDesirableArea({x = midX, z = midZ, attributes = desirableFieldAttributes})
+	fieldCount = fieldCount + 1
+	fields[fieldCount] = {
+		carrots = {}, 
+		carrotCount = rows*cols,
+		area = GG.AddDesirableArea({x = midX, z = midZ, attributes = desirableFieldAttributes})
+	}
 	
 	local carrotCount = Spring.GetGameRulesParam("carrot_count") or 0
 	Spring.SetGameRulesParam("carrot_count", carrotCount + rows*cols)
@@ -59,6 +68,7 @@ local function SpawnField(topX, topZ, botX, botZ, rows, cols)
 			local carrotID = Spring.CreateUnit(carrotDefID, x, 0, z, 0, 0, false, false)
 			Spring.SetUnitRotation(carrotID, 0, math.random()*2*math.pi, 0)
 			x = x + colSpace
+			carrotSpot[carrotID] = fieldCount
 		end
 		z = z + rowSpace
 		x = topX
@@ -76,6 +86,18 @@ function gadget:UnitDestroyed(unitID, unitDefID)
 	if not Spring.GetUnitRulesParam(unitID, "carrotScored") then
 		local destroyed = Spring.GetGameRulesParam("carrots_destroyed")
 		Spring.SetGameRulesParam("carrots_destroyed", destroyed + 1)
+	end
+	
+	local fieldIndex = carrotSpot[unitID]
+	if fieldIndex and fields[fieldIndex] then
+		fields[fieldIndex].carrots = fields[fieldIndex].carrots - 1
+		Spring.Echo("fields[fieldIndex].carrots", fields[fieldIndex].carrots)
+		if fields[fieldIndex].carrots < 1 then
+			Spring.Echo("RemoveDesirableArea")
+			GG.RemoveDesirableArea(fields[fieldIndex].area)
+			fields[fieldIndex] = nil
+		end
+		carrotSpot[unitID] = nil
 	end
 	
 	local carrotCount = Spring.GetGameRulesParam("carrot_count") or 0

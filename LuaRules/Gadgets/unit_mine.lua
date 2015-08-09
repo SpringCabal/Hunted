@@ -15,15 +15,15 @@ local LOG_LEVEL = LOG.DEBUG
 local triggerRadius = 80
 local explosionRadius = 100
 local mineDefID = UnitDefNames["mine"].id
+local mineWeaponDefID = WeaponDefNames["mineexplode"].id
 local rabbitDefId = UnitDefNames["rabbit"].id
 
 local scareAttributes = {
 	radius = 250,
 	radiusSq = 250^2,
-	edgeMagnitude = 50,
-	proximityMagnitude = 500,
+	edgeMagnitude = 0,
+	proximityMagnitude = 400,
 }
-
 
 if (gadgetHandler:IsSyncedCode()) then
 
@@ -60,17 +60,22 @@ function gadget:UnitCreated(unitID, unitDefID)
     end
 end
 
+function gadget:Explosion(weaponID, px, py, pz, ownerID)
+	if mineWeaponDefID == weaponID then
+		GG.ScareRabbitsInArea(px, pz, scareAttributes)
+	end
+end
+
 function gadget:UnitDestroyed(unitID, unitDefID, unitTeam, attackerID, attackerDefID, attackerTeam)
 	if mines[unitID] then
 		SendToUnsynced("RemoveMineTimer", unitID) 
-		local x, y, z = Spring.GetUnitPosition(unitID)
-		GG.ScareRabbitsInArea(x, z, scareAttributes)
 		mines[unitID] = nil
 	end
 end
 
 function gadget:Initialize()
-    -- handle luarules reload
+    Script.SetWatchWeapon( mineWeaponDefID, true)
+	-- handle luarules reload
     local currentFrame = Spring.GetGameFrame()
 	for _, unitID in pairs(Spring.GetAllUnits()) do
 		gadget:UnitCreated(unitID, Spring.GetUnitDefID(unitID), Spring.GetUnitTeam(unitID))

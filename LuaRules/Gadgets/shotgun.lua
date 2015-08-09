@@ -44,15 +44,15 @@ end
 local shotgunAttributes = {
 	radius = 300,
 	radiusSq = 300^2,
-	edgeMagnitude = 50,
-	proximityMagnitude = 300,
+	edgeMagnitude = 0,
+	proximityMagnitude = 150,
 }
 
 local torchAttributes = {
 	radius = 200,
 	radiusSq = 200^2,
 	edgeMagnitude = 0.1,
-	proximityMagnitude = 3,
+	proximityMagnitude = 1.8,
 }
 
 -------------------------------------------------------------------
