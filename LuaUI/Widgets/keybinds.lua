@@ -57,7 +57,8 @@ function widget:Initialize()
     }
     
     mouseText = {
-       -- purple .. "Right mouse : " .. white .. "move / use gravity gun",
+        purple .. "Left click: " .. white .. "shoot",
+        purple .. "Right click : " .. white .. "throw grenades",
     }
 
 
