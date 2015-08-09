@@ -108,6 +108,7 @@ function script.StopMoving()
 end
 
 function script.Killed()
+	
 		Explode(Body, SFX.EXPLODE_ON_HIT)
 		Explode(BLeg1, SFX.EXPLODE_ON_HIT)
 		Explode(BLeg2, SFX.EXPLODE_ON_HIT)
@@ -115,5 +116,10 @@ function script.Killed()
 		Explode(FLeg2, SFX.EXPLODE_ON_HIT)
 		local ux, uy, uz = Spring.GetUnitPosition(unitID)
 		Spring.PlaySoundFile("sounds/splat1.wav", 100, ux, uy, uz)
+		if maRa()==true and maRa()==true  then
+		teamid=Spring.GetUnitTeam(unitID)
+		id=Spring.CreateUnit("blooddecal",ux,uy,uz,1,teamid)
+		Spring.DestroyUnit(id,true,true)
+		end
 		return 1   -- spawn ARMSTUMP_DEAD corpse / This is the equivalent of corpsetype = 1; in bos
 end
