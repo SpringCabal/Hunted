@@ -17,6 +17,7 @@ if not Script.GetSynced() then
 
 VFS.Include("LuaUI/widgets/glVolumes.lua")
 
+flashlightIDCount = 1
 flashlights = {}
 
 local GUN_FLASHLIGHT_SIZE = 150
@@ -55,8 +56,9 @@ end
 -- (optional) size
 -- (optional) color is an array in format {r, g, b, a}
 function CreateFlashlight(x, z, size, color)
-    local id = #flashlights + 1
+    local id = flashlightIDCount
     flashlights[id] = {}
+    flashlightIDCount = flashlightIDCount + 1
     UpdateFlashlight(id, x, z, size, color)
     return id
 end
