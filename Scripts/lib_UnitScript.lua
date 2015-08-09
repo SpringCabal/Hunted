@@ -1346,9 +1346,9 @@ intCases[i][3]=false
 end
 -----------------------------------------
 function turnSyncInTimeTable(Table, time)
-for piece,v in pairs(Table) do
-turnInTime(piece, v.axis,math.rad(v.deg), time, false)
-end
+	for piece,v in pairs(Table) do
+	turnInTime(v.piecenr, v.axis,math.rad(v.deg), time, false)
+	end
 
 end
 
@@ -1357,7 +1357,8 @@ end
 -->Turns a piece in the speed necessary to arrive after x Milliseconds
 function turnInTime(piecename,axis,degree,timeInMs,boolWait)
 timeInMs=timeInMs/1000
-Speed=degree/timeInMs
+Speed=math.abs(degree)/timeInMs
+
 if degree < 180 or degree < -180 then
 Turn(piecename,axis,math.rad(degree),Speed)
 if boolWait==true then WaitForTurn(piecename,axis) end
@@ -1366,9 +1367,9 @@ if boolWait==true then WaitForTurn(piecename,axis) end
 	m=1
 	if degree < 0 then m=-1 end
 	Turn(piecename,axis,math.rad(179*m),Speed)
-	if boolWait==true then WaitForTurn(piecename,axis) end
+		if boolWait==true then WaitForTurn(piecename,axis) end
 	Turn(piecename,axis,math.rad(degree),Speed)
-	if boolWait==true then WaitForTurn(piecename,axis) end
+		if boolWait==true then WaitForTurn(piecename,axis) end
 	end
 end
 -->Packs Values into Pairs
