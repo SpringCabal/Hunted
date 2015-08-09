@@ -37,8 +37,8 @@ local currentDifficult = 1
 local waveAtt = {
 	burrows = 5,
 	rabbitCount = 25,
-	familySize = {2, 2},
-	familyGap = {12, 10},
+	familySize = {2, 1.5},
+	familyGap = {20, 30},
 }
 
 --------------------------------------------------------------------------------
@@ -112,8 +112,8 @@ function gadget:GameFrame(frame)
 			waveAtt.familySize,
 			waveAtt.familyGap
 		)
-		waveAtt.burrows = math.ceil(waveAtt.burrows*1.1)
-		waveAtt.rabbitCount = math.ceil(waveAtt.rabbitCount*1.1)
+		waveAtt.burrows = math.ceil(waveAtt.burrows*1.2)
+		waveAtt.rabbitCount = math.ceil(waveAtt.rabbitCount*1.2)
 		waveAtt.familySize = {
 			waveAtt.familySize[1],
 			waveAtt.familySize[2]

@@ -32,11 +32,8 @@ local function UpdateRabbits()
     lblRabbits:SetCaption("\255\30\144\255Rabbits: " .. rabbitCount .. "\b")
 	
 	local rabbitsKilled = Spring.GetGameRulesParam("rabbits_killed") or 0
-	if rabbitsKilled ~= 0 then
-		lblRabbitsKilled:SetCaption("\255\30\144\255Killed: " .. rabbitsKilled .. "\b")
-    else
-        lblRabbitsKilled:SetCaption("")
-    end
+	lblRabbitsKilled:SetCaption("\255\30\144\255Kills: " .. rabbitsKilled .. "\b")
+	
 	local newKilled = lastKilled and (rabbitsKilled - lastKilled) or 0
 	lastKilled = rabbitsKilled
 	
@@ -47,16 +44,16 @@ local function UpdateRabbits()
 		end
 		streakFrame = frame
 		local newStreakKilled = streakKilled + newKilled
-		if newStreakKilled >= 20 and streakKilled < 20 then
+		if newStreakKilled >= 35 and streakKilled < 35 then
 			Spring.PlaySoundFile("sounds/godlike.ogg", 20)
 			WG.AddEvent("GODLIKE!", 100, {1, 0 , 0, 1})
-		elseif newStreakKilled >= 15 and streakKilled < 15 then
+		elseif newStreakKilled >= 20 and streakKilled < 20 then
 			Spring.PlaySoundFile("sounds/monsterkill.ogg", 20)
 			WG.AddEvent("MonsterKill!!!", 80, {1, 0 , 0, 1})
-		elseif newStreakKilled >= 8 and streakKilled < 8 then
+		elseif newStreakKilled >= 12 and streakKilled < 12 then
 			Spring.PlaySoundFile("sounds/ultrakill.ogg", 20)
 			WG.AddEvent("UltraKill!", 60, {1, 0 , 0, 1})
-		elseif newStreakKilled >= 3 and streakKilled < 3 then
+		elseif newStreakKilled >= 5 and streakKilled < 5 then
 			Spring.PlaySoundFile("sounds/killstreak.ogg", 20)
 			WG.AddEvent("Killing Streak!", 40, {1, 0 , 0, 1})
 		end
@@ -67,20 +64,6 @@ end
 local function UpdateCarrots()
     local carrotCount = Spring.GetGameRulesParam("carrot_count") or -1
     lblCarrots:SetCaption("\255\255\165\0Carrots: " .. carrotCount .. "\b")
-	
-	local carrotsStolen = Spring.GetGameRulesParam("carrots_stolen") or 0
-	if carrotsStolen ~= 0 then
-		lblCarrotsStolen:SetCaption("\255\255\165\0Stolen: " .. carrotsStolen .. "\b")
-    else
-        lblCarrotsStolen:SetCaption("")
-    end
-	
-	local carrotsDestroyed = Spring.GetGameRulesParam("carrots_destroyed") or 0
-	if carrotsDestroyed ~= 0 then
-		lblCarrotsDestroyed:SetCaption("\255\255\165\0Destroyed: " .. carrotsDestroyed .. "\b")
-    else
-        lblCarrotsDestroyed:SetCaption("")
-    end
 end
 
 local function UpdateScores()
@@ -93,7 +76,7 @@ end
 
 local function UpdateAmmo()
     local shotgunAmmo = math.floor(Spring.GetGameRulesParam("shotgun_ammo") or 0)
-    lblShotgun:SetCaption("\255\255\255\0Shotgun Shells: " .. shotgunAmmo .. "\b")
+    lblShotgun:SetCaption("\255\255\255\0Ammo: " .. shotgunAmmo .. "\b")
 	
     local mineAmmo = math.floor(Spring.GetGameRulesParam("mine_ammo") or 0)
     lblMine:SetCaption("\255\255\255\0Mines: " .. mineAmmo .. "\b")
@@ -125,6 +108,8 @@ function widget:Initialize()
 	Chili = WG.Chili
 	screen0 = Chili.Screen0
 	
+	local screenWidth, screenHeight = Spring.GetWindowGeometry()
+	
     lblRabbits = Chili.Label:New {
         right = 10,
         width = 100,
@@ -148,35 +133,14 @@ function widget:Initialize()
 		caption = "",
     }
     lblCarrots = Chili.Label:New {
-        right = 10,
+        x = screenWidth/2 - 60,
         width = 100,
-        y = 125,
+        y = 10,
         height = 50,
+		align = "left",
         parent = screen0,
         font = {
-            size = 24,
-        },
-		caption = "",
-    }
-    lblCarrotsStolen = Chili.Label:New {
-        right = 10,
-        width = 100,
-        y = 160,
-        height = 50,
-        parent = screen0,
-        font = {
-            size = 24,
-        },
-		caption = "",
-    }
-    lblCarrotsDestroyed = Chili.Label:New {
-        right = 10,
-        width = 100,
-        y = 195,
-        height = 50,
-        parent = screen0,
-        font = {
-            size = 24,
+            size = 32,
         },
 		caption = "",
     }
@@ -184,7 +148,7 @@ function widget:Initialize()
     lblScore = Chili.Label:New {
         right = 10,
         width = 100,
-        y = 250,
+        bottom = 45,
         height = 50,
         parent = screen0,
         font = {
@@ -195,7 +159,7 @@ function widget:Initialize()
     lblSuurvivalTime = Chili.Label:New {
         right = 10,
         width = 100,
-        y = 285,
+        bottom = 10,
         height = 50,
         parent = screen0,
         font = {
@@ -253,5 +217,6 @@ function widget:Initialize()
     UpdateRabbits()
     UpdateCarrots()
 	UpdateScores()
-
+	UpdateAmmo()
+    UpdateFlash()
 end

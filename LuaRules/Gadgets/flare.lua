@@ -18,13 +18,14 @@ end
 
 
 local FLARE_DURATION = 6 -- in seconds
-local KILLS_REQUIRED = 50
+local killsRequired = 50
 
 --SYNCED
 if gadgetHandler:IsSyncedCode() then
 
 local previousky_killed = 0
 local state = "charging"
+local firstActive = true
 local progress = 0
 local active_time = 0
 local rabbits_killed
@@ -50,14 +51,24 @@ end
 function gadget:GameFrame()
     if state == "charging" then
         rabbits_killed = Spring.GetGameRulesParam("rabbits_killed")
-        SetChargingProgress((rabbits_killed - previousky_killed) * 100 / KILLS_REQUIRED)
+        SetChargingProgress((rabbits_killed - previousky_killed) * 100 / killsRequired)
     else
+		if firstActive then
+			local count = Spring.GetGameRulesParam("mine_ammo")
+			Spring.SetGameRulesParam("mine_ammo", count + 5)
+			firstActive = false
+		end
+	
         active_time = active_time - 1
         if active_time <= 0 then
             rabbits_killed = Spring.GetGameRulesParam("rabbits_killed")
             previousky_killed = rabbits_killed
             SetState("charging")
-            SetChargingProgress((rabbits_killed - previousky_killed) * 100 / KILLS_REQUIRED)
+			
+			firstActive = true
+			killsRequired = killsRequired + 10
+			
+            SetChargingProgress((rabbits_killed - previousky_killed) * 100 / killsRequired)
         end
     end
 end

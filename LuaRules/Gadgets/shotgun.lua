@@ -57,9 +57,8 @@ local torchAttributes = {
 	thingType = 2, -- torch
 }
 
-local torchRadius = 200
 local torchEdge = 0.1
-local torchProximity = 1.8
+local torchProx = 1.8
 
 -------------------------------------------------------------------
 -- Spawning Projectiles
@@ -131,8 +130,13 @@ local function MoveShotgun(x, y, z)
 	
 	torchScaryArea.x = x
 	torchScaryArea.z = z
+	
+	-- Prevent torch from being used at the map edge
+	local distance = math.sqrt((x - 3072)^2 + (z - 3072)^2)
+	local mult = math.max(0, math.min(1, (3100 - distance)/300))
+	torchAttributes.edgeMagnitude = mult*torchEdge
+	torchAttributes.proximityMagnitude = mult*torchProx
 end
-
 
 function gadget:UnitCreated(unitID, unitDefID, unitTeam)
 	if unitDefID == shotgunDefId then

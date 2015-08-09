@@ -298,29 +298,6 @@ function drawPause()
 	
 	glPopMatrix()
 	
-	
-	--draw logo
-	glPushMatrix()
-	glColor(  iconColor )
-	glTexture( ":n:" .. windowIconPath )
-	glTranslate(-winSizeX*(usedSizeMultiplier-1)/2,  -winSizeY*(usedSizeMultiplier-1)/2, 0)
-	glScale(usedSizeMultiplier,usedSizeMultiplier,1)
-	
-	if ( diffPauseTime <= slideTime ) then
-		--we are sliding
-		if ( paused ) then
-			--sliding in
-			glTranslate( 0,  (( yCenter + imgWidthHalf ) / usedSizeMultiplier) * ( 1 - ( diffPauseTime / slideTime ) ), 0)
-		else
-			--sliding out
-			glTranslate( 0, ( (yCenter + imgWidthHalf ) / usedSizeMultiplier) * ( diffPauseTime / slideTime ), 0)
-		end
-	elseif (autoFade or forceHideWindow) and not autoFadeTimestamp then
-		autoFadeTimestamp = osClock()
-	end
-	
-	glTexRect( xCut - imgWidthHalf, yCenter + imgWidthHalf, xCut + imgWidthHalf, yCenter - imgWidthHalf, 0.0, 0.0, imgTexCoordX, imgTexCoordY )
-	glPopMatrix()
 	ResetGl()
 end
 
@@ -334,7 +311,7 @@ function updateWindowCoords()
 	wndX2 = screenCenterX + boxWidth
 	wndY2 = screenCenterY - boxHeight
 
-	textX = wndX1 + ( wndX2 - wndX1 ) * 0.33
+	textX = wndX1 + ( wndX2 - wndX1 ) * 0.27
 	textY = wndY2 + ( wndY1 - wndY2 ) * 0.4
 	lineOffset = ( wndY1 - wndY2 ) * 0.32
 	

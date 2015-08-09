@@ -23,8 +23,8 @@ function SetBindings()
         
         "Any+pause  pause",
         
-        "Alt+b  debug",
-        "Alt+v  debugcolvol",
+        --"Alt+b  debug",
+        --"--Alt+v  debugcolvol",
 
 		"ctrl+q quitforce",
     }
@@ -55,6 +55,7 @@ function widget:Initialize()
     mouseText = {
         purple .. "Left click: " .. white .. "Shoot",
         purple .. "Right click : " .. white .. "Place Mines",
+        purple .. "Space : " .. white .. "Pause",
         purple .. "Ctrl+Q : " .. white .. "Quit",
     }
 

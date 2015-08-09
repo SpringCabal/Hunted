@@ -28,7 +28,7 @@ local function DrawUnit(unitid, material, materialID)
             local dz = math.abs(z - fz)
             local d = math.sqrt(dx * dx + dz * dz)
 
-            local d1 = math.max(d - fsize / 2, 0)
+            local d1 = math.max(d - 1.1*fsize / 2, 0)
 --             local d2 = math.max(d - fsize, 0)
 
             local distance = d1
