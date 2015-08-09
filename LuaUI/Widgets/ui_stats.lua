@@ -14,7 +14,7 @@ end
 local carrotDefID = UnitDefNames["carrot"].id
 local rabbitDefID = UnitDefNames["rabbit"].id
 
-local lblRabbits, lblRabbitsKilled, lblCarrots, lblCarrotsStolen, lblCarrotsDestroyed
+local lblRabbits, lblRabbitsKilled, lblCarrots, lblCarrotsStolen, lblCarrotsDestroyed, lblScore, lblSuurvivalTime
 
 function widget:Initialize()
 	if (not WG.Chili) then
@@ -80,6 +80,29 @@ function widget:Initialize()
         },
 		caption = "",
     }
+	
+    lblScore = Chili.Label:New {
+        right = 10,
+        width = 100,
+        y = 250,
+        height = 50,
+        parent = screen0,
+        font = {
+            size = 24,
+        },
+		caption = "",
+    }
+    lblSuurvivalTime = Chili.Label:New {
+        right = 10,
+        width = 100,
+        y = 285,
+        height = 50,
+        parent = screen0,
+        font = {
+            size = 24,
+        },
+		caption = "",
+    }
     UpdateRabbits()
     UpdateCarrots()
 end
@@ -115,9 +138,18 @@ function UpdateCarrots()
     end
 end
 
+function UpdateScores()
+    local score = Spring.GetGameRulesParam("score") or 0
+    lblScore:SetCaption("\255\255\255\0Score: " .. score .. "\b")
+	
+    local surivalTime = Spring.GetGameRulesParam("survivalTime") or 0
+    lblSuurvivalTime:SetCaption("\255\255\255\0Time: " .. surivalTime .. "\b")
+end
+
 function widget:GameFrame()
     UpdateRabbits()
     UpdateCarrots()
+	UpdateScores()
 end
 -- function widget:UnitDestroyed(unitID, unitDefID, ...)
 --     Spring.Echo("unit created")

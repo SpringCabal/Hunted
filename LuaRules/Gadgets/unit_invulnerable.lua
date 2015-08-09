@@ -24,6 +24,8 @@ end
 --------------------------------------------------------------------------------
 local vulnerableUnitDefs = {
 	[UnitDefNames["rabbit"].id] = true,
+	[UnitDefNames["lighthouse"].id] = true,
+	[UnitDefNames["mine"].id] = true,
 }
 
 

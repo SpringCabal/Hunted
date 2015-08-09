@@ -61,7 +61,8 @@ local function SetupControls()
 		minHeight=200;
 	}
 	
-    local score = Spring.GetGameRulesParam("rabbits_killed") or 0 
+    local score = Spring.GetGameRulesParam("score") or 0 
+    local survialTime = Spring.GetGameRulesParam("survivalTime") or 0 
 --  	caption = Chili.Label:New{
 --  		x = 20,
 --  		y = 100,
@@ -74,10 +75,19 @@ local function SetupControls()
     
     caption = Chili.Label:New{
  		x = 20,
- 		y = 50,
+ 		y = 40,
  		width = 100,
  		parent = window_endgame,
  		caption = "Score: " .. score .. "🐰",
+ 		fontsize = 40,
+ 		textColor = {1,0,0,1},
+ 	}
+	caption = Chili.Label:New{
+ 		x = 20,
+ 		y = 85,
+ 		width = 100,
+ 		parent = window_endgame,
+ 		caption = "Time: " .. survialTime .. "🐰",
  		fontsize = 40,
  		textColor = {1,0,0,1},
  	}

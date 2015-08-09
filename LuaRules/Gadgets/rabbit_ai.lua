@@ -369,6 +369,8 @@ local function RemoveRabbit(unitID)
 	if not Spring.GetUnitRulesParam(unitID, "internalDestroy") then
 		local killed = Spring.GetGameRulesParam("rabbits_killed")
 		Spring.SetGameRulesParam("rabbits_killed", killed + 1)
+		local score = Spring.GetGameRulesParam("score") or 0
+		Spring.SetGameRulesParam("score", score + 50)
 	end
 end
 
@@ -471,6 +473,8 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	end
 	
 	rabbitData.stamina = (rabbitData.stamina - ((speedMult)^0.2)*updateGap + 1.3*updateGap)*STAMINA_DECAY^updateGap
+	
+	speedMult = speedMult*2
 	
 	--// Handle Carrot Eating
 	-- Eat until the carrot is gone. If paniced stop eating and run away.

@@ -27,8 +27,9 @@ end
 local rabbitDefID = UnitDefNames["rabbit"].id
 local lighthouseDefID = UnitDefNames["lighthouse"].id
 
-local waveGap = 600
-local MAX_RABBITS = 800
+local startFrame = 0
+local waveGap = 550
+local MAX_RABBITS = 600
 
 local waveAtt = {
 	burrows = 5,
@@ -60,7 +61,6 @@ end
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-
 function gadget:Initialize()
 	CleanUnits()
 	
@@ -83,14 +83,17 @@ function gadget:Initialize()
 	SpawnUnit(lighthouseDefID, 3130, 4320, true)
 	SpawnUnit(lighthouseDefID, 3980, 3810, true)
 	SpawnUnit(lighthouseDefID, 3630, 2670, true)
+	SpawnUnit(lighthouseDefID, 2200, 3650, true)
 	
-	--SpawnUnit(lighthouseDefID, 3885, 3212, true)
-	--SpawnUnit(lighthouseDefID, 2333, 4494, true)
-	--SpawnUnit(lighthouseDefID, 2050, 2360, true)
+	startFrame = Spring.GetGameFrame()
+	
+	Spring.SetGameRulesParam("score", 0)
+	Spring.SetGameRulesParam("survivalTime", 0)
 end
 
 function gadget:GameFrame(frame)
-	if frame%waveGap == 0 then
+	local elapsed = frame - startFrame
+	if elapsed%waveGap == 1 then
 		
 		local rabbitCount = Spring.GetTeamUnitDefCount(0, rabbitDefID)
 		
@@ -106,5 +109,13 @@ function gadget:GameFrame(frame)
 			1.05*waveAtt.familySize[1],
 			1.05*waveAtt.familySize[2]
 		}
+	end
+	
+	--// Scoring and game information
+	if elapsed%30 == 29 then
+		Spring.SetGameRulesParam("survivalTime", math.ceil(elapsed/30))
+		local carrots = Spring.GetGameRulesParam("carrot_count") or 0
+		local score = Spring.GetGameRulesParam("score") or 0
+		Spring.SetGameRulesParam("score", score + carrots)
 	end
 end

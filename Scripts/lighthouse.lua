@@ -1,16 +1,16 @@
 local base = piece "base"
 
 local color = {0.69, 0.61, 0.85, 0.3}
-local lightRange = 450
-local lightRadius = 140
-local rotationSpeed = 2*math.pi/(450)
+local lightRange = 280
+local lightRadius = 200
+local rotationSpeed = 2*math.pi/(250)
  
  
 local torchAttributes = {
-	radius = 200,
-	radiusSq = 200^2,
+	radius = 250,
+	radiusSq = 250^2,
 	edgeMagnitude = 0.1,
-	proximityMagnitude = 2,
+	proximityMagnitude = 2.2,
 }
  
 local ux, uz, lightAngle, torchScaryArea
