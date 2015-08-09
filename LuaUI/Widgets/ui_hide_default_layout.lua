@@ -13,7 +13,7 @@ end
 function widget:Initialize()
     -- check if scenario editor is run in play mode
     local devMode = (tonumber(Spring.GetModOptions().play_mode) or 0) == 0
-    if not devMode then
+    if not devMode or true then
         Spring.SendCommands("Console 0")
     end
 
