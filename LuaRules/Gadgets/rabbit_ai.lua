@@ -430,7 +430,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 		if rabbitData.fear < 150 then
 			rabbitData.panicMode = false
 		end
-	elseif rabbitData.fear > 150 then
+	elseif rabbitData.fear > 250 then
 		rabbitData.panicMode = {
 			x = sX,
 			z = sZ,

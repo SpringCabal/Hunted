@@ -28,7 +28,8 @@ end
 
 
 function script.Create()
-	x,y,z = Spring.GetUnitPosition(unitID)
+	x,_,z = Spring.GetUnitPosition(unitID)
+	y = Spring.GetGroundHeight(x,z) + 1
 	Move(base, y_axis, -10)
 end
 

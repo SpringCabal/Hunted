@@ -25,6 +25,7 @@ return {
         sizegrowth         = 0.5,
         sizemod            = 1.0,
         texture            = [[spattercloud]],
+        useairlos          = true,
       },
     },
   },
