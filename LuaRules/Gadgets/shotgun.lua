@@ -11,7 +11,7 @@ function gadget:GetInfo()
 		author	= "Google Frog",
 		date	= "8 August 2015",
 		license	= "GNU GPL, v2 or later",
-		layer	= 0,
+		layer	= 20,
 		enabled = true
 	}
 end
@@ -36,8 +36,9 @@ local function explode(div,str)
 	table.insert(arr,string.sub(str,pos)) -- Attach chars right of last divider
 	return arr
 end
+
 -------------------------------------------------------------------
--- Spawning Projectiles
+-- Configuration
 -------------------------------------------------------------------
 
 local shotgunAttributes = {
@@ -47,6 +48,16 @@ local shotgunAttributes = {
 	proximityMagnitude = 300,
 }
 
+local torchAttributes = {
+	radius = 200,
+	radiusSq = 200^2,
+	edgeMagnitude = 0.1,
+	proximityMagnitude = 3,
+}
+
+-------------------------------------------------------------------
+-- Spawning Projectiles
+-------------------------------------------------------------------
 
 local function Norm(x, y, z)
 	local size = math.sqrt(x * x + y * y + z * z)
@@ -102,6 +113,9 @@ local function MoveShotgun(x, y, z)
 		return
 	end
 	Spring.GiveOrderToUnit(shotgunID, CMD.MOVE, {targetx + 100, targety, targetz - 100}, {})
+	
+	torchScaryArea.x = x
+	torchScaryArea.z = z
 end
 
 function gadget:UnitCreated(unitID, unitDefID, unitTeam)
@@ -136,12 +150,13 @@ function gadget:Initialize()
 		local unitDefID = Spring.GetUnitDefID(unitID)
 		gadget:UnitCreated(unitID, unitDefID)
 	end
+	
+	torchScaryArea = GG.AddScaryArea({x = 0, z = 0, attributes = torchAttributes})
 end
 
 -------------------------------------------------------------------
 -- Handling messages
 -------------------------------------------------------------------
-
 
 function HandleLuaMessage(msg)
 	local msg_table = explode('|', msg)
@@ -161,7 +176,6 @@ function HandleLuaMessage(msg)
 		MoveShotgun(x, y, z)
 	end
 end
-
 
 function gadget:RecvLuaMsg(msg)
 	HandleLuaMessage(msg)

@@ -80,13 +80,6 @@ local desirableFieldAttributes = {
 	thingType = 1, -- Food
 }
 
-local torchAttributes = {
-	radius = 180,
-	radiusSq = 180^2,
-	edgeMagnitude = 0.1,
-	proximityMagnitude = 1.5,
-}
-
 -------------------------------------------------------------------
 -------------------------------------------------------------------
 -- Global Tables
@@ -262,6 +255,20 @@ local function RemoveThing(thingTable, index)
 	--GG.TableEcho(thingTable)
 end
 
+-------------------------------------------------------------------
+-------------------------------------------------------------------
+-- Scary Area Handling
+-- Scary areas can be created by external gadget. Those gadgets are
+-- allowed to update the attributes of the area.
+
+local function AddScaryArea(data)
+	local index = AddThing(scaryThings, data)
+	return scaryThings[index]
+end
+
+local function RemoveScaryArea(data)
+	RemoveThing(scaryThings, data.index)
+end
 
 -------------------------------------------------------------------
 -------------------------------------------------------------------
@@ -451,7 +458,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 		(1/(0.99 + rabbitData.fear/(10000 - math.min(8000, rabbitData.boldness*20))))^updateGap
 
 	--// Update Speed and Stamina
-	local speedMult = ((((rabbitData.fear + math.max(0, rabbitData.boldness - 320))/55)^0.8)*(2 + (rabbitData.boldness/200)^0.45)/2.3)*rabbitData.stamina/150
+	local speedMult = ((((rabbitData.fear + math.max(0, rabbitData.boldness - 320))/45)^0.8)*(2 + (rabbitData.boldness/200)^0.45)/2.3)*rabbitData.stamina/150
 
 	rabbitData.stamina = (rabbitData.stamina - ((speedMult)^0.2)*updateGap + 1.3*updateGap)*STAMINA_DECAY^updateGap
 	
@@ -479,6 +486,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	
 	--speedMult = math.min(100, speedMult^5)
 	
+	--GG.UnitEcho(unitID, math.floor(rabbitData.fear))
 	--Spring.Echo("Fear", rabbitData.fear)
 	--Spring.Echo("Boldness", rabbitData.boldness)
 	--Spring.Echo("Stamina", rabbitData.stamina)
@@ -497,7 +505,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	-- These vectors are scaled by fear and boldness
 	-- If fear is too high then the goal is ignored.
 	-- moveVec is the resultant move direction from fear and boldness.
-	scaryVec = Norm(-rabbitData.fear/10, scaryVec)
+	scaryVec = Norm(-rabbitData.fear/8, scaryVec)
 	
 	local moveVec, goalMag
 	if rabbitData.fear < 180 then
@@ -627,6 +635,9 @@ end
 function gadget:Initialize()
 	GG.RabbitFoodDestroyed = RabbitFoodDestroyed
 	GG.ScareRabbitsInArea = ScareRabbitsInArea
+	GG.AddScaryArea = AddScaryArea
+	GG.RemoveScaryArea = RemoveScaryArea
+	
 	for _, unitID in ipairs(Spring.GetAllUnits()) do
 		local unitDefID = Spring.GetUnitDefID(unitID)
 		if rabbitDefID[unitDefID] then
