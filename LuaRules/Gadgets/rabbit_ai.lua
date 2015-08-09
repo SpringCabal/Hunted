@@ -461,6 +461,12 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	--// Update Speed and Stamina
 	local speedMult = ((((rabbitData.fear + math.max(0, rabbitData.boldness - 320))/45)^0.8)*(2 + (rabbitData.boldness/200)^0.45)/2.3)*rabbitData.stamina/150
 
+	-- High scaryMag means that something scary is happening right now!
+	-- (Suddden blast or near center of a torch)
+	if scaryMag > 0.9 then
+		speedMult = speedMult*2
+	end
+	
 	rabbitData.stamina = (rabbitData.stamina - ((speedMult)^0.2)*updateGap + 1.3*updateGap)*STAMINA_DECAY^updateGap
 	
 	--// Handle Carrot Eating
