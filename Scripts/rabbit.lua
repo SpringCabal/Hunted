@@ -4,6 +4,13 @@
 --pieces
 Head=piece"Head"
 WiggleTail=piece"WiggleTail"
+Body  =piece"Body"   
+BLeg1 =piece"BLeg1"
+BLeg2 =piece"BLeg2"
+FLeg1 =piece"FLeg1"
+FLeg2 =piece"FLeg2"
+
+
 center=piece"center"
 piecesTable=makeKeyPiecesTable(unitID, piece)
 
@@ -22,37 +29,32 @@ function script.Killed(recentDamage, _)
 	return 0
 end
 
-TurnTableUpMoveUp=
-{
-	[piecesTable["Body"] ]  = {axis = x_axis, deg = -14}, 
-	[piecesTable["BLeg1"] ] = {axis = x_axis, deg = 47}, 
-	[piecesTable["BLeg2"] ] = {axis = x_axis, deg = 51}, 
-	[piecesTable["FLeg1"] ] = {axis = x_axis, deg = 44}, 
-	[piecesTable["FLeg1"] ] = {axis = y_axis, deg = -21},  
-	[piecesTable["FLeg2"] ] = {axis = x_axis, deg = 44}, 
-	[piecesTable["FLeg2"] ] = {axis = y_axis, deg = 24}, 
-	[piecesTable["Head"] ]  = {axis = x_axis, deg = -27}
-}                                                  
 
-TurnTableUpMoveDown=
-{
-	[piecesTable["Body"]  ] = {axis = x_axis, deg= -14}, 
-	[piecesTable["BLeg1"] ] = {axis = x_axis, deg= 9}, 
-	[piecesTable["BLeg2"] ] = {axis = x_axis, deg= 10}, 
-	[piecesTable["FLeg1"] ] = {axis = x_axis, deg= 44},  
-	[piecesTable["FLeg2"] ] = {axis = x_axis, deg= -32}, 
-	[piecesTable["Head"]  ] = {axis = x_axis, deg= 17}
-}
 
+offSet=math.random(-0.2,0.2)
 function MoveAnimation()
-	Move(center, y_axis, 5, 2.5)
-	turnSyncInTimeTable(TurnTableUpMoveUp, 700)
-	Sleep(650)
+	Move(center, y_axis, 5, 15)
+
+	Turn(Body  , x_axis, math.rad( -14),7+offSet) 
+	Turn(BLeg1 ,x_axis, math.rad( 47+offSet),17+offSet) 
+	Turn(BLeg2 ,x_axis, math.rad( 51),17+offSet) 
+	Turn(FLeg1 ,x_axis, math.rad( 44),7+offSet) 
+	
+	Turn(FLeg2 ,x_axis, math.rad( 44),17+offSet) 
+
+	Turn(Head  , x_axis, math.rad( -27),7+offSet)
+													 
+		Sleep(700)
 	WaitForMove(center, y_axis)
 
-	Move(center, y_axis, 0, 2.5)
-	turnSyncInTimeTable(TurnTableUpMoveDown, 420)
-	Sleep(400)
+	Move(center, y_axis, 0, 15)
+	Turn(Body ,  x_axis,math.rad( -14),7+offSet) 
+	Turn(BLeg1, x_axis,  math.rad( 9),7+offSet) 
+	Turn(BLeg2, x_axis,  math.rad( 10),7+offSet) 
+	Turn(FLeg1, x_axis,  math.rad( 10),7+offSet)  
+	Turn(FLeg2, x_axis,  math.rad( 10),7+offSet) 
+	Turn(Head, x_axis,  math.rad( 17 ),7+offSet)
+		Sleep(300)
 	WaitForMove(center, y_axis)
 end
 
@@ -63,7 +65,7 @@ function MoveAnimationController()
 			MoveAnimation()
 		end
 			if boolMoving == false then
-				reseT(piecesTable, 7)
+				reseT(piecesTable, 17)
 			if maRa() == true then 
 				idle()
 			end
@@ -88,6 +90,7 @@ function idle()
 end
 
 function script.StartMoving()
+
 	boolMoving = true
 	Signal(SIG_MOVE)
 end
@@ -103,7 +106,7 @@ end
 function MoveEnded()
 	Signal(SIG_MOVE)
 	SetSignalMask(SIG_MOVE)
-	Sleep(500)
+	Sleep(1500)
 	boolMoving = false
 end
 
