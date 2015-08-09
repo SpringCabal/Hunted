@@ -8,7 +8,7 @@ return {
       properties = {
         airdrag            = 0.87,
         alwaysvisible      = true,
-        colormap           = [[0.25 0.20 0.10 0.35	0 0 0 0.0]],
+        colormap           = [[0.25 0.20 0.10 0.09	0 0 0 0.0]],
         directional        = false,
         emitrot            = 90,
         emitrotspread      = 5,
