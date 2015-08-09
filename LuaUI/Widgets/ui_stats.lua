@@ -55,7 +55,7 @@ function widget:UpdateRabbits()
 end
 
 function widget:UpdateCarrots()
-    local carrotCount = Spring.GetTeamUnitDefCount(Spring.GetMyTeamID(), carrotDefID)
+    local carrotCount = Spring.GetGameRulesParam("carrot_count") or -1
     lblCarrots:SetCaption("\255\255\165\0Carrots: " .. carrotCount .. "\b")
 end
 
