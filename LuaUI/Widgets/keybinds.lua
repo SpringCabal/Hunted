@@ -55,6 +55,7 @@ function widget:Initialize()
     mouseText = {
         purple .. "Left click: " .. white .. "Shoot",
         purple .. "Right click : " .. white .. "Place Mines",
+        purple .. "Scroll Wheel : " .. white .. "Zoom",
         purple .. "Space : " .. white .. "Pause",
         purple .. "Ctrl+Q : " .. white .. "Quit",
     }
