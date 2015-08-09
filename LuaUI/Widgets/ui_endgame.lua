@@ -55,8 +55,8 @@ local function SetupControls()
 		padding = {8, 8, 8, 8};
 		--autosize   = true;
 		--parent = screen0,
-		draggable = true,
-		resizable = true,
+		draggable = false,
+		resizable = false,
 		minWidth=500;
 		minHeight=200;
 	}
