@@ -170,8 +170,9 @@ return {
        //gl_FragColor.rgb = normal;
        
        //gl_FragColor.rgb = mix(gl_FragColor.rgb, (1 - gl_FragColor.rgb), 1 - distance);
-       gl_FragColor.a = 1 - distance;
-       gl_FragColor.rgb *= 1 + (1 - distance) * sin(time / 4) / 10;
+       //gl_FragColor.a = 1 - distance;
+       gl_FragColor.rgba *= min(1, 1.4 - distance);
+       //gl_FragColor.rgb *= 1 + (1 - distance) * sin(time / 4) / 10;
        //gl_FragColor.rgb += abs((1 - distance) * sin(time / 8) / 10);
 
        %%FRAGMENT_POST_SHADING%%

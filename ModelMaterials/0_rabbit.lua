@@ -29,12 +29,9 @@ local function DrawUnit(unitid, material, materialID)
             local d = math.sqrt(dx * dx + dz * dz)
 
             local d1 = math.max(d - fsize / 2, 0)
-            local d2 = math.max(d - fsize, 0)
+--             local d2 = math.max(d - fsize, 0)
 
             local distance = d1
-            if d2 > 10 then
-                distance = 100
-            end
 
             if minDistance > distance then
                 minDistance = distance
@@ -42,13 +39,16 @@ local function DrawUnit(unitid, material, materialID)
         end
     end
 
+--     if minDistance > 80 then
+--         return true
+--     end
     gl.Uniform(distanceID, minDistance / 100)
     gl.Uniform(timeID, Spring.GetGameFrame()%360)
 
-    if materialID == 2 and minDistance > 50 then
-      return true
-  end
-  return false --// engine should still draw it (we just set the uniforms for the shader)
+    if minDistance > 90 then
+        return true
+    end
+    return false --// engine should still draw it (we just set the uniforms for the shader)
 end
 
 --------------------------------------------------------------------------------
