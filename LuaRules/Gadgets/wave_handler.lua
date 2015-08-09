@@ -37,7 +37,7 @@ local currentDifficult = 1
 local waveAtt = {
 	burrows = 5,
 	rabbitCount = 25,
-	familySize = {2, 1.5},
+	familySize = {2, 2},
 	familyGap = {20, 30},
 }
 
