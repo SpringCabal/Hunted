@@ -9,7 +9,7 @@ local function StolenThread(progress)
 	SetSignalMask(SIG_STEAL)
 	while true do
 		Spring.PlaySoundFile("sounds/digitout.wav", 1, x, y, z)
-		Spring.SpawnCEG("flashnuke", x, y, z)
+		Spring.SpawnCEG("dirtfling", x, y, z)
 		Sleep(500)
 	end
 end
