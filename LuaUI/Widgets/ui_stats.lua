@@ -14,11 +14,102 @@ end
 local carrotDefID = UnitDefNames["carrot"].id
 local rabbitDefID = UnitDefNames["rabbit"].id
 
-local lblRabbits, lblRabbitsKilled, lblCarrots, lblCarrotsStolen, lblCarrotsDestroyed, lblScore, lblSuurvivalTime
+local lblRabbits, lblRabbitsKilled
+local lblCarrots, lblCarrotsStolen, lblCarrotsDestroyed
+local lblScore, lblSuurvivalTime
+local lblShotgun, lblMine
 
 local lastKilled
 local streakFrame
 local streakKilled
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- Updating
+
+local function UpdateRabbits()
+    local rabbitCount = Spring.GetTeamUnitDefCount(Spring.GetMyTeamID(), rabbitDefID)
+    lblRabbits:SetCaption("\255\30\144\255Rabbits: " .. rabbitCount .. "\b")
+	
+	local rabbitsKilled = Spring.GetGameRulesParam("rabbits_killed") or 0
+	if rabbitsKilled ~= 0 then
+		lblRabbitsKilled:SetCaption("\255\30\144\255Killed: " .. rabbitsKilled .. "\b")
+    else
+        lblRabbitsKilled:SetCaption("")
+    end
+	local newKilled = lastKilled and (rabbitsKilled - lastKilled) or 0
+	lastKilled = rabbitsKilled
+	
+	if newKilled > 0 then
+		local frame = Spring.GetGameFrame()
+		Spring.Echo(frame, streakFrame)
+		if not streakFrame or (frame - streakFrame) > 120 then
+			streakKilled = 0
+		end
+		streakFrame = frame
+		local newStreakKilled = streakKilled + newKilled
+		if newStreakKilled >= 20 and streakKilled < 20 then
+			Spring.PlaySoundFile("sounds/godlike.ogg", 20)
+			WG.AddEvent("GODLIKE!", 100, {1, 0 , 0, 1})
+		elseif newStreakKilled >= 15 and streakKilled < 15 then
+			Spring.PlaySoundFile("sounds/monsterkill.ogg", 20)
+			WG.AddEvent("MonsterKill!!!", 80, {1, 0 , 0, 1})
+		elseif newStreakKilled >= 8 and streakKilled < 8 then
+			Spring.PlaySoundFile("sounds/ultrakill.ogg", 20)
+			WG.AddEvent("UltraKill!", 60, {1, 0 , 0, 1})
+		elseif newStreakKilled >= 3 and streakKilled < 3 then
+			Spring.PlaySoundFile("sounds/killstreak.ogg", 20)
+			WG.AddEvent("Killing Streak!", 40, {1, 0 , 0, 1})
+		end
+		streakKilled = newStreakKilled
+	end
+end
+
+local function UpdateCarrots()
+    local carrotCount = Spring.GetGameRulesParam("carrot_count") or -1
+    lblCarrots:SetCaption("\255\255\165\0Carrots: " .. carrotCount .. "\b")
+	
+	local carrotsStolen = Spring.GetGameRulesParam("carrots_stolen") or 0
+	if carrotsStolen ~= 0 then
+		lblCarrotsStolen:SetCaption("\255\255\165\0Stolen: " .. carrotsStolen .. "\b")
+    else
+        lblCarrotsStolen:SetCaption("")
+    end
+	
+	local carrotsDestroyed = Spring.GetGameRulesParam("carrots_destroyed") or 0
+	if carrotsDestroyed ~= 0 then
+		lblCarrotsDestroyed:SetCaption("\255\255\165\0Destroyed: " .. carrotsDestroyed .. "\b")
+    else
+        lblCarrotsDestroyed:SetCaption("")
+    end
+end
+
+local function UpdateScores()
+    local score = Spring.GetGameRulesParam("score") or 0
+    lblScore:SetCaption("\255\255\255\0Score: " .. score .. "\b")
+	
+    local surivalTime = Spring.GetGameRulesParam("survivalTime") or 0
+    lblSuurvivalTime:SetCaption("\255\255\255\0Time: " .. surivalTime .. "\b")
+end
+
+local function UpdateAmmo()
+    local shotgunAmmo = math.floor(Spring.GetGameRulesParam("shotgun_ammo") or 0)
+    lblShotgun:SetCaption("\255\255\255\0Shotgun Shells: " .. shotgunAmmo .. "\b")
+	
+    local mineAmmo = math.floor(Spring.GetGameRulesParam("mine_ammo") or 0)
+    lblMine:SetCaption("\255\255\255\0Mines: " .. mineAmmo .. "\b")
+end
+
+function widget:GameFrame()
+    UpdateRabbits()
+    UpdateCarrots()
+	UpdateScores()
+	UpdateAmmo()
+end
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- Display Managment
 
 function widget:Initialize()
 	if (not WG.Chili) then
@@ -107,94 +198,34 @@ function widget:Initialize()
         },
 		caption = "",
     }
-    UpdateRabbits()
-    UpdateCarrots()
-end
-
-function UpdateRabbits()
-    local rabbitCount = Spring.GetTeamUnitDefCount(Spring.GetMyTeamID(), rabbitDefID)
-    lblRabbits:SetCaption("\255\30\144\255Rabbits: " .. rabbitCount .. "\b")
 	
-	local rabbitsKilled = Spring.GetGameRulesParam("rabbits_killed") or 0
-	if rabbitsKilled ~= 0 then
-		lblRabbitsKilled:SetCaption("\255\30\144\255Killed: " .. rabbitsKilled .. "\b")
-    else
-        lblRabbitsKilled:SetCaption("")
-    end
-	local newKilled = lastKilled and (rabbitsKilled - lastKilled) or 0
-	lastKilled = rabbitsKilled
+    lblShotgun = Chili.Label:New {
+        x = 10,
+        width = 100,
+        y = 10,
+        height = 50,
+		align = "left",
+        parent = screen0,
+        font = {
+            size = 24,
+        },
+		caption = "",
+    }
+    lblMine = Chili.Label:New {
+        x = 10,
+        width = 100,
+        y = 45,
+        height = 50,
+		align = "left",
+        parent = screen0,
+        font = {
+            size = 24,
+        },
+		caption = "",
+    }
 	
-	if newKilled > 0 then
-		local frame = Spring.GetGameFrame()
-		Spring.Echo(frame, streakFrame)
-		if not streakFrame or (frame - streakFrame) > 120 then
-			streakKilled = 0
-		end
-		streakFrame = frame
-		local newStreakKilled = streakKilled + newKilled
-		if newStreakKilled >= 20 and streakKilled < 20 then
-			Spring.PlaySoundFile("sounds/godlike.ogg", 20)
-			WG.AddEvent("GODLIKE!", 100, {1, 0 , 0, 1})
-		elseif newStreakKilled >= 15 and streakKilled < 15 then
-			Spring.PlaySoundFile("sounds/monsterkill.ogg", 20)
-			WG.AddEvent("MonsterKill!!!", 80, {1, 0 , 0, 1})
-		elseif newStreakKilled >= 8 and streakKilled < 8 then
-			Spring.PlaySoundFile("sounds/ultrakill.ogg", 20)
-			WG.AddEvent("UltraKill!", 60, {1, 0 , 0, 1})
-		elseif newStreakKilled >= 3 and streakKilled < 3 then
-			Spring.PlaySoundFile("sounds/killstreak.ogg", 20)
-			WG.AddEvent("Killing Streak!", 40, {1, 0 , 0, 1})
-		end
-		streakKilled = newStreakKilled
-	end
-end
-
-function UpdateCarrots()
-    local carrotCount = Spring.GetGameRulesParam("carrot_count") or -1
-    lblCarrots:SetCaption("\255\255\165\0Carrots: " .. carrotCount .. "\b")
-	
-	local carrotsStolen = Spring.GetGameRulesParam("carrots_stolen") or 0
-	if carrotsStolen ~= 0 then
-		lblCarrotsStolen:SetCaption("\255\255\165\0Stolen: " .. carrotsStolen .. "\b")
-    else
-        lblCarrotsStolen:SetCaption("")
-    end
-	
-	local carrotsDestroyed = Spring.GetGameRulesParam("carrots_destroyed") or 0
-	if carrotsDestroyed ~= 0 then
-		lblCarrotsDestroyed:SetCaption("\255\255\165\0Destroyed: " .. carrotsDestroyed .. "\b")
-    else
-        lblCarrotsDestroyed:SetCaption("")
-    end
-end
-
-function UpdateScores()
-    local score = Spring.GetGameRulesParam("score") or 0
-    lblScore:SetCaption("\255\255\255\0Score: " .. score .. "\b")
-	
-    local surivalTime = Spring.GetGameRulesParam("survivalTime") or 0
-    lblSuurvivalTime:SetCaption("\255\255\255\0Time: " .. surivalTime .. "\b")
-end
-
-function widget:GameFrame()
     UpdateRabbits()
     UpdateCarrots()
 	UpdateScores()
+
 end
--- function widget:UnitDestroyed(unitID, unitDefID, ...)
---     Spring.Echo("unit created")
---     if unitDefID == rabbitDefID then
---         UpdateRabbits()
---     elseif unitDefID == carrotDefID then
---         UpdateCarrots()
---     end
--- end
--- 
--- function widget:UnitCreated(unitID, unitDefID, ...)
---     Spring.Echo("unit created")
---     if unitDefID == rabbitDefID then
---         UpdateRabbits()
---     elseif unitDefID == carrotDefID then
---         UpdateCarrots()
---     end
--- end
