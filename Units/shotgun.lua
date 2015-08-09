@@ -1,3 +1,5 @@
+local unitName  =  "shotgun"
+
 unitDef = {
   acceleration           = 5,
   airHoverFactor         = 0,
@@ -25,8 +27,8 @@ unitDef = {
   maxDamage              = 860,
   maxVelocity            = 200,
   objectName             = "gun.s3o",
-  script                 = "shotgun.lua",
+  script                 = unitName .. ".lua",
   turnRate               = 693,
 }
 
-return lowerkeys({ shotgun = unitDef })
+return lowerkeys({ [unitName] = unitDef })

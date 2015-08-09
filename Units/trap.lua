@@ -1,4 +1,4 @@
-local unitName  =  "stunTrap"
+local unitName  =  "trap"
 
 local unitDef  =  {
 --Internal settings
@@ -17,6 +17,8 @@ local unitDef  =  {
     FootprintX = 1,
     FootprintZ = 1,
     MaxSlope = 90,
+	
+	
     
 --Abilities
     Builder = 0,
