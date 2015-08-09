@@ -10,44 +10,89 @@ function gadget:GetInfo()
   }
 end
 
+LOG_SECTION = "flashlight"
+
 -- unsynced
 if not Script.GetSynced() then
 
 VFS.Include("LuaUI/widgets/glVolumes.lua")
 
-local FLASHLIGHT_SIZE = 150
+flashlights = {}
 
-function gadget:Initialize()
-    self.x, self.z = math.huge, math.huge
-end
+local GUN_FLASHLIGHT_SIZE = 150
+local GUN_FLASHLIGHT_COLOR = {0.69, 0.61, 0.85, 0.3}
+-- purpleish
+-- 0.69, 0.61, 0.85, 0.3
+-- yellowish
+-- 0.941, 0.901, 0.549, 0.3
+
+local gunFlashlightID
 
 function gadget:Update()
     local x, y = Spring.GetMouseState()
     local result, coords = Spring.TraceScreenRay(x, y, true)
     if result == "ground" then
-        self.x = coords[1]
-        self.z = coords[3]
+        if gunFlashlightID == nil then
+            gunFlashlightID = CreateFlashlight(coords[1], coords[3])
+        else
+            UpdateFlashlight(gunFlashlightID, coords[1], coords[3])
+        end
     end
-    GG.flashlightPos = {
-        x = self.x,
-        z = self.z,
-        size = FLASHLIGHT_SIZE,
-    }
 end
 
 function gadget:DrawWorld()
     gl.PushMatrix()
-    -- purple~ish 
-    --gl.Color(0.69, 0.61, 0.85, 0.3)
-    -- yellow~ish
-    --gl.Color(0.941, 0.901, 0.549, 0.3)
-    -- blueish
-    gl.Color(0.617, 0.761, 0.969, 0.3)
-    if self.x ~= nil then
-        gl.Utilities.DrawGroundCircle(self.x, self.z, FLASHLIGHT_SIZE)
+    for _, f in pairs(flashlights) do
+        local x, z, size, c = f.x, f.z, f.size, f.color
+        gl.Color(c[1], c[2], c[3], c[4])
+        if x ~= nil then
+            gl.Utilities.DrawGroundCircle(x, z, size)
+        end
     end
     gl.PopMatrix()
 end
 
+-- (optional) size
+-- (optional) color is an array in format {r, g, b, a}
+function CreateFlashlight(x, z, size, color)
+    local id = #flashlights + 1
+    flashlights[id] = {}
+    UpdateFlashlight(id, x, z, size, color)
+    return id
+end
 
+-- (optional) size
+-- (optional) color is an array in format {r, g, b, a}
+function UpdateFlashlight(id, x, z, size, color)
+    if not flashlights[id] then
+        Spring.Log(LOG_SECTION, LOG.ERROR, "No flashlight with id: " .. tostring(id))
+        return
+    end
+    flashlights[id] = {
+        x = x,
+        z = z,
+        size = size or GUN_FLASHLIGHT_SIZE,
+        color = color or GUN_FLASHLIGHT_COLOR,
+    }
+end
+
+function RemoveFlashlight(id)
+    if not flashlights[id] then
+        Spring.Log(LOG_SECTION, LOG.ERROR, "No flashlight with id: " .. tostring(id))
+        return
+    end
+    flashlights[id] = nil
+end
+
+-- SYNCED API
+GG.Flashlight = {
+    Create = CreateFlashlight,
+    Update = UpdateFlashlight,
+    Remove = RemoveFlashlight,
+}
+-- direct access is also available in UNSYNCED (useful for shaders)
+GG.flashlights = flashlights
+
+else
+    -- no synced API for now
 end
