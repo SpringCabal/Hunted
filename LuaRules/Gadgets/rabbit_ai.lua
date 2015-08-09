@@ -25,6 +25,7 @@ local sqrt = math.sqrt
 local rabbitDefID = {
 	[UnitDefNames["rabbit"].id] = true
 }
+
 local desirableUnitDefs = {
 	[UnitDefNames["carrot"].id] = {
 		radius = 1500,

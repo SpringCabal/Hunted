@@ -45,19 +45,6 @@ function gadget:GameFrame()
         -- check for any mines that should explode
         else
             if mineObj.explodingTimer <= 0 then
-                local nearbyUnits = Spring.GetUnitsInCylinder(x, z, explosionRadius)
-                for _, nearbyUnitID in pairs(nearbyUnits) do
-                    if Spring.GetUnitDefID(nearbyUnitID) == rabbitDefId then
-                        Spring.DestroyUnit(nearbyUnitID)
-                        --Spring.AddUnitDamage(nearbyUnitID, 500)
-                    end
-                end
-				GG.ScareRabbitsInArea(x, z, scareAttributes)
-                SendToUnsynced("RemoveMineTimer", mineID) 
-                Spring.SpawnCEG("flashnuke", x,y,z, 0,0,0, 0, 0) --spawn CEG, cause no damage
---                 Script.LuaRules.FlameRaw(x+5*rand(),y,z+5*rand(), 0,0.1,0, 0,0,0, 500)
---                 Script.LuaRules.FlameRaw(x+5*rand(),y+5,z+5*rand(), 0,0.2,0, 0,0,0, 500)
---                 Script.LuaRules.FlameRaw(x+2*rand(),y+10,z+2*rand(), 0,0.5,0, 0,0,0, 500)
                 Spring.DestroyUnit(mineID)
             else
                 SendToUnsynced("UpdateMineTimer", mineID, mineObj.explodingTimer) 
@@ -74,7 +61,12 @@ function gadget:UnitCreated(unitID, unitDefID)
 end
 
 function gadget:UnitDestroyed(unitID, unitDefID, unitTeam, attackerID, attackerDefID, attackerTeam)
-    mines[unitID] = nil
+	if mines[unitID] then
+		SendToUnsynced("RemoveMineTimer", unitID) 
+		local x, y, z = Spring.GetUnitPosition(unitID)
+		GG.ScareRabbitsInArea(x, z, scareAttributes)
+		mines[unitID] = nil
+	end
 end
 
 function gadget:Initialize()

@@ -12,6 +12,7 @@ local unitDef  =  {
     RadarDistance = 0,
     SightDistance = 400,
     Upright = 0,
+	ExplodeAs = "mineexplode",
     
 --Pathfinding and related
     FootprintX = 1,
