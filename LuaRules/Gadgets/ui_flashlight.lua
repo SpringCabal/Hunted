@@ -17,18 +17,22 @@ VFS.Include("LuaUI/widgets/glVolumes.lua")
 
 local FLASHLIGHT_SIZE = 100
 
+function gadget:Initialize()
+    self.x, self.z = math.huge, math.huge
+end
+
 function gadget:Update()
     local x, y = Spring.GetMouseState()
     local result, coords = Spring.TraceScreenRay(x, y, true)
     if result == "ground" then
         self.x = coords[1]
         self.z = coords[3]
-        GG.flashlightPos = {
-            x = self.x,
-            z = self.z,
-            size = FLASHLIGHT_SIZE,
-        }
     end
+    GG.flashlightPos = {
+        x = self.x,
+        z = self.z,
+        size = FLASHLIGHT_SIZE,
+    }
 end
 
 function gadget:DrawWorld()
