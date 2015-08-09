@@ -18,7 +18,7 @@ local placeDefID
 
 function widget:MousePress(mx, my, button)
 	local alt, ctrl, meta, shift = Spring.GetModKeyState()
-	if button == 1 and ctrl and not Spring.IsAboveMiniMap(mx, my) then
+	if button == 3 and not Spring.IsAboveMiniMap(mx, my) then
 		local _, pos = Spring.TraceScreenRay(mx, my, true)
 		if pos then
 			placeDefID = UnitDefNames["mine"].id

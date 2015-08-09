@@ -82,6 +82,14 @@ local function FireShotgun(x, y, z)
 		return
 	end
 	
+	local ammo = Spring.GetGameRulesParam("shotgun_ammo") or 0
+	if ammo < 1 then
+		return
+	end
+	Spring.SetGameRulesParam("shotgun_ammo", ammo - 1)
+	
+	GG.ScareRabbitsInArea(x, z, shotgunAttributes)
+	
 	local shotgunDef = WeaponDefNames.shotgun
 	local flare = Spring.GetUnitPieceMap(shotgunID).flare
 	local spawnx, spawny, spawnz = Spring.GetUnitPiecePosDir(shotgunID, flare)
@@ -167,7 +175,6 @@ function HandleLuaMessage(msg)
 		local z = tonumber(msg_table[4])
 		
 		FireShotgun(x, y, z)
-		GG.ScareRabbitsInArea(x, z, shotgunAttributes)
 	end
 	if msg_table[1] == 'movegun' then
 		local x = tonumber(msg_table[2])

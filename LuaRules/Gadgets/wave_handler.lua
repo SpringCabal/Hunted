@@ -121,6 +121,10 @@ function gadget:GameFrame(frame)
 	
 	--// Scoring and game information
 	if elapsed%30 == 29 then
+		-- Update ammo at this point
+		-- The UI looks better if all the numbers update at the same time
+		GG.UpdateAmmo()
+		
 		Spring.SetGameRulesParam("survivalTime", math.ceil(elapsed/30))
 		local carrots = Spring.GetGameRulesParam("carrot_count") or 0
 		local score = Spring.GetGameRulesParam("score") or 0

@@ -38,6 +38,23 @@ local function explode(div,str)
 	return arr
 end
 
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+local mineDefID = UnitDefNames["mine"].id
+
+local function PlaceMine(x, y, z)
+	
+	local ammo = Spring.GetGameRulesParam("mine_ammo") or 0
+	if ammo < 1 then
+		return
+	end
+	Spring.SetGameRulesParam("mine_ammo", ammo - 1)
+	
+	local unitID = Spring.CreateUnit(mineDefID, x, y, z, 0, 0, false, false)
+	Spring.SetUnitRotation(unitID, 0, math.random()*2*math.pi, 0)
+end
+
 -------------------------------------------------------------------
 -- Handling messages
 -------------------------------------------------------------------
@@ -50,8 +67,10 @@ function HandleLuaMessage(msg)
 		local y = tonumber(msg_table[4])
 		local z = tonumber(msg_table[5])
 		
-		local unitID = Spring.CreateUnit(unitDefID, x, y, z, 0, 0, false, false)
-		Spring.SetUnitRotation(unitID, 0, math.random()*2*math.pi, 0)
+		if unitDefID == mineDefID then
+			PlaceMine(x, y, z)
+		end
+
 	end
 end
 
