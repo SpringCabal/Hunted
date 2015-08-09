@@ -47,6 +47,7 @@ local shotgunAttributes = {
 	proximityMagnitude = 300,
 }
 
+
 local function Norm(x, y, z)
 	local size = math.sqrt(x * x + y * y + z * z)
 	return x / size, y / size, z / size

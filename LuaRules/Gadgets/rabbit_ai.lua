@@ -32,7 +32,17 @@ local desirableUnitDefs = {
 		edgeMagnitude = 0.1, -- Magnitude once within radius (per frame)
 		proximityMagnitude = 2, -- Maximum agnitude gained by being close (per frame)
 		thingType = 1, -- Food
-		eatTime = 60,
+		eatTime = 80,
+		eatTimeReduces = true,
+		isEdible = true
+	},
+	[UnitDefNames["carrot_dropped"].id] = {
+		radius = 1500,
+		radiusSq = 1500^2,
+		edgeMagnitude = 0.1, -- Magnitude once within radius (per frame)
+		proximityMagnitude = 2.5, -- Maximum agnitude gained by being close (per frame)
+		thingType = 1, -- Food
+		eatTime = 10,
 		isEdible = true
 	},
 	[UnitDefNames["mine"].id] = {
@@ -67,6 +77,13 @@ local desirableFieldAttributes = {
 	edgeMagnitude = 0, -- Magnitude once within radius
 	proximityMagnitude = 80, -- Maximum agnitude gained by being close
 	thingType = 1, -- Food
+}
+
+local torchAttributes = {
+	radius = 180,
+	radiusSq = 180^2,
+	edgeMagnitude = 0.1,
+	proximityMagnitude = 1.5,
 }
 
 -------------------------------------------------------------------
@@ -248,23 +265,41 @@ end
 -------------------------------------------------------------------
 -- Desirable Unit Handling
 
-local function StartEating(rabbitData, thingRef)
+local function StartStealing(rabbitData, thingRef)
 	if Spring.ValidUnitID(unitID) then
-		Spring.SetUnitRulesParam(unitID, "eating", 1)
+		Spring.SetUnitRulesParam(unitID, "stealing", 1)
 	end
-	rabbitData.eatingProgress = 0
+	
+	rabbitData.eatingProgress = thingRef.carryoverEatProgress or 0
 	rabbitData.eatingThingRef = thingRef
+	Spring.Echo(rabbitData.eatingProgress)
+	local env = Spring.UnitScript.GetScriptEnv(thingRef.unitID)
+	if env and env.StartBeingStolen then
+		Spring.UnitScript.CallAsUnit(thingRef.unitID, env.StartBeingStolen, rabbitData.eatingProgress)
+	end
+
 	thingRef.inactive = true
 	thingRef.eater = rabbitData
 end
 
-local function StopEating(rabbitData)
+local function StopStealing(rabbitData)
 	if Spring.ValidUnitID(unitID) then
-		Spring.SetUnitRulesParam(unitID, "eating", 0)
+		Spring.SetUnitRulesParam(unitID, "stealing", 0)
 	end
+	
+	local thingRef = rabbitData.eatingThingRef
+	if thingRef.attributes.eatTimeReduces then
+		thingRef.carryoverEatProgress = rabbitData.eatingProgress
+	end
+	
+	local env = Spring.UnitScript.GetScriptEnv(thingRef.unitID)
+	if env and env.StopBeingStolen then
+		Spring.UnitScript.CallAsUnit(thingRef.unitID,env.StopBeingStolen, thingRef.carryoverEatProgress or 0)
+	end
+	
 	rabbitData.eatingProgress = false
-	rabbitData.eatingThingRef.inactive = false
-	rabbitData.eatingThingRef.eater = nil
+	thingRef.inactive = false
+	thingRef.eater = nil
 	rabbitData.eatingThingRef = nil
 end
 
@@ -282,7 +317,7 @@ end
 
 local function RemoveDesirableUnit(unitID)
 	if desirableUnits[unitID].eater then
-		StopEating(desirableUnits[unitID].eater)
+		StopStealing(desirableUnits[unitID].eater)
 	end
 
 	local index = desirableUnits[unitID].thingTableEntry.index
@@ -299,14 +334,14 @@ local function AddRabbit(unitID)
 		fear = 50,
 		boldness = 150,
 		stamina = 100,
-		foodEaten = 0,
+		foodCarried = 0,
 		lastUpdate = Spring.GetGameFrame(),
 	}
 end
 
 local function RemoveRabbit(unitID)
 	if rabbits[unitID].eatingProgress then
-		StopEating(rabbits[unitID])
+		StopStealing(rabbits[unitID])
 	end
 	rabbits[unitID] = nil
 end
@@ -335,7 +370,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	rabbitData.lastUpdate = frame
 	rabbitData.nextUpdate = frame + 10 + 20*math.random()
 	
-	--// Update Rabbit disposition.
+	--// Update Scary Place and Fear
 	local scaryRef, sX, sZ, scaryMag, scaryFear
 	if scaryOverride then
 		-- This type of fear is from a sudden event (shotgun?). It is not
@@ -351,6 +386,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 		scaryFear = scaryMag*updateGap
 	end
 	
+	-- Panic mode causes a rabbit to run away from a scary location until it calms down.
 	if rabbitData.panicMode and (scaryMag + 100 > rabbitData.fear or scaryMag > 100)then
 		rabbitData.panicMode = {
 			x = sX,
@@ -359,27 +395,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 		}
 	end
 
-	local goalRef, gX, gZ, goalMag = GetBestThing(desirableThings, x, z)
-	
-	-- fear and boldness are basic attributes which affect rabit behaviour.
-	-- A rabit wandering around with no goal or fear will have about:
-	-- 55 fear 
-	-- 340 boldness
-	-- 97 stamina
 	rabbitData.fear = (rabbitData.fear + scaryFear + FEAR_ADDED*updateGap)*(FEAR_DECAY^updateGap)
-	rabbitData.boldness = (rabbitData.boldness + goalMag*updateGap + BOLDNESS_ADDED*updateGap)*
-		(1/(0.99 + rabbitData.fear/(10000 - math.min(8000, rabbitData.boldness*20))))^updateGap
-
-	local speedMult = (((rabbitData.fear/55)^0.8)*(2 + (rabbitData.boldness/200)^0.45)/2.3)*rabbitData.stamina/150
-
-	rabbitData.stamina = (rabbitData.stamina - ((speedMult)^0.2)*updateGap + 1.3*updateGap)*STAMINA_DECAY^updateGap
-	
-	--speedMult = math.min(100, speedMult^5)
-	
-	--Spring.Echo("Fear", rabbitData.fear)
-	--Spring.Echo("Boldness", rabbitData.boldness)
-	--Spring.Echo("Stamina", rabbitData.stamina)
-	--Spring.Echo("speedMult", speedMult)
 	
 	if rabbitData.panicMode then
 		if rabbitData.fear < 140 then
@@ -393,22 +409,54 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 		}
 	end
 	
+	-- Paniced Rabbits Drop Carrots
+	if rabbitData.panicMode and rabbitData.foodCarried > 0 then
+		rabbitData.foodCarried = 0
+		GG.RabbitDropCarrot(unitID)
+	end
+	
+	--// Update Goal and Boldness
+	-- 1 carrot
+	local deisrableTypeTable = {
+		math.max(0, 1 - rabbitData.foodCarried), -- Desirability of food
+		math.min(0, rabbitData.foodCarried), -- Desirability of Burrow
+	}
+	
+	local goalRef, gX, gZ, goalMag = GetBestThing(desirableThings, x, z, deisrableTypeTable)
+	
+	rabbitData.boldness = (rabbitData.boldness + goalMag*updateGap + BOLDNESS_ADDED*updateGap)*
+		(1/(0.99 + rabbitData.fear/(10000 - math.min(8000, rabbitData.boldness*20))))^updateGap
+
+	--// Update Speed and Stamina
+	local speedMult = (((rabbitData.fear/55)^0.8)*(2 + (rabbitData.boldness/200)^0.45)/2.3)*rabbitData.stamina/150
+
+	rabbitData.stamina = (rabbitData.stamina - ((speedMult)^0.2)*updateGap + 1.3*updateGap)*STAMINA_DECAY^updateGap
+	
 	--// Handle Carrot Eating
+	-- Eat until the carrot is gone. If paniced stop eating and run away.
 	if rabbitData.eatingProgress then
 		if rabbitData.panicMode then
-			StopEating(rabbitData)
+			StopStealing(rabbitData)
 		else
 			rabbitData.eatingProgress = rabbitData.eatingProgress + updateGap
 			if rabbitData.eatingProgress > rabbitData.eatingThingRef.attributes.eatTime then
+				GG.RabbitPickupCarrot(unitID)
 				Spring.DestroyUnit(rabbitData.eatingThingRef.unitID)
-				rabbitData.foodEaten = rabbitData.foodEaten + 1
-				StopEating(rabbitData)
+				rabbitData.foodCarried = rabbitData.foodCarried + 1
+				StopStealing(rabbitData)
 			else
-				SetRabbitMovement(unitID, x, z, {rabbitData.eatingThingRef.x - x, rabbitData.eatingThingRef.z - z}, 0.5, 1)
+				SetRabbitMovement(unitID, x, z, {rabbitData.eatingThingRef.x - x, rabbitData.eatingThingRef.z - z}, 0.05, 1)
 				return
 			end
 		end
 	end
+	
+	--speedMult = math.min(100, speedMult^5)
+	
+	--Spring.Echo("Fear", rabbitData.fear)
+	--Spring.Echo("Boldness", rabbitData.boldness)
+	--Spring.Echo("Stamina", rabbitData.stamina)
+	--Spring.Echo("speedMult", speedMult)
 	
 	--// Determine move direction and speed
 	-- scaryVec is the direction and magnitude to the scariest thing.
@@ -440,13 +488,18 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 		moveVec = scaryVec
 	end 
 	
-	--// Start eating a nearby carrot
-	if goalRef and (not rabbitData.eatingProgress) and (not rabbitData.panicMode) and goalMag < 60 and goalRef.attributes.isEdible then
-		StartEating(rabbitData, goalRef)
-		SetRabbitMovement(unitID, x, z, {gX - x, gZ - z}, 0.5, 1)
+	--// Handle Transition into Non-Moving (eating, depositing etc..)
+	-- Pick up a nearby carrot
+	if goalRef and goalMag and goalMag < 60 and goalRef.attributes.isEdible and 
+			(not rabbitData.eatingProgress) and rabbitData.foodCarried == 0 and (not rabbitData.panicMode) then
+		StartStealing(rabbitData, goalRef)
+		SetRabbitMovement(unitID, x, z, {gX - x, gZ - z}, 0.05, 1)
 		return
 	end
 	
+	-- Deposit a carrot in a burrow
+	
+	--// Normal Movement
 	-- At this point moveVec is the direction which a rabbit would go if it were bold.
 	-- Direction is 0 in positive x direction. Increases clockwise.
 	local moveDir = Angle(moveVec)
@@ -455,25 +508,23 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	--Spring.MarkerAddPoint(moveVec[1], 0 ,moveVec[2])
 	--Spring.Echo("Move", moveVec[1], moveVec[2], moveDir)
 	
-	-- Rabbits become better able to move in one direction as boldness increases.
-	-- If their boldness is depleted they move about in a semi-random panic.
-	local dirRandomness = 20*(10 + rabbitData.boldness)^(-0.9)
-	dirRandomness = math.min(math.pi*0.4, dirRandomness)
-	--Spring.Echo("dirRandomness", dirRandomness*180/math.pi)
-	
+	-- Boldness decreases rabbit movement jitter.
+	local dirRandomness = math.min(math.pi*0.4, 20*(10 + rabbitData.boldness)^(-0.9))
 	local moveDir = moveDir + math.random()*2*dirRandomness - dirRandomness
 	
+	-- Rabbits have a small bias towards keeping their momentum
 	local vx, _, vz, velMag = Spring.GetUnitVelocity(unitID)
 	local velVector = Norm(10 + math.random()*5, {vx, vz})
-	--Spring.Echo("velMag", velMag)
 	moveVec = PolarToCart(moveMag, moveDir)
 	
+	-- Rabbits also just move randomly.
 	local randVec = PolarToCart(5 + math.random()*10, math.random()*2*math.pi)
 	
 	--Spring.Echo("moveVec Angle", Angle(moveVec)*180/math.pi)
 	--Spring.Echo("randVec", AbsVal(randVec))
+	--Spring.Echo("dirRandomness", dirRandomness*180/math.pi)
 	
-	-- moveVec is now the direction which the rabbit will move in.
+	-- Add the randomVector, momentumVector and goal+scary vectors to get final direction.
 	moveVec = Norm(200*speedMult, Add(moveVec, Add(randVec, velVector)))
 	
 	--// Modify movement attributes and goal
@@ -483,6 +534,10 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 		SetRabbitMovement(unitID, x, z, moveVec, speedMult, speedMult^-0.1)
 	end
 end
+
+-------------------------------------------------------------------
+-------------------------------------------------------------------
+-- External functions
 
 local function ScareRabbitsInArea(x, z, scaryAttributes)
 	local frame = Spring.GetGameFrame()
@@ -501,7 +556,7 @@ end
 
 -------------------------------------------------------------------
 -------------------------------------------------------------------
--- External Functions
+-- gadget handler functions
 
 function gadget:UnitCreated(unitID, unitDefID)
 	if rabbitDefID[unitDefID] then
