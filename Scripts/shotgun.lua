@@ -11,7 +11,7 @@ function script.Create()
 	Turn(shotgun, z_axis, 0)
 end
 
-LastPitch=0
+local LastPitch=0
 function SetPitch(pitch)
 	Signal(SIG_RELOAD)
 	LastPitch=pitch

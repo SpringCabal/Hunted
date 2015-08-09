@@ -1,5 +1,5 @@
-local base = piece "LightHead"
-local LightPitch = piece "LightPitch"
+local lighthead = piece "LightHead"
+local lightpitch = piece "LightPitch"
 
 local color = {0.69, 0.61, 0.85, 0.3}
 local lightRange = 280
@@ -26,8 +26,15 @@ local function LightSpin()
 		lightAngle = lightAngle + rotationSpeed
 		
 		local x,z = GetLightCoordinates()
-		Turn(base, y_axis, -lightAngle + math.pi/2, rotationSpeed*30)
-	
+		local y = Spring.GetGroundHeight(x, z)
+		Turn(lighthead, y_axis, -lightAngle, rotationSpeed*30)
+		
+		local _, lighty, _ = Spring.GetUnitPiecePosDir(unitID, lightpitch)
+		local dx, dy, dz = x - ux, lighty - y, z - uz
+		local dist = math.sqrt(dx * dx + dz * dz)
+		local pitch = math.atan2(dy, dist)
+		Turn(lightpitch, x_axis, pitch + math.pi)
+		
 		Spring.SetUnitRulesParam(unitID, "lighthouse_x", x)
 		Spring.SetUnitRulesParam(unitID, "lighthouse_z", z)	
 		
@@ -47,10 +54,8 @@ end
 function script.Create()
 	lightAngle = math.random()*2*math.pi
 	ux,_,uz = Spring.GetUnitPosition(unitID)
-	
-	Move(base, y_axis, 10)
-	Turn(LightPitch, x_axis, math.pi*0.5)
-	Turn(base, y_axis, -lightAngle + math.pi/2)
+	--Turn(lightpitch, x_axis, math.pi*0.5)
+	Turn(lighthead, y_axis, -lightAngle + math.pi/2)
 	local x,z = GetLightCoordinates()
 	
 	if GG.AddScaryArea then
