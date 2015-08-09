@@ -15,45 +15,32 @@ local function DrawUnit(unitid, material, materialID)
         timeID = gl.GetUniformLocation(material.shader, "time")
     end
 
-    local fx, fz, fsize = GG.flashlightPos.x, GG.flashlightPos.z, GG.flashlightPos.size
-    local x, _, z = Spring.GetUnitPosition(unitid)
+    local minDistance = math.huge
+    for _, flashlight in pairs(GG.flashlights) do
+        local fx, fz, fsize = flashlight.x, flashlight.z, flashlight.size
+        local x, _, z = Spring.GetUnitPosition(unitid)
 
-    local dx = math.abs(x - fx)
-    local dz = math.abs(z - fz)
-    local d = math.sqrt(dx * dx + dz * dz)
+        local dx = math.abs(x - fx)
+        local dz = math.abs(z - fz)
+        local d = math.sqrt(dx * dx + dz * dz)
 
-    local d1 = math.max(d - fsize / 2, 0)
-    local d2 = math.max(d - fsize, 0)
+        local d1 = math.max(d - fsize / 2, 0)
+        local d2 = math.max(d - fsize, 0)
 
-    local distance = d1
-    if d2 > 10 then
-        distance = 100
+        local distance = d1
+        if d2 > 10 then
+            distance = 100
+        end
+
+        if minDistance > distance then
+            minDistance = distance
+        end
     end
 
-    gl.Uniform(distanceID, distance / 100)
+    gl.Uniform(distanceID, minDistance / 100)
     gl.Uniform(timeID, Spring.GetGameFrame()%360)
---   local info = unitInfo[unitid]
---   if (not info) then
---     info = {dir=0, lx=0, lz=0}
---     unitInfo[unitid] = info
---   end
--- 
---   local vx,vy,vz = Spring.GetUnitVelocity(unitid)
---   local speed = (vx*vx+vy*vy+vz*vz)^0.5
--- 
---   local curFrame = Spring.GetGameFrame()
---   if (info.n ~= curFrame) then
---     info.n = curFrame;
---     local lx = info.lx
---     local lz = info.lz
---     local dx,dy,dz = Spring.GetUnitDirection(unitid)
---     info.dir =  info.dir*0.95 + (lx*dz - lz*dx) / ( (lx*lx+lz*lz)^0.5 + (dx*dx+dz*dz)^0.5 );
---     info.lx,info.lz = dx,dz;
---   end
--- 
---   gl.Uniform(material.frameLoc, Spring.GetGameFrame()%360)
---   gl.Uniform(material.speedLoc, info.dir,0,speed)
-    if materialID == 2 and distance > 50 then
+
+    if materialID == 2 and minDistance > 50 then
       return true
   end
   return false --// engine should still draw it (we just set the uniforms for the shader)

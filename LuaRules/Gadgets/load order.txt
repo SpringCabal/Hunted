@@ -1,5 +1,6 @@
 unit_script    0
 rabbit_ai      10  must load after unit_script
+shotgun        20  must load after rabbit_ai
 
 field_spawner  15
 wave_spawner   15  must load after unit_script
