@@ -5,23 +5,35 @@ function gadget:GetInfo()
     author    = "gajop",
     date      = "August 2015",
     license   = "GNU GPL, v2 or later",
-    layer     = 0,
+    layer     = -10,
     enabled   = true,
   }
 end
 
 LOG_SECTION = "flashlight"
 
--- unsynced
-if not Script.GetSynced() then
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+--UNSYNCED
+if Script.GetSynced() then
+	return
+end
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 VFS.Include("LuaUI/widgets/glVolumes.lua")
 
-flashlightIDCount = 1
-flashlights = {}
+local flashlightIDCount = 1
+local flashlights = {}
+local flashlightUnit = {}
 
 local GUN_FLASHLIGHT_SIZE = 150
 local GUN_FLASHLIGHT_COLOR = {0.69, 0.61, 0.85, 0.3}
+
+local colorTable = {
+	{0.69, 0.61, 0.85, 0.3}
+}
 -- purpleish
 -- 0.69, 0.61, 0.85, 0.3
 -- yellowish
@@ -86,24 +98,42 @@ function RemoveFlashlight(id)
     flashlights[id] = nil
 end
 
-function _CreateFlashlight(_, ...) CreateFlashlight(...) end
-function _UpdateFlashlight(_, ...) UpdateFlashlight(...) end
-function _RemoveFlashlight(_, ...) RemoveFlashlight(...) end
-
-function gadget:Initialize()
-    gadgetHandler:AddSyncAction("CreateFlashlight", _CreateFlashlight)
-    gadgetHandler:AddSyncAction("UpdateFlashlight", _UpdateFlashlight)
-    gadgetHandler:AddSyncAction("RemoveFlashlight", _RemoveFlashlight)
-end
-
--- direct access is also available in UNSYNCED (useful for shaders)
 GG.flashlights = flashlights
 
-else
-    -- SYNCED API
-    GG.Flashlight = {
-        Create = function(...) SendToUnsynced("CreateFlashlight", ...) end,
-        Update = function(...) SendToUnsynced("UpdateFlashlight", ...) end,
-        Remove = function(...) SendToUnsynced("RemoveFlashlight", ...) end,
-    }
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- Unit Handling
+
+function gadget:UnitCreated(unitID)
+	local x = Spring.GetUnitRulesParam(unitID, "lighthouse_x")
+	if x then
+		local z = Spring.GetUnitRulesParam(unitID, "lighthouse_z") or 100
+		local size = Spring.GetUnitRulesParam(unitID, "lighthouse_size") or 100
+		local color = Spring.GetUnitRulesParam(unitID, "lighthouse_color") or 1
+		flashlightUnit[unitID] = CreateFlashlight(x, z, size, colorTable[color])
+	end
+end
+
+function gadget:UnitDestroyed(unitID)
+	if flashlightUnit[unitID] then
+		RemoveFlashlight(flashlightUnit[unitID])
+	end
+end
+
+function gadget:GameFrame()
+	for unitID, index in pairs(flashlightUnit) do
+		local x = Spring.GetUnitRulesParam(unitID, "lighthouse_x")
+		local z = Spring.GetUnitRulesParam(unitID, "lighthouse_z") or 100
+		local size = Spring.GetUnitRulesParam(unitID, "lighthouse_size") or 100
+		local color = Spring.GetUnitRulesParam(unitID, "lighthouse_color") or 1
+		UpdateFlashlight(index, x, z, size, colorTable[color])
+	end
+end
+
+
+function gadget:Initialize()
+	for _, unitID in ipairs(Spring.GetAllUnits()) do
+		gadget:UnitCreated(unitID)
+	end
+
 end

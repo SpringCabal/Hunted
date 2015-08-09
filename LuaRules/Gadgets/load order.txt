@@ -1,4 +1,5 @@
-unit_script    0
+ui_flashlight  -10 must load before unit_script
+unit_script    0  
 rabbit_ai      10  must load after unit_script
 shotgun        20  must load after rabbit_ai
 
