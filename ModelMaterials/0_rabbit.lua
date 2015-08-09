@@ -16,24 +16,29 @@ local function DrawUnit(unitid, material, materialID)
     end
 
     local minDistance = math.huge
-    for _, flashlight in pairs(GG.flashlights) do
-        local fx, fz, fsize = flashlight.x, flashlight.z, flashlight.size
-        local x, _, z = Spring.GetUnitPosition(unitid)
+    local flare_state = Spring.GetGameRulesParam("flare_state")
+    if flare_state == "active" then 
+        minDistance = 0
+    else
+        for _, flashlight in pairs(GG.flashlights) do
+            local fx, fz, fsize = flashlight.x, flashlight.z, flashlight.size
+            local x, _, z = Spring.GetUnitPosition(unitid)
 
-        local dx = math.abs(x - fx)
-        local dz = math.abs(z - fz)
-        local d = math.sqrt(dx * dx + dz * dz)
+            local dx = math.abs(x - fx)
+            local dz = math.abs(z - fz)
+            local d = math.sqrt(dx * dx + dz * dz)
 
-        local d1 = math.max(d - fsize / 2, 0)
-        local d2 = math.max(d - fsize, 0)
+            local d1 = math.max(d - fsize / 2, 0)
+            local d2 = math.max(d - fsize, 0)
 
-        local distance = d1
-        if d2 > 10 then
-            distance = 100
-        end
+            local distance = d1
+            if d2 > 10 then
+                distance = 100
+            end
 
-        if minDistance > distance then
-            minDistance = distance
+            if minDistance > distance then
+                minDistance = distance
+            end
         end
     end
 
