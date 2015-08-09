@@ -40,7 +40,7 @@ local desirableUnitDefs = {
 		radius = 1500,
 		radiusSq = 1500^2,
 		edgeMagnitude = 0.1, -- Magnitude once within radius (per frame)
-		proximityMagnitude = 2.5, -- Maximum agnitude gained by being close (per frame)
+		proximityMagnitude = 2.15, -- Maximum agnitude gained by being close (per frame)
 		thingType = 1, -- Food
 		eatTime = 10,
 		isEdible = true
@@ -341,6 +341,10 @@ local function AddRabbit(unitID)
 end
 
 local function RemoveRabbit(unitID)
+	if rabbits[unitID].foodCarried > 0 then
+		GG.RabbitDropCarrot(unitID)
+	end
+	
 	if rabbits[unitID].eatingProgress then
 		StopStealing(rabbits[unitID])
 	end
@@ -348,9 +352,10 @@ local function RemoveRabbit(unitID)
 end
 
 
-local function SetRabbitMovement(unitID, x, z, goalVec, speedMult, turnMult)
+local function SetRabbitMovement(unitID, x, z, goalVec, speedMult, accelMult, turnMult)
 	--Spring.MarkerAddPoint(goalVec[1] + x,0,goalVec[2] + z)
 	Spring.SetUnitRulesParam(unitID, "selfMoveSpeedChange", speedMult)
+		Spring.SetUnitRulesParam(unitID, "selfMaxAccelerationChange", accelMult)
 	Spring.SetUnitRulesParam(unitID, "selfTurnSpeedChange", turnMult)
 	GG.UpdateUnitAttributes(unitID)
 	GiveClampedOrderToUnit(unitID, CMD.MOVE, {goalVec[1] + x, 0, goalVec[2] + z}, 0 )
@@ -411,7 +416,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	end
 	
 	-- Paniced Rabbits Drop Carrots
-	if rabbitData.panicMode and rabbitData.foodCarried > 0 then
+	if rabbitData.fear > 500 and rabbitData.foodCarried > 0 then
 		rabbitData.foodCarried = 0
 		GG.RabbitDropCarrot(unitID)
 	end
@@ -446,7 +451,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 				rabbitData.foodCarried = rabbitData.foodCarried + 1
 				StopStealing(rabbitData)
 			else
-				SetRabbitMovement(unitID, x, z, {rabbitData.eatingThingRef.x - x, rabbitData.eatingThingRef.z - z}, 0.01, 0.2)
+				SetRabbitMovement(unitID, x, z, {rabbitData.eatingThingRef.x - x, rabbitData.eatingThingRef.z - z}, 0.05, 2, 0.2)
 				return
 			end
 		end
@@ -494,7 +499,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	if goalRef and goalMag and goalMag < 60 and goalRef.attributes.isEdible and 
 			(not rabbitData.eatingProgress) and rabbitData.foodCarried == 0 and (not rabbitData.panicMode) then
 		StartStealing(rabbitData, goalRef)
-		SetRabbitMovement(unitID, x, z, {gX - x, gZ - z}, 0.01, 0.2)
+		SetRabbitMovement(unitID, x, z, {gX - x, gZ - z}, 0.05, 2, 0.2)
 		return
 	end
 	
@@ -503,7 +508,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 			rabbitData.foodCarried > 0 and (not rabbitData.panicMode) then
 		rabbitData.foodCarried = 0
 		GG.RabbitScoreCarrot(unitID)
-		SetRabbitMovement(unitID, x, z, {gX - x, gZ - z}, 0.05, 1)
+		SetRabbitMovement(unitID, x, z, {gX - x, gZ - z}, 0.05, 2, 1)
 		return
 	end
 	
@@ -537,9 +542,9 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	
 	--// Modify movement attributes and goal
 	if scaryMag > 100 then
-		SetRabbitMovement(unitID, x, z, moveVec, speedMult, 1)
+		SetRabbitMovement(unitID, x, z, moveVec, speedMult, 5, 1.5)
 	else
-		SetRabbitMovement(unitID, x, z, moveVec, speedMult, speedMult^-0.1)
+		SetRabbitMovement(unitID, x, z, moveVec, speedMult, 1, speedMult^-0.1)
 	end
 end
 

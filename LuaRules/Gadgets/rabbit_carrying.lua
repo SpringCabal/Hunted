@@ -42,22 +42,21 @@ end
 
 local function RabbitDropCarrot(unitID)
 	local carryID = rabbitCarrying[unitID]
-	
-	if carryID then
+	if carryID and Spring.ValidUnitID(carryID) then
 		Spring.DestroyUnit(carryID, false, false)
-		local _,_,_,x,y,z = Spring.GetUnitPosition(unitID, true)
-		Spring.CreateUnit(dropDefID, x, y, z, 0, 0, false, false)
-
-		rabbitCarrying[unitID] = nil
 	end
+	
+	local _,_,_,x,y,z = Spring.GetUnitPosition(unitID, true)
+	Spring.CreateUnit(dropDefID, x, y, z, 0, 0, false, false)
+	rabbitCarrying[unitID] = nil
 end
 
 local function RabbitScoreCarrot(unitID)
 	local carryID = rabbitCarrying[unitID]
-	if carryID then
+	if carryID and Spring.ValidUnitID(carryID) then
 		Spring.DestroyUnit(carryID, false, false)
-		rabbitCarrying[unitID] = nil
 	end
+	rabbitCarrying[unitID] = nil
 	Spring.Echo("A Rabbit return a Carrot to their Burrow!!")
 end
 

@@ -202,14 +202,6 @@ local function updateMovementSpeed(unitID, ud, speedFactor, turnAccelFactor, max
 		end
 	end
 	
-	if speedFactor < 0.5 then
-		local vx, vy, vz, speed = Spring.GetUnitVelocity(unitID)
-		local m = state.origSpeed*speedFactor/speed
-		if m < 1 then
-			Spring.SetUnitVelocity(unitID, m*vx, m*vy, m*vz)
-		end
-	end
-	
 	if turnAccelFactor <= 0 then
 		turnAccelFactor = 0
 	end
