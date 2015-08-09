@@ -70,8 +70,8 @@ local function UpdateScores()
     local score = Spring.GetGameRulesParam("score") or 0
     lblScore:SetCaption("\255\255\255\0Score: " .. score .. "\b")
 	
-    local surivalTime = Spring.GetGameRulesParam("survivalTime") or 0
-    lblSuurvivalTime:SetCaption("\255\255\255\0Time: " .. surivalTime .. "\b")
+    local survivalTime = Spring.GetGameRulesParam("survivalTime") or 0
+    lblSuurvivalTime:SetCaption("\255\255\255\0Time: " .. survivalTime .. "\b")
 end
 
 local function UpdateAmmo()
