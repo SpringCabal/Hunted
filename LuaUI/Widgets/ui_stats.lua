@@ -16,6 +16,10 @@ local rabbitDefID = UnitDefNames["rabbit"].id
 
 local lblRabbits, lblRabbitsKilled, lblCarrots, lblCarrotsStolen, lblCarrotsDestroyed, lblScore, lblSuurvivalTime
 
+local lastKilled
+local streakFrame
+local streakKilled
+
 function widget:Initialize()
 	if (not WG.Chili) then
 		widgetHandler:RemoveWidget()
@@ -117,6 +121,28 @@ function UpdateRabbits()
     else
         lblRabbitsKilled:SetCaption("")
     end
+	local newKilled = lastKilled and (rabbitsKilled - lastKilled) or 0
+	lastKilled = rabbitsKilled
+	
+	if newKilled > 0 then
+		local frame = Spring.GetGameFrame()
+		Spring.Echo(frame, streakFrame)
+		if not streakFrame or (frame - streakFrame) > 120 then
+			streakKilled = 0
+		end
+		streakFrame = frame
+		local newStreakKilled = streakKilled + newKilled
+		if newStreakKilled >= 20 and streakKilled < 20 then
+			Spring.PlaySoundFile("sounds/godlike.ogg", 20)
+		elseif newStreakKilled >= 15 and streakKilled < 15 then
+			Spring.PlaySoundFile("sounds/monsterkill.ogg", 20)
+		elseif newStreakKilled >= 8 and streakKilled < 8 then
+			Spring.PlaySoundFile("sounds/ultrakill.ogg", 20)
+		elseif newStreakKilled >= 3 and streakKilled < 3 then
+			Spring.PlaySoundFile("sounds/killstreak.ogg", 20)
+		end
+		streakKilled = newStreakKilled
+	end
 end
 
 function UpdateCarrots()
