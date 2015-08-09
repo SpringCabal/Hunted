@@ -11,10 +11,12 @@ function gadget:GetInfo()
 		author	= "Google Frog",
 		date	= "8 August 2015",
 		license	= "GNU GPL, v2 or later",
-		layer	= 2,
+		layer	= 10,
 		enabled = true
 	}
 end
+
+
 
 -------------------------------------------------------------------
 -------------------------------------------------------------------
@@ -73,10 +75,10 @@ local BOLDNESS_ADDED = 0.3 -- boldness added every frame
 -- Fields are manually placed groups of carrots. They need to span the whole
 -- map to attract rabbits.
 local desirableFieldAttributes = {
-	radius = 5000,
-	radiusSq = 5000^2,
+	radius = 9000,
+	radiusSq = 9000^2,
 	edgeMagnitude = 0, -- Magnitude once within radius
-	proximityMagnitude = 80, -- Maximum agnitude gained by being close
+	proximityMagnitude = 0.1, -- Maximum agnitude gained by being close
 	thingType = 1, -- Food
 }
 
@@ -260,6 +262,7 @@ local function RemoveThing(thingTable, index)
 	thingTable[index] = thingTable[#thingTable]
 	thingTable[index].index = index
 	thingTable[#thingTable] = nil
+	--GG.TableEcho(thingTable)
 end
 
 -------------------------------------------------------------------
@@ -270,6 +273,8 @@ local function StartStealing(rabbitData, thingRef)
 	if Spring.ValidUnitID(unitID) then
 		Spring.SetUnitRulesParam(unitID, "stealing", 1)
 	end
+	
+	--Spring.MarkerAddPoint(thingRef.x, 0, thingRef.z, "Stealing")
 	
 	rabbitData.eatingProgress = thingRef.carryoverEatProgress or 0
 	rabbitData.eatingThingRef = thingRef
@@ -404,10 +409,10 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	rabbitData.fear = (rabbitData.fear + scaryFear + FEAR_ADDED*updateGap)*(FEAR_DECAY^updateGap)
 	
 	if rabbitData.panicMode then
-		if rabbitData.fear < 140 then
+		if rabbitData.fear < 150 then
 			rabbitData.panicMode = false
 		end
-	elseif rabbitData.fear > 140 then
+	elseif rabbitData.fear > 150 then
 		rabbitData.panicMode = {
 			x = sX,
 			z = sZ,
@@ -422,10 +427,11 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	end
 	
 	--// Update Goal and Boldness
+	local expectedFood = rabbitData.foodCarried + ((rabbitData.eatingProgress and 1) or 0)
 	-- 1 carrot
 	local deisrableTypeTable = {
-		math.max(0, 1 - rabbitData.foodCarried), -- Desirability of food
-		math.min(1, rabbitData.foodCarried), -- Desirability of Burrow
+		math.max(0, 1 - expectedFood), -- Desirability of food
+		math.min(1, expectedFood), -- Desirability of Burrow
 	}
 	
 	local goalRef, gX, gZ, goalMag = GetBestThing(desirableThings, x, z, deisrableTypeTable)
@@ -434,7 +440,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 		(1/(0.99 + rabbitData.fear/(10000 - math.min(8000, rabbitData.boldness*20))))^updateGap
 
 	--// Update Speed and Stamina
-	local speedMult = (((rabbitData.fear/55)^0.8)*(2 + (rabbitData.boldness/200)^0.45)/2.3)*rabbitData.stamina/150
+	local speedMult = ((((rabbitData.fear + math.max(0, rabbitData.boldness - 320))/55)^0.8)*(2 + (rabbitData.boldness/200)^0.45)/2.3)*rabbitData.stamina/150
 
 	rabbitData.stamina = (rabbitData.stamina - ((speedMult)^0.2)*updateGap + 1.3*updateGap)*STAMINA_DECAY^updateGap
 	
@@ -447,8 +453,10 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 			rabbitData.eatingProgress = rabbitData.eatingProgress + updateGap
 			if rabbitData.eatingProgress > rabbitData.eatingThingRef.attributes.eatTime then
 				GG.RabbitPickupCarrot(unitID)
+				--Spring.Echo("Destroying", rabbitData.eatingThingRef.unitID, Spring.ValidUnitID(rabbitData.eatingThingRef.unitID))
 				Spring.DestroyUnit(rabbitData.eatingThingRef.unitID, false, false)
 				rabbitData.foodCarried = rabbitData.foodCarried + 1
+				rabbitData.boldness = rabbitData.boldness + 150 -- Bonus boldness for being a good theif!
 				StopStealing(rabbitData)
 			else
 				SetRabbitMovement(unitID, x, z, {rabbitData.eatingThingRef.x - x, rabbitData.eatingThingRef.z - z}, 0.05, 2, 0.2)
@@ -525,14 +533,17 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	local dirRandomness = math.min(math.pi*0.4, 20*(10 + rabbitData.boldness)^(-0.9))
 	local moveDir = moveDir + math.random()*2*dirRandomness - dirRandomness
 	
+	local jitter = 1/(1 + math.max(0, rabbitData.boldness - 300)/100)
+	
 	-- Rabbits have a small bias towards keeping their momentum
 	local vx, _, vz, velMag = Spring.GetUnitVelocity(unitID)
-	local velVector = Norm(10 + math.random()*5, {vx, vz})
+	local velVector = Norm((10 + math.random()*5)*jitter, {vx, vz})
 	moveVec = PolarToCart(moveMag, moveDir)
 	
 	-- Rabbits also just move randomly.
-	local randVec = PolarToCart(5 + math.random()*10, math.random()*2*math.pi)
+	local randVec = PolarToCart((5 + math.random()*10)*jitter, math.random()*2*math.pi)
 	
+	--Spring.Echo("jitter", jitter)
 	--Spring.Echo("moveVec Angle", Angle(moveVec)*180/math.pi)
 	--Spring.Echo("randVec", AbsVal(randVec))
 	--Spring.Echo("dirRandomness", dirRandomness*180/math.pi)
@@ -542,9 +553,9 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	
 	--// Modify movement attributes and goal
 	if scaryMag > 100 then
-		SetRabbitMovement(unitID, x, z, moveVec, speedMult, 5, 1.5)
+		SetRabbitMovement(unitID, x, z, moveVec, speedMult, 5/jitter, 1.5)
 	else
-		SetRabbitMovement(unitID, x, z, moveVec, speedMult, 1, speedMult^-0.1)
+		SetRabbitMovement(unitID, x, z, moveVec, speedMult, 1/jitter, speedMult^-0.1)
 	end
 end
 
@@ -572,6 +583,10 @@ end
 -- gadget handler functions
 
 function gadget:UnitCreated(unitID, unitDefID)
+	if Spring.GetUnitIsDead(unitID) then
+		return
+	end
+	
 	if rabbitDefID[unitDefID] then
 		AddRabbit(unitID)
 	end

@@ -11,7 +11,7 @@ function gadget:GetInfo()
 		author	= "Google Frog",
 		date	= "9 August 2015",
 		license	= "GNU GPL, v2 or later",
-		layer	= 1,
+		layer	= 5,
 		enabled = true
 	}
 end
@@ -52,6 +52,9 @@ local function RabbitDropCarrot(unitID)
 end
 
 local function RabbitScoreCarrot(unitID)
+	local carrotCount = Spring.GetGameRulesParam("carrot_count") or 0
+	Spring.SetGameRulesParam("carrot_count", carrotCount - 1)
+	
 	local carryID = rabbitCarrying[unitID]
 	if carryID and Spring.ValidUnitID(carryID) then
 		Spring.DestroyUnit(carryID, false, false)
