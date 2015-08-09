@@ -23,7 +23,7 @@ local majorEvent
 
 local vsx, vsy
 
-function AddEvent(str, fontSize, color)
+function WG.AddEvent(str, fontSize, color)
     table.insert(events, {
         str = str,
         fontSize = fontSize,
@@ -70,7 +70,7 @@ function widget:GameFrame()
             else
                 diff = tostring(diff)
             end
-            AddEvent("Rabbits: " .. diff, size, {0, 0, 1, 1})
+            WG.AddEvent("Rabbits: " .. diff, size, {0, 0, 1, 1})
         end
         rabbitCount = rabbitCountCR
         rabbitsKilled = rabbitsKilledCR
@@ -84,7 +84,7 @@ function widget:GameFrame()
             else
                 diff = tostring(diff)
             end
-            AddEvent("Carrots: " .. diff, 30, {1, 0.5, 0.31, 1})
+            WG.AddEvent("Carrots: " .. diff, 30, {1, 0.5, 0.31, 1})
         end
         carrotCount = carrotCountCR
         carrotsStolen = carrotsStolenCR

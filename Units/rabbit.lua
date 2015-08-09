@@ -50,7 +50,7 @@ local unitDef  =  {
 	
 --Hitbox
 	collisionVolumeOffsets    =  "0 16 0",
-	collisionVolumeScales     =  "32 32 32",
+	collisionVolumeScales     =  "64 64 64",
 	collisionVolumeType       =  "sphere",
 }
 
