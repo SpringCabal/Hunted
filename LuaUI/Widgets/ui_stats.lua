@@ -83,7 +83,7 @@ local function UpdateAmmo()
 end
 
 function UpdateFlash()
-    local value = math.floor(Spring.GetGameRulesParam("flare_progress"))
+    local value = math.floor(Spring.GetGameRulesParam("flare_progress") or 0)
     pbFlash:SetValue(value)
 end
 
