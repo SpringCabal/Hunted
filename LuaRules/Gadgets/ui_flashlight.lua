@@ -105,6 +105,10 @@ GG.flashlights = flashlights
 -- Unit Handling
 
 function gadget:UnitCreated(unitID)
+	if Spring.GetUnitIsDead(unitID) then
+		return
+	end
+	
 	local x = Spring.GetUnitRulesParam(unitID, "lighthouse_x")
 	if x then
 		local z = Spring.GetUnitRulesParam(unitID, "lighthouse_z") or 100

@@ -71,16 +71,6 @@ local STAMINA_DECAY = 0.998
 local FEAR_ADDED = 0.3 -- fear added every frame
 local BOLDNESS_ADDED = 0.3 -- boldness added every frame
 
--- Fields are manually placed groups of carrots. They need to span the whole
--- map to attract rabbits.
-local desirableFieldAttributes = {
-	radius = 9000,
-	radiusSq = 9000^2,
-	edgeMagnitude = 0, -- Magnitude once within radius
-	proximityMagnitude = 0.1, -- Maximum agnitude gained by being close
-	thingType = 1, -- Food
-}
-
 -------------------------------------------------------------------
 -------------------------------------------------------------------
 -- Global Tables
@@ -258,8 +248,8 @@ end
 
 -------------------------------------------------------------------
 -------------------------------------------------------------------
--- Scary Area Handling
--- Scary areas can be created by external gadget. Those gadgets are
+-- Purea Scary/Desirable Area Handling
+-- Areas can be created by external gadget. Those gadgets are
 -- allowed to update the attributes of the area.
 
 local function AddScaryArea(data)
@@ -269,6 +259,19 @@ end
 
 local function RemoveScaryArea(data)
 	RemoveThing(scaryThings, data.index)
+end
+local function AddScaryArea(data)
+	local index = AddThing(scaryThings, data)
+	return scaryThings[index]
+end
+
+local function AddDesirableArea(data)
+	local index = AddThing(desirableThings, data)
+	return desirableThings[index]
+end
+
+local function RemoveDesirableArea(data)
+	RemoveThing(desirableThings, data.index)
 end
 
 -------------------------------------------------------------------
@@ -644,6 +647,8 @@ function gadget:Initialize()
 	GG.ScareRabbitsInArea = ScareRabbitsInArea
 	GG.AddScaryArea = AddScaryArea
 	GG.RemoveScaryArea = RemoveScaryArea
+	GG.AddDesirableArea = AddDesirableArea
+	GG.RemoveDesirableArea = RemoveDesirableArea
 	
 	for _, unitID in ipairs(Spring.GetAllUnits()) do
 		local unitDefID = Spring.GetUnitDefID(unitID)
