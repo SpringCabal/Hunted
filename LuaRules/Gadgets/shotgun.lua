@@ -94,6 +94,7 @@ local function FireShotgun(x, y, z)
 	Spring.SetUnitVelocity(shotgunID, -dx * 20, -dy * 20, -dz * 20)
 	local env = Spring.UnitScript.GetScriptEnv(shotgunID)
 	Spring.UnitScript.CallAsUnit(shotgunID, env.Fire)
+	Spring.PlaySoundFile("sounds/shotgun1.wav", 20, spawnx, spawny, spawnz)
 	Spring.GiveOrderToUnit(shotgunID, CMD.STOP, {}, {})
 	if targetx then
 		Spring.GiveOrderToUnit(shotgunID, CMD.MOVE, {targetx + 100, targety, targetz - 100}, {})
