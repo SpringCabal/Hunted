@@ -31,6 +31,8 @@ local startFrame = 0
 local waveGap = 550
 local MAX_RABBITS = 600
 
+local currentDifficult = 1
+
 local waveAtt = {
 	burrows = 5,
 	rabbitCount = 25,
@@ -89,11 +91,17 @@ function gadget:Initialize()
 	
 	Spring.SetGameRulesParam("score", 0)
 	Spring.SetGameRulesParam("survivalTime", 0)
+	currentDifficult = 1
 end
 
 function gadget:GameFrame(frame)
 	local elapsed = frame - startFrame
 	if elapsed%waveGap == 1 then
+		
+		GG.SetRabbitPanicResist(currentDifficult)
+		GG.SetRabbitSpeedMult(1 + currentDifficult/2)
+		
+		currentDifficult = currentDifficult * (1 + 0.04/currentDifficult)
 		
 		local rabbitCount = Spring.GetTeamUnitDefCount(0, rabbitDefID)
 		

@@ -17,6 +17,9 @@ function widget:Initialize()
 end
 
 function widget:GameStart()
+	-- Kill healthbars.
+	Spring.SendCommands({"showhealthbars 0", "showrezbars 0", "unbind f9 showhealthbars"})
+	
 	local cheat = Spring.IsCheatingEnabled()
 	if not cheat then
 		Spring.SendCommands('cheat')

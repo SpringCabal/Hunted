@@ -33,7 +33,7 @@ local desirableUnitDefs = {
 		edgeMagnitude = 0.1, -- Magnitude once within radius (per frame)
 		proximityMagnitude = 2, -- Maximum agnitude gained by being close (per frame)
 		thingType = 1, -- Food
-		eatTime = 80,
+		eatTime = 100,
 		eatTimeReduces = true,
 		isEdible = true
 	},
@@ -70,6 +70,9 @@ local FEAR_DECAY = 0.995
 local STAMINA_DECAY = 0.998
 local FEAR_ADDED = 0.3 -- fear added every frame
 local BOLDNESS_ADDED = 0.3 -- boldness added every frame
+
+local global_rabbitSpeedMult = 1
+local global_rabbitPanicResist = 1
 
 -------------------------------------------------------------------
 -------------------------------------------------------------------
@@ -403,7 +406,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 
 	local updateGap = frame - rabbitData.lastUpdate
 	rabbitData.lastUpdate = frame
-	rabbitData.nextUpdate = frame + 10 + 20*math.random()
+	rabbitData.nextUpdate = frame + 5 + 10*math.random()
 	
 	--// Update Scary Place and Fear
 	local scaryRef, sX, sZ, scaryMag, scaryFear
@@ -422,7 +425,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	end
 	
 	-- Panic mode causes a rabbit to run away from a scary location until it calms down.
-	if rabbitData.panicMode and (scaryMag + 100 > rabbitData.fear or scaryMag > 100)then
+	if rabbitData.panicMode and (scaryMag + 100*global_rabbitPanicResist > rabbitData.fear or scaryMag > 100*global_rabbitPanicResist) then
 		rabbitData.panicMode = {
 			x = sX,
 			z = sZ,
@@ -436,7 +439,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 		if rabbitData.fear < 150 then
 			rabbitData.panicMode = false
 		end
-	elseif rabbitData.fear > 250 then
+	elseif rabbitData.fear > 250*global_rabbitPanicResist then
 		rabbitData.panicMode = {
 			x = sX,
 			z = sZ,
@@ -445,7 +448,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	end
 	
 	-- Paniced Rabbits Drop Carrots
-	if rabbitData.fear > 500 and rabbitData.foodCarried > 0 then
+	if rabbitData.fear > 500*global_rabbitPanicResist and rabbitData.foodCarried > 0 then
 		rabbitData.foodCarried = 0
 		GG.RabbitDropCarrot(unitID)
 	end
@@ -474,7 +477,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	
 	rabbitData.stamina = (rabbitData.stamina - ((speedMult)^0.2)*updateGap + 1.3*updateGap)*STAMINA_DECAY^updateGap
 	
-	speedMult = speedMult*2
+	speedMult = speedMult*1.8*global_rabbitSpeedMult
 	
 	--// Handle Carrot Eating
 	-- Eat until the carrot is gone. If paniced stop eating and run away.
@@ -522,7 +525,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	scaryVec = Norm(-rabbitData.fear/8, scaryVec)
 	
 	local moveVec, goalMag
-	if rabbitData.fear < 180 then
+	if rabbitData.fear < 180*global_rabbitPanicResist then
 		local goalVec = {gX - x, gZ - z}
 		goalMag = AbsVal(goalVec)
 		if goalMag < 200 then
@@ -541,6 +544,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	if goalRef and goalMag and goalMag < 60 and goalRef.attributes.isEdible and 
 			(not rabbitData.eatingProgress) and rabbitData.foodCarried == 0 and (not rabbitData.panicMode) then
 		StartStealing(rabbitData, goalRef)
+		rabbitData.eatingProgress = rabbitData.eatingProgress + updateGap
 		SetRabbitMovement(unitID, x, z, {gX - x, gZ - z}, 0.05, 2, 0.2)
 		return
 	end
@@ -611,6 +615,13 @@ local function ScareRabbitsInArea(x, z, scaryAttributes)
 	end
 end
 
+local function SetRabbitPanicResist(val)
+	global_rabbitPanicResist = val
+end
+
+local function SetRabbitSpeedMult(val)
+	global_rabbitSpeedMult = val
+end
 
 -------------------------------------------------------------------
 -------------------------------------------------------------------
@@ -653,6 +664,12 @@ function gadget:Initialize()
 	GG.RemoveScaryArea = RemoveScaryArea
 	GG.AddDesirableArea = AddDesirableArea
 	GG.RemoveDesirableArea = RemoveDesirableArea
+	
+	GG.SetRabbitPanicResist = SetRabbitPanicResist
+	GG.SetRabbitSpeedMult = SetRabbitSpeedMult
+	
+	global_rabbitSpeedMult = 1
+	global_rabbitPanicResist = 1
 	
 	for _, unitID in ipairs(Spring.GetAllUnits()) do
 		local unitDefID = Spring.GetUnitDefID(unitID)
