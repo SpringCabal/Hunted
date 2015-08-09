@@ -76,7 +76,6 @@ local function SpawnBurrow(x, z)
 	Spring.SetUnitRotation(burrowID, 0, math.random()*2*math.pi, 0)
 end
 
--- TESTING PURPSOES ONLY for now just spawn a new wave each time a burrow is /give n
 function gadget:UnitCreated(unitID, unitDefID)
 	if Spring.GetUnitIsDead(unitID) then
 		return

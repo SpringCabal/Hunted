@@ -46,6 +46,7 @@ local shotgunAttributes = {
 	radiusSq = 300^2,
 	edgeMagnitude = 0,
 	proximityMagnitude = 150,
+	thingType = 1, -- weapon
 }
 
 local torchAttributes = {
@@ -53,7 +54,12 @@ local torchAttributes = {
 	radiusSq = 200^2,
 	edgeMagnitude = 0.1,
 	proximityMagnitude = 1.8,
+	thingType = 2, -- torch
 }
+
+local torchRadius = 200
+local torchEdge = 0.1
+local torchProximity = 1.8
 
 -------------------------------------------------------------------
 -- Spawning Projectiles
@@ -126,6 +132,7 @@ local function MoveShotgun(x, y, z)
 	torchScaryArea.x = x
 	torchScaryArea.z = z
 end
+
 
 function gadget:UnitCreated(unitID, unitDefID, unitTeam)
 	if unitDefID == shotgunDefId then

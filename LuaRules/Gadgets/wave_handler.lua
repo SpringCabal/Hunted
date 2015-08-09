@@ -26,6 +26,7 @@ end
 
 local rabbitDefID = UnitDefNames["rabbit"].id
 local lighthouseDefID = UnitDefNames["lighthouse"].id
+local mineDefID = UnitDefNames["mine"].id
 
 local startFrame = 0
 local waveGap = 550
@@ -36,8 +37,8 @@ local currentDifficult = 1
 local waveAtt = {
 	burrows = 5,
 	rabbitCount = 25,
-	familySize = {2, 3},
-	familyGap = {8, 10},
+	familySize = {2, 2},
+	familyGap = {12, 10},
 }
 
 --------------------------------------------------------------------------------
@@ -53,7 +54,7 @@ end
 local function CleanUnits()
 	for _, unitID in ipairs(Spring.GetAllUnits()) do
 		local unitDefID = Spring.GetUnitDefID(unitID)
-		if lighthouseDefID == unitDefID then
+		if lighthouseDefID == unitDefID or unitDefID == mineDefID then
 			Spring.SetUnitRulesParam(unitID, "internalDestroy", 1)
 			Spring.DestroyUnit(unitID, false, false)
 		end
@@ -96,7 +97,7 @@ end
 
 function gadget:GameFrame(frame)
 	local elapsed = frame - startFrame
-	if elapsed%waveGap == 1 then
+	if elapsed%waveGap == 5 then
 		
 		GG.SetRabbitPanicResist(currentDifficult)
 		GG.SetRabbitSpeedMult(1 + currentDifficult/2)
@@ -114,8 +115,8 @@ function gadget:GameFrame(frame)
 		waveAtt.burrows = math.ceil(waveAtt.burrows*1.1)
 		waveAtt.rabbitCount = math.ceil(waveAtt.rabbitCount*1.1)
 		waveAtt.familySize = {
-			1.05*waveAtt.familySize[1],
-			1.05*waveAtt.familySize[2]
+			waveAtt.familySize[1],
+			waveAtt.familySize[2]
 		}
 	end
 	

@@ -12,6 +12,7 @@ local torchAttributes = {
 	radiusSq = 250^2,
 	edgeMagnitude = 0.1,
 	proximityMagnitude = 1.6,
+	thingType = 2, -- torch
 }
  
 local ux, uz, lightAngle, torchScaryArea

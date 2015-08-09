@@ -22,6 +22,7 @@ local scareAttributes = {
 	radiusSq = 250^2,
 	edgeMagnitude = 0,
 	proximityMagnitude = 400,
+	thingType = 1, -- weapon
 }
 
 if (gadgetHandler:IsSyncedCode()) then

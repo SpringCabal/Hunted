@@ -45,7 +45,7 @@ function gadget:Update()
     local x, y = Spring.GetMouseState()
     local result, coords = Spring.TraceScreenRay(x, y, true)
     if result == "ground" then
-        if gunFlashlightID == nil then
+		if gunFlashlightID == nil then
             gunFlashlightID = CreateFlashlight(coords[1], coords[3])
         else
             UpdateFlashlight(gunFlashlightID, coords[1], coords[3])
@@ -124,12 +124,14 @@ function gadget:UnitDestroyed(unitID)
 	end
 end
 
+
 function gadget:GameFrame()
 	for unitID, index in pairs(flashlightUnit) do
 		local x = Spring.GetUnitRulesParam(unitID, "lighthouse_x")
 		local z = Spring.GetUnitRulesParam(unitID, "lighthouse_z") or 100
 		local size = Spring.GetUnitRulesParam(unitID, "lighthouse_size") or 100
 		local color = Spring.GetUnitRulesParam(unitID, "lighthouse_color") or 1
+
 		UpdateFlashlight(index, x, z, size, colorTable[color])
 	end
 end

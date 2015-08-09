@@ -54,9 +54,9 @@ local desirableUnitDefs = {
 		thingType = 1, -- "Food"
 	},
 	[UnitDefNames["burrow"].id] = {
-		radius = 2000,
-		radiusSq = 2000^2,
-		edgeMagnitude = 0.1, -- Magnitude once within radius (per frame)
+		radius = 9000,
+		radiusSq = 9000^2,
+		edgeMagnitude = 1, -- Magnitude once within radius (per frame)
 		proximityMagnitude = 2, -- Maximum magnitude gained by being close (per frame)
 		thingType = 2, -- Safety
 		isCarrotRepository = true,
@@ -355,6 +355,7 @@ local function AddRabbit(unitID)
 		boldness = 150,
 		stamina = 100,
 		foodCarried = 0,
+		carryingSince = false,
 		lastUpdate = Spring.GetGameFrame(),
 	}
 end
@@ -381,6 +382,7 @@ local function RabbitFoodDestroyed(unitID)
 	local rabbitData = rabbits[unitID]
 	if rabbitData and rabbitData.foodCarried then
 		rabbitData.foodCarried = 0
+		rabbitData.carryingSince = false
 	end
 end
 
@@ -408,6 +410,18 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	rabbitData.lastUpdate = frame
 	rabbitData.nextUpdate = frame + 5 + 10*math.random()
 	
+	-- ScaryThingTable
+	local scaryThingTable
+	if rabbitData.carryingSince then
+		local carrySeconds = (frame - rabbitData.carryingSince)/30
+		-- After 10 seconds of carrying the Rabbit begins to ignore lights.
+		-- After 20 seconds it ignores lights entirely.
+		scaryThingTable = {
+			1, -- Scaryness of weapons
+			math.min(1, math.max(0, (20 - carrySeconds)/10)), -- Scaryness of lights
+		}
+	end
+	
 	--// Update Scary Place and Fear
 	local scaryRef, sX, sZ, scaryMag, scaryFear
 	if scaryOverride then
@@ -420,7 +434,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 		-- This type of fear is due to constant environmental effects
 		-- so it is multiplied by the time since last update.
 		-- These fears should be set low.
-		scaryRef, sX, sZ, scaryMag = GetBestThing(scaryThings, x, z)
+		scaryRef, sX, sZ, scaryMag = GetBestThing(scaryThings, x, z, scaryThingTable)
 		scaryFear = scaryMag*updateGap
 	end
 	
@@ -432,7 +446,8 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 			mag = scaryMag,
 		}
 	end
-
+	
+	-- Update Fear
 	rabbitData.fear = (rabbitData.fear + scaryFear + FEAR_ADDED*updateGap)*(FEAR_DECAY^updateGap)
 	
 	if rabbitData.panicMode then
@@ -450,6 +465,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	-- Paniced Rabbits Drop Carrots
 	if rabbitData.fear > 500*global_rabbitPanicResist and rabbitData.foodCarried > 0 then
 		rabbitData.foodCarried = 0
+		rabbitData.carryingSince = false
 		GG.RabbitDropCarrot(unitID)
 	end
 	
@@ -491,6 +507,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 				Spring.DestroyUnit(rabbitData.eatingThingRef.unitID, false, false)
 				rabbitData.foodCarried = rabbitData.foodCarried + 1
 				rabbitData.boldness = rabbitData.boldness + 150 -- Bonus boldness for being a good theif!
+				rabbitData.carryingSince = frame
 				StopStealing(rabbitData)
 			else
 				SetRabbitMovement(unitID, x, z, {rabbitData.eatingThingRef.x - x, rabbitData.eatingThingRef.z - z}, 0.05, 2, 0.2)
@@ -520,10 +537,12 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	-- These vectors are scaled by fear and boldness
 	-- If fear is too high then the goal is ignored.
 	-- moveVec is the resultant move direction from fear and boldness.
+
+	
 	scaryVec = Norm(-rabbitData.fear/8, scaryVec)
 	
 	local moveVec, goalMag
-	if rabbitData.fear < 180*global_rabbitPanicResist then
+	if rabbitData.fear < 180*global_rabbitPanicResist + 150*rabbitData.foodCarried then
 		local goalVec = {gX - x, gZ - z}
 		goalMag = AbsVal(goalVec)
 		if goalMag < 200 then
@@ -551,6 +570,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	if goalRef and goalMag and goalMag < 60 and goalRef.attributes.isCarrotRepository and 
 			rabbitData.foodCarried > 0 and (not rabbitData.panicMode) then
 		rabbitData.foodCarried = 0
+		rabbitData.carryingSince = false
 		GG.RabbitScoreCarrot(unitID)
 		SetRabbitMovement(unitID, x, z, {gX - x, gZ - z}, 0.05, 2, 1)
 		return
@@ -588,7 +608,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	moveVec = Norm(200*speedMult, Add(moveVec, Add(randVec, velVector)))
 	
 	--// Modify movement attributes and goal
-	if scaryMag > 100 then
+	if scaryMag > 80 then
 		SetRabbitMovement(unitID, x, z, moveVec, speedMult, 5/jitter, 1.5)
 	else
 		SetRabbitMovement(unitID, x, z, moveVec, speedMult, 1/jitter, speedMult^-0.1)
