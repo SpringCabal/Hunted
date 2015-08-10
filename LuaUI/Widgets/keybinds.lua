@@ -27,6 +27,19 @@ function SetBindings()
         --"--Alt+v  debugcolvol",
 
 		"ctrl+q quitforce",
+		
+		"Any+up moveforward ",
+		"Any+left moveleft ",
+		"Any+right moveright",
+		"Any+down moveback",
+		
+		"Any+w moveforward ",
+		"Any+a moveleft ",
+		"Any+d moveright",
+		"Any+s moveback",
+		
+		"Any+pageup moveup",
+		"Any+pagedown movedown",
     }
 
     for _,binding in pairs(binds) do
@@ -35,12 +48,10 @@ function SetBindings()
 end
 
 function widget:Initialize()
-    local devMode = (tonumber(Spring.GetModOptions().play_mode) or 0) == 0
+    local devMode = false
     if not devMode then 
         Spring.SendCommands("unbindall") --muahahahaha
         Spring.SendCommands("unbindkeyset enter chat") --because because.
-    else
-        Spring.SendCommands("unbindkeyset w", "unbindkeyset p", "unbindkeyset q", "unbindkeyset a", "unbindkeyset s") --why p?
     end
     SetBindings()
     
