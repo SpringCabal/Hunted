@@ -361,6 +361,10 @@ local function AddRabbit(unitID)
 end
 
 local function RemoveRabbit(unitID)
+    -- TODO: this was put to reduce spam
+    if rabbits[unitID] == nil then
+        return
+    end
 	if rabbits[unitID].foodCarried > 0 then
 		GG.RabbitDropCarrot(unitID)
 	end

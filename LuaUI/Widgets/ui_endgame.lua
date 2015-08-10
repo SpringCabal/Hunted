@@ -39,6 +39,7 @@ local incolor2color
 
 local window_endgame
 local frame_delay = 0
+local sentGameStart = false
 
 local function ShowEndGameWindow()
 	screen0:AddChild(window_endgame)
@@ -55,8 +56,8 @@ local function SetupControls()
 		padding = {8, 8, 8, 8};
 		--autosize   = true;
 		--parent = screen0,
-		draggable = true,
-		resizable = true,
+		draggable = false,
+		resizable = false,
 		minWidth=500;
 		minHeight=200;
 	}
@@ -112,7 +113,7 @@ local function SetupControls()
 		height=40;
 		caption="Restart",
 		OnClick = {
-			function() 
+			function()
                 Spring.SendCommands("cheat", "luarules reload", "cheat")
                 window_endgame:Dispose()
                 window_endgame = nil
@@ -169,6 +170,13 @@ end
 
 function widget:GameFrame()
     local carrotCount = Spring.GetGameRulesParam("carrot_count") or -1
+    local survivalTime = Spring.GetGameRulesParam("survivalTime") or 0
+    if survivalTime == 1 and not sentGameStart then
+        WG.analytics:SendEvent("game_start")
+        sentGameStart = true
+    elseif survivalTime > 10 then
+        sentGameStart = false
+    end
     if carrotCount == 0 then
         widget:GameOver({})
     end
@@ -178,6 +186,12 @@ function widget:GameOver(winningAllyTeams)
     if window_endgame or Spring.GetGameFrame() - frame_delay < 300 then
         return
     end
+    local score = Spring.GetGameRulesParam("score") or 0
+    local survivalTime = Spring.GetGameRulesParam("survivalTime") or 0
+    WG.analytics:SendEvent("score", score)
+    WG.analytics:SendEvent("time", survivalTime)
+    WG.analytics:SendEvent("game_end")
+
     local myAllyTeamID = Spring.GetMyAllyTeamID()
     for _, winningAllyTeamID in pairs(winningAllyTeams) do
         if myAllyTeamID == winningAllyTeamID then
