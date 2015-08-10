@@ -39,7 +39,8 @@ local window_endgame
 local frame_delay = 0
 local sentGameStart = false
 local playerName = ""
-local nameBox, restartButton
+local nameBox, restartButton, submitButton, lblUpload
+local gameOverTime
 
 local function ShowEndGameWindow()
 	screen0:AddChild(window_endgame)
@@ -105,16 +106,51 @@ local function SetupControls()
  		textColor = {1,0,0,1},
  	}
 	
-	nameBox = Chili.EditBox:New{
- 		parent = window_endgame,
- 		x = 60,
- 		y = 255,
- 		width = 260,
-		height = 30,
- 		fontsize = 22,
-		hint = "Leaderboard Name",
-		text = playerName,
-	}
+    -- only generate this UI if it's possible to send the stats
+    if WG.analytics and WG.analytics.SendEvent then
+        nameBox = Chili.EditBox:New{
+            parent = window_endgame,
+            x = 60,
+            y = 255,
+            width = 160,
+            height = 30,
+            fontsize = 22,
+            hint = "Leaderboard Name",
+            text = playerName,
+        }
+    
+        submitButton = Button:New {
+            parent = window_endgame,
+            x = 243,
+            y = 243,
+            width = 80,
+            height = 50,
+            fontsize = 20,
+            caption = "Submit",
+            OnClick = { function()
+                playerName = nameBox.text
+                if playerName == "" then
+                    return
+                end
+                nameBox:Dispose()
+                submitButton:Dispose()
+                lblUpload = Chili.Label:New {
+                    parent = window_endgame,
+                    x = 90,
+                    y = 255,
+                    width = 260,
+                    height = 30,
+                    caption = "Uploading...",
+                    fontsize = 26,
+                }
+                -- sending it with a fake timestamp so it belongs to the previous game
+				WG.analytics:SendEvent("player_name", playerName, gameOverTime)
+                -- this will be instant but meh!
+                -- FIXME: ✔ isn't showing :( bad font, bad!
+                lblUpload:SetCaption("Score sent\255\0\255\0✔\b")
+            end},
+        }
+    end
 
     restartButton = Button:New{
 		bottom  = 30;
@@ -125,11 +161,6 @@ local function SetupControls()
  		fontsize = 22,
 		OnClick = {
 			function()
-				playerName = nameBox.text
-				if WG.analytics and WG.analytics.SendEvent then
-					WG.analytics:SendEvent("player_name", playerName)
-				end
-				
 				nameBox = nil
 				restartButton = nil
 				Spring.SendCommands("cheat", "luarules reload", "cheat")
@@ -149,11 +180,6 @@ local function SetupControls()
  		fontsize = 22,
 		OnClick = {
 			function() 
-				playerName = nameBox.text
-				if WG.analytics and WG.analytics.SendEvent then
-					WG.analytics:SendEvent("player_name", playerName)
-				end
-				
 				nameBox = nil
 				restartButton = nil
 				Spring.SendCommands("quit","quitforce") 
@@ -221,6 +247,7 @@ function widget:GameOver(winningAllyTeams)
         return
     end
     if WG.analytics and WG.analytics.SendEvent then
+        gameOverTime = os.clock()
 		local score = Spring.GetGameRulesParam("score") or 0
 		local survivalTime = Spring.GetGameRulesParam("survivalTime") or 0
 		local rabbitKills = Spring.GetGameRulesParam("rabbits_killed") or 0 
