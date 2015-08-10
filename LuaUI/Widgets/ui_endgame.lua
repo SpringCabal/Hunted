@@ -101,7 +101,7 @@ local function SetupControls()
  		y = 200,
  		width = 100,
  		parent = window_endgame,
- 		caption = rabbitKills .. " 🐰",
+ 		caption = "Kills: " .. rabbitKills,
  		fontsize = 32,
  		textColor = {1,0,0,1},
  	}
