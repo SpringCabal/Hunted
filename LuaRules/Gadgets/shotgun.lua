@@ -93,6 +93,9 @@ local function FireShotgun(x, y, z)
 	end
 	Spring.SetGameRulesParam("shotgun_ammo", ammo - 1)
 	
+	local shotsFired = Spring.GetGameRulesParam("shots_fired") or 0
+	Spring.SetGameRulesParam("shots_fired", shotsFired + 1)
+	
 	GG.ScareRabbitsInArea(x, z, shotgunAttributes)
 	
 	local shotgunDef = WeaponDefNames.shotgun
@@ -170,6 +173,8 @@ function gadget:Initialize()
 		local unitDefID = Spring.GetUnitDefID(unitID)
 		gadget:UnitCreated(unitID, unitDefID)
 	end
+	
+	Spring.SetGameRulesParam("shots_fired", 0)
 	
 	torchScaryArea = GG.AddScaryArea({x = 0, z = 0, attributes = torchAttributes})
 end

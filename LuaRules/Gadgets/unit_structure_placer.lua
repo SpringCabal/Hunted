@@ -51,8 +51,15 @@ local function PlaceMine(x, y, z)
 	end
 	Spring.SetGameRulesParam("mine_ammo", ammo - 1)
 	
+	local minesPlaced = Spring.GetGameRulesParam("mines_placed") or 0
+	Spring.SetGameRulesParam("mines_placed", minesPlaced + 1)
+	
 	local unitID = Spring.CreateUnit(mineDefID, x, y, z, 0, 0, false, false)
 	--Spring.SetUnitRotation(unitID, 0, math.random()*2*math.pi, 0)
+end
+
+function gadget:Initialize()
+	Spring.SetGameRulesParam("mines_placed", 0)
 end
 
 -------------------------------------------------------------------

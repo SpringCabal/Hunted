@@ -19,8 +19,6 @@ local spSendCommands			= Spring.SendCommands
 
 local echo = Spring.Echo
 
-local caption
-
 local Chili
 local Image
 local Button
@@ -40,81 +38,101 @@ local incolor2color
 local window_endgame
 local frame_delay = 0
 local sentGameStart = false
+local playerName = ""
+local nameBox, restartButton
 
 local function ShowEndGameWindow()
 	screen0:AddChild(window_endgame)
 end
 
 local function SetupControls()
+	local winSizeX, winSizeY = Spring.GetWindowGeometry()
+	local width, height = 400, 400
+	
 	window_endgame = Window:New{  
 		name = "GameOver",
-		caption = "Game Over",
-		x = '40%',
-		y = '40%',
-		width  = '20%',
-		height = '10%',
+		--caption = "Game Over",
+		x = (winSizeX - width)/2,
+		y = winSizeY/2 - height*0.65,
+		width  = width,
+		height = height,
 		padding = {8, 8, 8, 8};
 		--autosize   = true;
 		--parent = screen0,
 		draggable = false,
 		resizable = false,
-		minWidth=500;
-		minHeight=200;
 	}
 	
     local score = Spring.GetGameRulesParam("score") or 0 
     local survialTime = Spring.GetGameRulesParam("survivalTime") or 0 
---  	caption = Chili.Label:New{
---  		x = 20,
---  		y = 100,
---  		width = 100,
---  		parent = window_endgame,
---  		caption = "Overrun",
---  		fontsize = 40,
---  		textColor = {1,0,0,1},
---  	}
+    local rabbitKills = Spring.GetGameRulesParam("rabbits_killed") or 0 
     
-    caption = Chili.Label:New{
- 		x = 20,
- 		y = 40,
+	Chili.Label:New{
+ 		x = 60,
+ 		y = 30,
+ 		width = 100,
+ 		parent = window_endgame,
+ 		caption = "Game Over",
+ 		fontsize = 50,
+ 		textColor = {1,0,0,1},
+ 	}
+	
+    Chili.Label:New{
+ 		x = 80,
+ 		y = 100,
  		width = 100,
  		parent = window_endgame,
  		caption = "Score: " .. score .. "🐰",
  		fontsize = 40,
  		textColor = {1,0,0,1},
  	}
-	caption = Chili.Label:New{
- 		x = 20,
- 		y = 85,
+	Chili.Label:New{
+ 		x = 113,
+ 		y = 155,
  		width = 100,
  		parent = window_endgame,
  		caption = "Time: " .. survialTime .. "🐰",
- 		fontsize = 40,
+ 		fontsize = 32,
+ 		textColor = {1,0,0,1},
+ 	}
+	Chili.Label:New{
+ 		x = 127,
+ 		y = 200,
+ 		width = 100,
+ 		parent = window_endgame,
+ 		caption = "Kills: " .. rabbitKills .. "🐰",
+ 		fontsize = 32,
  		textColor = {1,0,0,1},
  	}
 	
-	Button:New{
-		y=40;
-		width=80;
-		right=50;
-		height=40;
-		caption="Exit",
-		OnClick = {
-			function() Spring.SendCommands("quit","quitforce") end
-		};
-		parent = window_endgame;
+	nameBox = Chili.EditBox:New{
+ 		parent = window_endgame,
+ 		x = 60,
+ 		y = 255,
+ 		width = 260,
+		height = 30,
+ 		fontsize = 22,
+		hint = "Leaderboard Name",
+		text = playerName,
 	}
-    
-   
-    Button:New{
-		y=80+20;
-		width=80;
-		right=50;
-		height=40;
-		caption="Restart",
+
+    restartButton = Button:New{
+		bottom  = 30;
+		width   = 110;
+		x       = 60;
+		height  = 55;
+		caption = "Restart",
+ 		fontsize = 22,
 		OnClick = {
 			function()
-                Spring.SendCommands("cheat", "luarules reload", "cheat")
+				playerName = nameBox.text
+				if WG.analytics and WG.analytics.SendEvent then
+					WG.analytics:SendEvent("player_name", playerName)
+				end
+				
+				nameBox = nil
+				restartButton = nil
+				Spring.SendCommands("cheat", "luarules reload", "cheat")
                 window_endgame:Dispose()
                 window_endgame = nil
                 frame_delay = Spring.GetGameFrame()
@@ -122,22 +140,27 @@ local function SetupControls()
 		};
 		parent = window_endgame;
 	}
-
-    -- allows work with scened
---     local devMode = (tonumber(Spring.GetModOptions().play_mode) or 0) == 0
---     if devMode then
---         Button:New{
---             y=100;
---             width='80';
---             right=0;
---             height=40;
---             caption="Close me (dev mode)",
---             OnClick = {
---                 function() window_endgame:Dispose() end
---             };
---             parent = window_endgame;
---         }
---     end
+	Button:New{
+		bottom  = 30;
+		width   = 110;
+		x       = 210;
+		height  = 55;
+		caption = "Exit",
+ 		fontsize = 22,
+		OnClick = {
+			function() 
+				playerName = nameBox.text
+				if WG.analytics and WG.analytics.SendEvent then
+					WG.analytics:SendEvent("player_name", playerName)
+				end
+				
+				nameBox = nil
+				restartButton = nil
+				Spring.SendCommands("quit","quitforce") 
+			end
+		};
+		parent = window_endgame;
+	}
     
 	screen0:AddChild(window_endgame)
 
@@ -146,12 +169,21 @@ end
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 --callins
+
+include('keysym.h.lua')
+local RETURN = KEYSYMS.RETURN
+function widget:KeyPress(key, mods, isRepeat)
+	if key == RETURN and restartButton and restartButton.OnClick and restartButton.OnClick[1] then
+        restartButton.OnClick[1]()
+        return true
+    end
+end
+
 function widget:Initialize()
 	if (not WG.Chili) then
 		widgetHandler:RemoveWidget()
 		return
 	end
-	
 
 	Chili = WG.Chili
 	Image = Chili.Image
@@ -172,7 +204,9 @@ function widget:GameFrame()
     local carrotCount = Spring.GetGameRulesParam("carrot_count") or -1
     local survivalTime = Spring.GetGameRulesParam("survivalTime") or 0
     if survivalTime == 1 and not sentGameStart then
-        WG.analytics:SendEvent("game_start")
+        if WG.analytics and WG.analytics.SendEvent then
+			WG.analytics:SendEvent("game_start")
+		end
         sentGameStart = true
     elseif survivalTime > 10 then
         sentGameStart = false
@@ -186,11 +220,20 @@ function widget:GameOver(winningAllyTeams)
     if window_endgame or Spring.GetGameFrame() - frame_delay < 300 then
         return
     end
-    local score = Spring.GetGameRulesParam("score") or 0
-    local survivalTime = Spring.GetGameRulesParam("survivalTime") or 0
-    WG.analytics:SendEvent("score", score)
-    WG.analytics:SendEvent("time", survivalTime)
-    WG.analytics:SendEvent("game_end")
+    if WG.analytics and WG.analytics.SendEvent then
+		local score = Spring.GetGameRulesParam("score") or 0
+		local survivalTime = Spring.GetGameRulesParam("survivalTime") or 0
+		local rabbitKills = Spring.GetGameRulesParam("rabbits_killed") or 0 
+		local shotsFired = Spring.GetGameRulesParam("shots_fired") or 0
+		local minesPlaced = Spring.GetGameRulesParam("mines_placed") or 0
+		
+		WG.analytics:SendEvent("score", score)
+		WG.analytics:SendEvent("time", survivalTime)
+		WG.analytics:SendEvent("kills", rabbitKills)
+		WG.analytics:SendEvent("shots", shotsFired)
+		WG.analytics:SendEvent("mines", minesPlaced)
+		WG.analytics:SendEvent("game_end")
+	end
 
     local myAllyTeamID = Spring.GetMyAllyTeamID()
     for _, winningAllyTeamID in pairs(winningAllyTeams) do
