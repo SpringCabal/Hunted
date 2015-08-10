@@ -83,7 +83,7 @@ local function SetupControls()
  		y = 100,
  		width = 100,
  		parent = window_endgame,
- 		caption = "Score: " .. score .. "🐰",
+ 		caption = "Score: " .. score,
  		fontsize = 40,
  		textColor = {1,0,0,1},
  	}
@@ -92,7 +92,7 @@ local function SetupControls()
  		y = 155,
  		width = 100,
  		parent = window_endgame,
- 		caption = "Time: " .. survialTime .. "🐰",
+ 		caption = "Time: " .. survialTime .. "s",
  		fontsize = 32,
  		textColor = {1,0,0,1},
  	}
@@ -101,7 +101,7 @@ local function SetupControls()
  		y = 200,
  		width = 100,
  		parent = window_endgame,
- 		caption = "Kills: " .. rabbitKills .. "🐰",
+ 		caption = rabbitKills .. " 🐰",
  		fontsize = 32,
  		textColor = {1,0,0,1},
  	}
@@ -149,9 +149,9 @@ local function SetupControls()
 			if WG.analytics and WG.analytics.SendEvent then
 				-- sending it with a fake timestamp so it belongs to the previous game
 				WG.analytics:SendEvent("player_name", playerName, gameOverTime)
-				lblUpload:SetCaption("Score sent\255\0\255\0✔\b")
+				lblUpload:SetCaption("Score sent \255\0\255\0✔\b")
 			else
-				lblUpload:SetCaption("Upload Error\255\0\255\0✔\b")
+				lblUpload:SetCaption("Upload Error \255\255\0\0✗\b")
 			end
 		end},
 	}
