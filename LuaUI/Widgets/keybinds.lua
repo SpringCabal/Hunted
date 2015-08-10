@@ -28,6 +28,8 @@ function SetBindings()
 
 		"ctrl+q quitforce",
 		
+		"f12 screenshot",
+		
 		"Any+up moveforward ",
 		"Any+left moveleft ",
 		"Any+right moveright",

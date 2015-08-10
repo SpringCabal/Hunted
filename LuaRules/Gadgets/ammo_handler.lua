@@ -27,7 +27,7 @@ local reloadTimes = {
 
 local maxAmmos = {
 	shotgun_ammo = 100,
-	mine_ammo = 50,
+	mine_ammo = 100,
 }
 
 local maxShotgunReloadTime = 5 -- frames
@@ -47,8 +47,15 @@ local function UpdateAmmo()
 	UpdateAmmoStockpile("mine_ammo", reloadMult)
 end
 
+local function AddAmmo(ammoType, val)
+	local count = Spring.GetGameRulesParam(ammoType)
+	local newAmmo = math.min(maxAmmos[ammoType], count + val)
+	Spring.SetGameRulesParam(ammoType, newAmmo)
+end
+
 function gadget:Initialize()
 	GG.UpdateAmmo = UpdateAmmo
+	GG.AddAmmo = AddAmmo
 
 	Spring.SetGameRulesParam("shotgun_ammo", 100)
 	Spring.SetGameRulesParam("mine_ammo", 5)

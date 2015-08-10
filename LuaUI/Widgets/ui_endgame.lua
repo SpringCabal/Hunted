@@ -88,7 +88,7 @@ local function SetupControls()
  		textColor = {1,0,0,1},
  	}
 	Chili.Label:New{
- 		x = 113,
+ 		x = 114,
  		y = 155,
  		width = 100,
  		parent = window_endgame,
@@ -97,7 +97,7 @@ local function SetupControls()
  		textColor = {1,0,0,1},
  	}
 	Chili.Label:New{
- 		x = 127,
+ 		x = 128,
  		y = 200,
  		width = 100,
  		parent = window_endgame,
@@ -106,63 +106,68 @@ local function SetupControls()
  		textColor = {1,0,0,1},
  	}
 	
-    -- only generate this UI if it's possible to send the stats
-    if WG.analytics and WG.analytics.SendEvent then
-        nameBox = Chili.EditBox:New{
-            parent = window_endgame,
-            x = 60,
-            y = 255,
-            width = 160,
-            height = 30,
-            fontsize = 22,
-            hint = "Leaderboard Name",
-            text = playerName,
-        }
-    
-        submitButton = Button:New {
-            parent = window_endgame,
-            x = 243,
-            y = 243,
-            width = 80,
-            height = 50,
-            fontsize = 20,
-            caption = "Submit",
-            OnClick = { function()
-                playerName = nameBox.text
-                if playerName == "" then
-                    return
-                end
-                nameBox:Dispose()
-                submitButton:Dispose()
-                lblUpload = Chili.Label:New {
-                    parent = window_endgame,
-                    x = 90,
-                    y = 255,
-                    width = 260,
-                    height = 30,
-                    caption = "Uploading...",
-                    fontsize = 26,
-                }
-                -- sending it with a fake timestamp so it belongs to the previous game
+	nameBox = Chili.EditBox:New{
+		parent = window_endgame,
+		x = 50,
+		y = 255,
+		width = 290,
+		height = 30,
+		fontsize = 22,
+		hint = "Leaderboard Name",
+		text = playerName,
+	}
+
+	submitButton = Button:New {
+		parent   = window_endgame,
+		bottom   = 30;
+		width    = 90;
+		x        = 40;
+		height   = 55;
+		fontsize = 20,
+		caption = "Submit",
+		OnClick = { function()
+			if not nameBox then
+				return
+			end
+			playerName = nameBox.text
+			if playerName == "" then
+				return
+			end
+			
+			nameBox:Dispose()
+			nameBox = nil
+			lblUpload = Chili.Label:New {
+				parent = window_endgame,
+				x = 130,
+				y = 255,
+				width = 260,
+				height = 30,
+				caption = "Uploading...",
+				fontsize = 26,
+			}
+			
+			if WG.analytics and WG.analytics.SendEvent then
+				-- sending it with a fake timestamp so it belongs to the previous game
 				WG.analytics:SendEvent("player_name", playerName, gameOverTime)
-                -- this will be instant but meh!
-                -- FIXME: ✔ isn't showing :( bad font, bad!
-                lblUpload:SetCaption("Score sent\255\0\255\0✔\b")
-            end},
-        }
-    end
+				lblUpload:SetCaption("Score sent\255\0\255\0✔\b")
+			else
+				lblUpload:SetCaption("Upload Error\255\0\255\0✔\b")
+			end
+		end},
+	}
 
     restartButton = Button:New{
 		bottom  = 30;
-		width   = 110;
-		x       = 60;
+		width   = 90;
+		x       = 150;
 		height  = 55;
 		caption = "Restart",
- 		fontsize = 22,
+ 		fontsize = 20,
 		OnClick = {
 			function()
 				nameBox = nil
 				restartButton = nil
+				submitButton = nil
 				Spring.SendCommands("cheat", "luarules reload", "cheat")
                 window_endgame:Dispose()
                 window_endgame = nil
@@ -173,11 +178,11 @@ local function SetupControls()
 	}
 	Button:New{
 		bottom  = 30;
-		width   = 110;
-		x       = 210;
+		width   = 90;
+		x       = 260;
 		height  = 55;
 		caption = "Exit",
- 		fontsize = 22,
+ 		fontsize = 20,
 		OnClick = {
 			function() 
 				nameBox = nil
@@ -199,8 +204,10 @@ end
 include('keysym.h.lua')
 local RETURN = KEYSYMS.RETURN
 function widget:KeyPress(key, mods, isRepeat)
-	if key == RETURN and restartButton and restartButton.OnClick and restartButton.OnClick[1] then
-        restartButton.OnClick[1]()
+	if key == RETURN and restartButton and restartButton.OnClick and restartButton.OnClick[1] and
+			submitButton and submitButton.OnClick and submitButton.OnClick[1] then
+        submitButton.OnClick[1]()
+		restartButton.OnClick[1]()
         return true
     end
 end

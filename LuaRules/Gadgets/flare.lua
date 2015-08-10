@@ -54,8 +54,10 @@ function gadget:GameFrame()
         SetChargingProgress((rabbits_killed - previousky_killed) * 100 / killsRequired)
     else
 		if firstActive then
-			local count = Spring.GetGameRulesParam("mine_ammo")
-			Spring.SetGameRulesParam("mine_ammo", count + 5)
+			if GG.AddAmmo then
+				GG.AddAmmo("mine_ammo", 5)
+				GG.AddAmmo("shotgun_ammo", 20)
+			end
 			firstActive = false
 		end
 	
