@@ -3,9 +3,8 @@ local modinfo = {
 	shortname = "HHH",
 	game = "Hunted",
 	shortgame = "HHH",
-    version = "Git",
+	version = "$VERSION",
 	description = "Hunted LD33 prep game",
-	
 	modtype = "1",
 	depend = {
 		"cursors.sdz",
