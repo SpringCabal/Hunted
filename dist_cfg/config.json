@@ -4,6 +4,9 @@
       "id": "test",
       "display": "Latest"
     },
+    "display": {
+      "title": "Zeus vs Bunnies"
+    },
     "downloads": {
       "games" : ["zeus-vs-bunnies:test"],
       "maps" : ["Obsidian_1.5"],
@@ -19,6 +22,9 @@
     "package": {
       "id": "dev",
       "display": "Development"
+    },
+    "display": {
+      "title": "Zeus vs Bunnies (dev)"
     },
     "downloads": {
       "maps" : ["Obsidian_1.5"],
