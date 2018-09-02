@@ -1,0 +1,34 @@
+[
+  {
+    "package": {
+      "id": "test",
+      "display": "Latest"
+    },
+    "downloads": {
+      "games" : ["zeus-vs-bunnies:test"],
+      "maps" : ["Obsidian_1.5"],
+      "engines" : [ "104.0.1-667-g4835668 maintenance" ]
+    },
+    "launch": {
+      "game": "rapid://zeus-vs-bunnies:test",
+      "map": "Obsidian_1.5"
+    }
+  },
+
+  {
+    "package": {
+      "id": "dev",
+      "display": "Development"
+    },
+    "downloads": {
+      "maps" : ["Obsidian_1.5"],
+      "engines" : [ "104.0.1-667-g4835668 maintenance" ]
+    },
+    "auto_start" : true,
+    "no_downloads" : true,
+    "launch": {
+      "game": "Hunted $VERSION",
+      "map": "Obsidian_1.5"
+    }
+  }
+]
