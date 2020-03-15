@@ -9,12 +9,31 @@
     },
     "downloads": {
       "games" : ["zeus-vs-bunnies:test"],
-      "maps" : ["Obsidian_1.5"],
-      "engines" : [ "104.0.1-667-g4835668 maintenance" ]
+      "maps" : [],
+      "engines" : [ "104.0.1-1464-g4f428c8 maintenance" ]
     },
     "launch": {
       "game": "rapid://zeus-vs-bunnies:test",
-      "map": "Obsidian_1.5"
+      "map": "Hunted - v04"
+    }
+  },
+
+  {
+    "package": {
+      "id": "develop-engine",
+      "display": "DevelopEngine"
+    },
+    "display": {
+      "title": "Zeus vs Bunnies"
+    },
+    "downloads": {
+      "games" : ["zeus-vs-bunnies:test"],
+      "maps" : [],
+      "engines" : [ "104.0.1-2020-ga942be9 develop" ]
+    },
+    "launch": {
+      "game": "rapid://zeus-vs-bunnies:test",
+      "map": "Hunted - v04"
     }
   },
 
@@ -27,14 +46,13 @@
       "title": "Zeus vs Bunnies (dev)"
     },
     "downloads": {
-      "maps" : ["Obsidian_1.5"],
-      "engines" : [ "104.0.1-667-g4835668 maintenance" ]
+      "engines" : [ "104.0.1-1464-g4f428c8 maintenance" ]
     },
     "auto_start" : true,
     "no_downloads" : true,
     "launch": {
       "game": "Hunted $VERSION",
-      "map": "Obsidian_1.5"
+      "map": "Hunted - v04"
     }
   }
 ]
