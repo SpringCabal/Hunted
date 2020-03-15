@@ -1,58 +1,61 @@
-[
-  {
-    "package": {
-      "id": "test",
-      "display": "Latest"
+{
+  "title" : "Hunted",
+  "setups": [
+    {
+      "package": {
+        "id": "test",
+        "display": "Latest"
+      },
+      "display": {
+        "title": "Zeus vs Bunnies"
+      },
+      "downloads": {
+        "games" : ["zeus-vs-bunnies:test"],
+        "maps" : [],
+        "engines" : [ "104.0.1-1464-g4f428c8 maintenance" ]
+      },
+      "launch": {
+        "game": "rapid://zeus-vs-bunnies:test",
+        "map": "Hunted - v04"
+      }
     },
-    "display": {
-      "title": "Zeus vs Bunnies"
-    },
-    "downloads": {
-      "games" : ["zeus-vs-bunnies:test"],
-      "maps" : [],
-      "engines" : [ "104.0.1-1464-g4f428c8 maintenance" ]
-    },
-    "launch": {
-      "game": "rapid://zeus-vs-bunnies:test",
-      "map": "Hunted - v04"
-    }
-  },
 
-  {
-    "package": {
-      "id": "develop-engine",
-      "display": "DevelopEngine"
+    {
+      "package": {
+        "id": "develop-engine",
+        "display": "DevelopEngine"
+      },
+      "display": {
+        "title": "Zeus vs Bunnies"
+      },
+      "downloads": {
+        "games" : ["zeus-vs-bunnies:test"],
+        "maps" : [],
+        "engines" : [ "104.0.1-2020-ga942be9 develop" ]
+      },
+      "launch": {
+        "game": "rapid://zeus-vs-bunnies:test",
+        "map": "Hunted - v04"
+      }
     },
-    "display": {
-      "title": "Zeus vs Bunnies"
-    },
-    "downloads": {
-      "games" : ["zeus-vs-bunnies:test"],
-      "maps" : [],
-      "engines" : [ "104.0.1-2020-ga942be9 develop" ]
-    },
-    "launch": {
-      "game": "rapid://zeus-vs-bunnies:test",
-      "map": "Hunted - v04"
-    }
-  },
 
-  {
-    "package": {
-      "id": "dev",
-      "display": "Development"
-    },
-    "display": {
-      "title": "Zeus vs Bunnies (dev)"
-    },
-    "downloads": {
-      "engines" : [ "104.0.1-1464-g4f428c8 maintenance" ]
-    },
-    "auto_start" : true,
-    "no_downloads" : true,
-    "launch": {
-      "game": "Hunted $VERSION",
-      "map": "Hunted - v04"
+    {
+      "package": {
+        "id": "dev",
+        "display": "Development"
+      },
+      "display": {
+        "title": "Zeus vs Bunnies (dev)"
+      },
+      "downloads": {
+        "engines" : [ "104.0.1-1464-g4f428c8 maintenance" ]
+      },
+      "auto_start" : true,
+      "no_downloads" : true,
+      "launch": {
+        "game": "Hunted $VERSION",
+        "map": "Hunted - v04"
+      }
     }
-  }
-]
+  ]
+}
