@@ -103,7 +103,7 @@ end
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-VFS.Include("luarules/utilities/unitrendering.lua", nil, VFS.BASE)
+VFS.Include("LuaRules/Utilities/UnitRendering.lua", nil, VFS.MOD)
 
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -232,7 +232,7 @@ function GetUnitMaterial(unitDefID)
     local texdl = gl.CreateList(function()
     for _,tex in pairs(texUnits) do
       local prefix = tex.tex:sub(1,1)
-      if   (prefix~="%") 
+      if   (prefix~="%")
         and(prefix~="#")
         and(prefix~="!")
         and(prefix~="$")

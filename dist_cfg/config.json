@@ -12,7 +12,7 @@
       "downloads": {
         "games" : ["zeus-vs-bunnies:test"],
         "maps" : [],
-        "engines" : [ "104.0.1-1464-g4f428c8 maintenance" ]
+        "engines" : [ "104.0.1-1553-gd3c0012 maintenance" ]
       },
       "launch": {
         "game": "rapid://zeus-vs-bunnies:test",
@@ -48,7 +48,7 @@
         "title": "Zeus vs Bunnies (dev)"
       },
       "downloads": {
-        "engines" : [ "104.0.1-1464-g4f428c8 maintenance" ]
+        "engines" : [ "104.0.1-1553-gd3c0012 maintenance" ]
       },
       "auto_start" : true,
       "no_downloads" : true,
