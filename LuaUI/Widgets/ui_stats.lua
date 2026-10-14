@@ -36,6 +36,11 @@ local function UpdateRabbits()
 	
 	local newKilled = lastKilled and (rabbitsKilled - lastKilled) or 0
 	lastKilled = rabbitsKilled
+	if newKilled < 0 then
+		-- LuaRules reload starts a new round without reloading this widget.
+		streakFrame = nil
+		streakKilled = 0
+	end
 	
 	if newKilled > 0 then
 		local frame = Spring.GetGameFrame()

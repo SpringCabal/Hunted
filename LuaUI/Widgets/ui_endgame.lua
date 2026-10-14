@@ -37,18 +37,15 @@ local incolor2color
 
 local window_endgame
 local frame_delay = 0
-local sentGameStart = false
-local playerName = ""
-local nameBox, restartButton, submitButton, lblUpload
-local gameOverTime
+local restartButton
 
 local function ShowEndGameWindow()
 	screen0:AddChild(window_endgame)
 end
 
-local function SetupControls()
+local function SetupControls(isVictory)
 	local winSizeX, winSizeY = Spring.GetWindowGeometry()
-	local width, height = 400, 400
+	local width, height = 400, 350
 	
 	window_endgame = Window:New{  
 		name = "GameOver",
@@ -73,9 +70,9 @@ local function SetupControls()
  		y = 30,
  		width = 100,
  		parent = window_endgame,
- 		caption = "Game Over",
- 		fontsize = 50,
- 		textColor = {1,0,0,1},
+		caption = isVictory and "You win!" or "Game Over",
+		fontsize = 50,
+		textColor = isVictory and {0,1,0,1} or {1,0,0,1},
  	}
 	
     Chili.Label:New{
@@ -106,69 +103,24 @@ local function SetupControls()
  		textColor = {1,0,0,1},
  	}
 	
-	nameBox = Chili.EditBox:New{
-		parent = window_endgame,
-		x = 50,
-		y = 255,
-		width = 290,
-		height = 30,
-		fontsize = 22,
-		hint = "Leaderboard Name",
-		text = playerName,
-	}
-
-	submitButton = Button:New {
-		parent   = window_endgame,
-		bottom   = 30;
-		width    = 90;
-		x        = 40;
-		height   = 55;
-		fontsize = 20,
-		caption = "Submit",
-		OnClick = { function()
-			if not nameBox then
-				return
-			end
-			playerName = nameBox.text
-			if playerName == "" then
-				return
-			end
-			
-			nameBox:Dispose()
-			nameBox = nil
-			lblUpload = Chili.Label:New {
-				parent = window_endgame,
-				x = 130,
-				y = 255,
-				width = 260,
-				height = 30,
-				caption = "Uploading...",
-				fontsize = 26,
-			}
-			
-			if WG.analytics and WG.analytics.SendEvent then
-				-- sending it with a fake timestamp so it belongs to the previous game
-				WG.analytics:SendEvent("player_name", playerName, gameOverTime)
-				lblUpload:SetCaption("Score sent \255\0\255\0✔\b")
-			else
-				lblUpload:SetCaption("Upload Error \255\255\0\0✗\b")
-			end
-		end},
-	}
-
     restartButton = Button:New{
 		bottom  = 30;
 		width   = 90;
-		x       = 150;
+		x       = 95;
 		height  = 55;
 		caption = "Restart",
  		fontsize = 20,
 		OnClick = {
 			function()
-				nameBox = nil
 				restartButton = nil
-				submitButton = nil
-				Spring.SendCommands("cheat", "luarules reload", "cheat")
+				local cheatsEnabled = Spring.IsCheatingEnabled()
+				if not cheatsEnabled then
+					Spring.SendCommands("cheat")
+				end
+				Spring.SendCommands("luarules reload")
+				if not cheatsEnabled then
+					Spring.SendCommands("cheat")
+				end
                 window_endgame:Dispose()
                 window_endgame = nil
                 frame_delay = Spring.GetGameFrame()
@@ -179,34 +131,29 @@ local function SetupControls()
 	Button:New{
 		bottom  = 30;
 		width   = 90;
-		x       = 260;
+		x       = 215;
 		height  = 55;
 		caption = "Exit",
  		fontsize = 20,
 		OnClick = {
 			function() 
-				nameBox = nil
 				restartButton = nil
-				Spring.SendCommands("quit","quitforce") 
+				Spring.SendCommands("reloadforce")
 			end
 		};
 		parent = window_endgame;
 	}
     
-	screen0:AddChild(window_endgame)
-
 end
 
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 --callins
 
-include('keysym.h.lua')
+require('keysym.lua')
 local RETURN = KEYSYMS.RETURN
 function widget:KeyPress(key, mods, isRepeat)
-	if key == RETURN and restartButton and restartButton.OnClick and restartButton.OnClick[1] and
-			submitButton and submitButton.OnClick and submitButton.OnClick[1] then
-        submitButton.OnClick[1]()
+	if key == RETURN and restartButton and restartButton.OnClick and restartButton.OnClick[1] then
 		restartButton.OnClick[1]()
         return true
     end
@@ -235,15 +182,6 @@ end
 
 function widget:GameFrame()
     local carrotCount = Spring.GetGameRulesParam("carrot_count") or -1
-    local survivalTime = Spring.GetGameRulesParam("survivalTime") or 0
-    if survivalTime == 1 and not sentGameStart then
-        if WG.analytics and WG.analytics.SendEvent then
-			WG.analytics:SendEvent("game_start")
-		end
-        sentGameStart = true
-    elseif survivalTime > 10 then
-        sentGameStart = false
-    end
     if carrotCount == 0 then
         widget:GameOver({})
     end
@@ -253,36 +191,16 @@ function widget:GameOver(winningAllyTeams)
     if window_endgame or Spring.GetGameFrame() - frame_delay < 300 then
         return
     end
-    if WG.analytics and WG.analytics.SendEvent then
-        gameOverTime = os.clock()
-		local score = Spring.GetGameRulesParam("score") or 0
-		local survivalTime = Spring.GetGameRulesParam("survivalTime") or 0
-		local rabbitKills = Spring.GetGameRulesParam("rabbits_killed") or 0 
-		local shotsFired = Spring.GetGameRulesParam("shots_fired") or 0
-		local minesPlaced = Spring.GetGameRulesParam("mines_placed") or 0
-		
-		WG.analytics:SendEvent("score", score)
-		WG.analytics:SendEvent("time", survivalTime)
-		WG.analytics:SendEvent("kills", rabbitKills)
-		WG.analytics:SendEvent("shots", shotsFired)
-		WG.analytics:SendEvent("mines", minesPlaced)
-		WG.analytics:SendEvent("game_end")
-	end
-
     local myAllyTeamID = Spring.GetMyAllyTeamID()
     for _, winningAllyTeamID in pairs(winningAllyTeams) do
         if myAllyTeamID == winningAllyTeamID then
             Spring.SendCommands("endgraph 0")
-            SetupControls()
-            caption:SetCaption("You win!");
-            caption.font.color={0,1,0,1};
+            SetupControls(true)
             ShowEndGameWindow()
             return
         end
     end
     Spring.SendCommands("endgraph 0")
-    SetupControls()
+    SetupControls(false)
     ShowEndGameWindow()
 end
-
-
