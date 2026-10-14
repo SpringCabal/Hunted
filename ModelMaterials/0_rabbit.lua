@@ -6,12 +6,12 @@ local unitInfo = {}
 
 local distanceID
 local timeID
+local shaderID
 
 local function DrawUnit(unitid, material, materialID)
-    if distanceID == nil then
+    if shaderID ~= material.shader then
+        shaderID = material.shader
         distanceID = gl.GetUniformLocation(material.shader, "distance")
-    end
-    if timeID == nil then
         timeID = gl.GetUniformLocation(material.shader, "time")
     end
 
@@ -20,7 +20,7 @@ local function DrawUnit(unitid, material, materialID)
     if flare_state == "active" then 
         minDistance = 0
     else
-        for _, flashlight in pairs(GG.flashlights) do
+        for _, flashlight in pairs(GG.flashlights or {}) do
             local fx, fz, fsize = flashlight.x, flashlight.z, flashlight.size
             local x, _, z = Spring.GetUnitPosition(unitid)
 

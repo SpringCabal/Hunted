@@ -22,7 +22,7 @@ end
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-VFS.Include("LuaUI/widgets/glVolumes.lua")
+VFS.Include("LuaUI/Utilities/glVolumes.lua")
 
 local flashlightIDCount = 1
 local flashlights = {}
