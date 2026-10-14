@@ -282,8 +282,8 @@ end
 -- Desirable Unit Handling
 
 local function StartStealing(rabbitData, thingRef)
-	if Spring.ValidUnitID(unitID) then
-		Spring.SetUnitRulesParam(unitID, "stealing", 1)
+	if Spring.ValidUnitID(rabbitData.unitID) then
+		Spring.SetUnitRulesParam(rabbitData.unitID, "stealing", 1)
 	end
 	
 	--Spring.MarkerAddPoint(thingRef.x, 0, thingRef.z, "Stealing")
@@ -301,8 +301,8 @@ local function StartStealing(rabbitData, thingRef)
 end
 
 local function StopStealing(rabbitData)
-	if Spring.ValidUnitID(unitID) then
-		Spring.SetUnitRulesParam(unitID, "stealing", 0)
+	if Spring.ValidUnitID(rabbitData.unitID) then
+		Spring.SetUnitRulesParam(rabbitData.unitID, "stealing", 0)
 	end
 	
 	local thingRef = rabbitData.eatingThingRef
@@ -335,11 +335,12 @@ local function AddDesirableUnit(unitID, unitDefID)
 end
 
 local function RemoveDesirableUnit(unitID)
-	if desirableUnits[unitID].eater then
-		StopStealing(desirableUnits[unitID].eater)
+	local thingRef = desirableUnits[unitID].thingTableEntry
+	if thingRef.eater then
+		StopStealing(thingRef.eater)
 	end
 
-	local index = desirableUnits[unitID].thingTableEntry.index
+	local index = thingRef.index
 	RemoveThing(desirableThings, index)
 	desirableUnits[unitID] = nil
 end
@@ -506,13 +507,14 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 			rabbitData.eatingProgress = rabbitData.eatingProgress + updateGap
 			if rabbitData.eatingProgress > rabbitData.eatingThingRef.attributes.eatTime then
 				GG.RabbitPickupCarrot(unitID)
-				--Spring.Echo("Destroying", rabbitData.eatingThingRef.unitID, Spring.ValidUnitID(rabbitData.eatingThingRef.unitID))
-				Spring.SetUnitRulesParam(rabbitData.eatingThingRef.unitID, "internalDestroy", 1)
-				Spring.DestroyUnit(rabbitData.eatingThingRef.unitID, false, false)
+				local carrotID = rabbitData.eatingThingRef.unitID
+				-- Release the reservation before DestroyUnit raises UnitDestroyed.
+				StopStealing(rabbitData)
+				Spring.SetUnitRulesParam(carrotID, "internalDestroy", 1)
+				Spring.DestroyUnit(carrotID, false, false)
 				rabbitData.foodCarried = rabbitData.foodCarried + 1
 				rabbitData.boldness = rabbitData.boldness + 150 -- Bonus boldness for being a good theif!
 				rabbitData.carryingSince = frame
-				StopStealing(rabbitData)
 			else
 				SetRabbitMovement(unitID, x, z, {rabbitData.eatingThingRef.x - x, rabbitData.eatingThingRef.z - z}, 0.05, 2, 0.2)
 				return
