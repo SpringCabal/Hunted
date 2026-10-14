@@ -112,8 +112,10 @@ function gadget:GameFrame(frame)
 			waveAtt.familySize,
 			waveAtt.familyGap
 		)
-		waveAtt.burrows = math.ceil(waveAtt.burrows*1.2)
-		waveAtt.rabbitCount = math.ceil(waveAtt.rabbitCount*1.2)
+		-- Neither value needs to grow beyond the live-rabbit limit. Otherwise
+		-- long hunts keep picking burrows even when most picks spawn nothing.
+		waveAtt.burrows = math.min(MAX_RABBITS, math.ceil(waveAtt.burrows*1.2))
+		waveAtt.rabbitCount = math.min(MAX_RABBITS, math.ceil(waveAtt.rabbitCount*1.2))
 		waveAtt.familySize = {
 			waveAtt.familySize[1],
 			waveAtt.familySize[2]
