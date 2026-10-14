@@ -11,10 +11,7 @@ function script.Create()
 	Turn(shotgun, z_axis, 0)
 end
 
-local LastPitch=0
 function SetPitch(pitch)
-	Signal(SIG_RELOAD)
-	LastPitch=pitch
 	Turn(shotgun, x_axis, pitch)
 end
 
@@ -25,10 +22,11 @@ function reloadAnimation()
 	Turn(KickBackRotator,x_axis,math.rad(-29),80)
 	Move(ReloadAnim,z_axis,-10,45)
 	WaitForMove(ReloadAnim,z_axis)
-	Turn(KickBackRotator,x_axis,math.rad(LastPitch),55)
+	Turn(KickBackRotator,x_axis,0,55)
 	Move(ReloadAnim,z_axis,0,55)
 end
 
 function Fire()
-StartThread(reloadAnimation)
+	StartThread(reloadAnimation)
 end
+
