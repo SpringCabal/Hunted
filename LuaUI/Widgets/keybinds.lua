@@ -26,7 +26,7 @@ function SetBindings()
         --"Alt+b  debug",
         --"--Alt+v  debugcolvol",
 
-		"ctrl+q quitforce",
+		"ctrl+q reloadforce",
 		
 		"f12 screenshot",
 		
@@ -50,11 +50,7 @@ function SetBindings()
 end
 
 function widget:Initialize()
-    local devMode = false
-    if not devMode then 
-        Spring.SendCommands("unbindall") --muahahahaha
-        Spring.SendCommands("unbindkeyset enter chat") --because because.
-    end
+    Spring.SendCommands("unbindkeyset enter chat")
     SetBindings()
     
     
@@ -69,7 +65,7 @@ function widget:Initialize()
         purple .. "Left click: " .. white .. "Shoot",
         purple .. "Right click : " .. white .. "Place Mines",
         purple .. "Scroll Wheel : " .. white .. "Zoom",
-        purple .. "Ctrl+Q : " .. white .. "Quit",
+        purple .. "Ctrl+Q : " .. white .. "Menu",
     }
 
 
