@@ -8,6 +8,7 @@ local unitDef  =  {
     script = unitName .. ".lua",
     
 --Unit limitations and properties
+    Power = 1, -- explicit, these units are free so the engine would warn about zero power
     MaxDamage = 800,
     RadarDistance = 0,
     SightDistance = 400,

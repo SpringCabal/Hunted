@@ -10,7 +10,7 @@ function widget:GetInfo()
 	}
 end
 
-include('keysym.h.lua')
+require('keysym.lua')
 local SPACE = KEYSYMS.SPACE
 function widget:KeyPress(key, mods, isRepeat)
     if key==SPACE then

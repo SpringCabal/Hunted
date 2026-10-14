@@ -23,5 +23,4 @@ end
 for name, ud in pairs(UnitDefs) do
 	-- Replace all occurences of <NAME> with the respective values
 	ReplaceStrings(ud, ud.unitname or name)
-	Spring.Echo(name)
 end
