@@ -47,7 +47,7 @@ local function LightSpin()
 		Sleep(33)
 		
 		if not torchScaryArea then
-			torchScaryArea = GG.AddScaryArea({x = x, z = x, attributes = torchAttributes})
+			torchScaryArea = GG.AddScaryArea({x = x, z = z, attributes = torchAttributes})
 		end
 	end
 end
@@ -60,7 +60,7 @@ function script.Create()
 	local x,z = GetLightCoordinates()
 	
 	if GG.AddScaryArea then
-		torchScaryArea = GG.AddScaryArea({x = x, z = x, attributes = torchAttributes})
+		torchScaryArea = GG.AddScaryArea({x = x, z = z, attributes = torchAttributes})
 	end
 	
 	Spring.SetUnitRulesParam(unitID, "lighthouse_x", x)

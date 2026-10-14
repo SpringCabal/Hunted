@@ -121,6 +121,7 @@ end
 function gadget:UnitDestroyed(unitID)
 	if flashlightUnit[unitID] then
 		RemoveFlashlight(flashlightUnit[unitID])
+		flashlightUnit[unitID] = nil
 	end
 end
 
@@ -141,5 +142,4 @@ function gadget:Initialize()
 	for _, unitID in ipairs(Spring.GetAllUnits()) do
 		gadget:UnitCreated(unitID)
 	end
-
 end
