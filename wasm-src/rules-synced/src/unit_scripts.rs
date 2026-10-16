@@ -63,16 +63,7 @@ impl Call {
     }
 
     pub fn run(self) {
-        match spring::call_unit_script(self.unit, self.function, self.arguments(), 1) {
-            Ok(result) if result.function_found && result.success => {}
-            result => spring::log_warning!(
-                crate::diagnostics::LOG_SECTION,
-                "{} for unit {} failed: {:?}",
-                self.function,
-                self.unit,
-                result
-            ),
-        }
+        crate::cus::call(self);
     }
 
     pub fn queue(self) {
@@ -81,8 +72,9 @@ impl Call {
 }
 
 pub fn lighthouse_beam(unit: i32) -> Option<(f32, f32)> {
+    use hunted_common::lighthouse::{PARAM_X, PARAM_Z};
     Some((
-        spring::get_unit_rules_param_f32(unit, hunted_common::lighthouse::PARAM_X).ok()?,
-        spring::get_unit_rules_param_f32(unit, hunted_common::lighthouse::PARAM_Z).ok()?,
+        spring::get_unit_rules_param_f32(unit, PARAM_X).ok()?,
+        spring::get_unit_rules_param_f32(unit, PARAM_Z).ok()?,
     ))
 }

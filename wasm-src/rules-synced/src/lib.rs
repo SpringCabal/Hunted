@@ -1,5 +1,6 @@
 extern crate alloc;
 
+pub mod cus;
 pub mod defs;
 pub mod diagnostics;
 pub mod gadgets;
@@ -11,6 +12,8 @@ pub mod state;
 pub mod status;
 pub mod unit_scripts;
 pub mod units;
+
+spring::export_core_cus!(cus::HuntedCusModule);
 
 spring_addons::export_rules_gadgets! {
     state: state::Global,

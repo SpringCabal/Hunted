@@ -8,7 +8,7 @@ For the engine, launcher, builds and verification, use the [SpringCabal developm
 
 | Module | Source | Purpose |
 | --- | --- | --- |
-| `hunted-rules` | `wasm-src/rules-synced` | Game rules; unit scripts run in Lua. |
+| `hunted-rules` | `wasm-src/rules-synced` | Game rules and unit scripts. |
 | `hunted-ui` | `wasm-src/ui` | HUD, controls and rendering. |
 
 ## Differences from the Lua version

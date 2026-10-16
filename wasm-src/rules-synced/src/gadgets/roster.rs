@@ -1,6 +1,7 @@
 use spring_addons::AddonContext;
 use spring_addons::rules::{Gadget, UnitDestroyedEvent};
 
+use crate::cus;
 use crate::defs;
 use crate::state::Global;
 
@@ -19,6 +20,11 @@ impl Gadget<Global> for RosterGadget {
                 }
             }
         }
+        cus::attach_existing();
+    }
+
+    fn game_frame(&self, _ctx: &AddonContext<'_, Global>, frame: i32) {
+        cus::game_frame(frame);
     }
 
     fn unit_created(
@@ -30,6 +36,7 @@ impl Gadget<Global> for RosterGadget {
         _builder: i32,
     ) {
         track(ctx.global(), unit, def);
+        cus::attach(unit, def);
     }
 
     fn unit_destroyed(&self, ctx: &AddonContext<'_, Global>, event: &UnitDestroyedEvent) {
