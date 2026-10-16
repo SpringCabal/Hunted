@@ -1,0 +1,13 @@
+<div id="endgame-panel" class="endgame-panel" data-if="game_over">
+  <div class="endgame-title">THE HUNT IS OVER</div>
+  <div class="endgame-message">All carrots have been taken.</div>
+  <div class="endgame-stats">
+    <div class="endgame-stat"><span class="endgame-stat-label">Score</span><span class="endgame-stat-value">{{score}}</span></div>
+    <div class="endgame-stat"><span class="endgame-stat-label">Time</span><span class="endgame-stat-value">{{time}}s</span></div>
+    <div class="endgame-stat"><span class="endgame-stat-label">Kills</span><span class="endgame-stat-value">{{kills}}</span></div>
+  </div>
+  <div class="endgame-actions">
+    <button class="endgame-button" id="endgame-restart" data-event-click="restart">(R)estart</button>
+    <button class="endgame-button secondary" id="endgame-quit" data-event-click="quit">(Q)uit</button>
+  </div>
+</div>

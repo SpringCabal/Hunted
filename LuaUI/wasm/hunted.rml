@@ -1,0 +1,31 @@
+<rml>
+  <head>
+    <link type="text/rcss" href="hunted.rcss" />
+    <title>Hunted</title>
+  </head>
+  <body data-model="hunted">
+    <div id="ammo">Ammo: {{ammo}}</div>
+    <div id="mines">Mines: {{mines}}</div>
+
+    <div id="carrots">Carrots: {{carrots}}</div>
+
+    <div id="rabbits">Rabbits: {{rabbits}}</div>
+    <div id="kills">Kills: {{kills}}</div>
+    <div id="score">Score: {{score}}</div>
+    <div id="time">Time: {{time}}</div>
+    <div id="events"></div>
+
+    <div id="flare"><div class="flare-screen" data-if="flare_active"></div></div>
+    <div id="endgame"></div>
+
+    <div id="flash-label">Flash</div>
+    <div id="flash-bar"><div id="flash-fill" data-style-width="flash"></div></div>
+
+    <div id="controls">
+      <div><span class="control-key">Left click:</span> Shoot</div>
+      <div><span class="control-key">Right click :</span> Place Mines</div>
+      <div><span class="control-key">Scroll Wheel :</span> Zoom</div>
+      <div><span class="control-key">Ctrl+Q :</span> Quit</div>
+    </div>
+  </body>
+</rml>

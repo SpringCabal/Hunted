@@ -1,0 +1,26 @@
+[package]
+name = "hunted-rules-wasm"
+version = "0.1.0"
+edition = "2024"
+publish = false
+build = "../build.rs"
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+default = []
+diagnostics = []
+# The headless integration suite (verification/games/hunted.sh headless).
+headless-integration = []
+# The visual suite: lose the hunt so the end screen gets its screenshot.
+e2e = []
+
+[dependencies]
+spring = { workspace = true }
+spring-addons = { workspace = true }
+springcabal = { workspace = true }
+hunted-common = { path = "../common" }
+
+[lints]
+workspace = true

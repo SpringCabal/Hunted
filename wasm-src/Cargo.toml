@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+members = ["common", "rules-synced", "ui"]
+
+[workspace.lints.rust]
+warnings = "deny"
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+too_many_arguments = "allow"
+
+[workspace.dependencies]
+spring = { git = "https://github.com/gajop/spring-rust", rev = "7513405c43ca22bb09654d648900978087eeab4d", features = ["alloc"] }
+spring-addons = { git = "https://github.com/gajop/spring-rust", rev = "7513405c43ca22bb09654d648900978087eeab4d" }
+springcabal = { git = "https://github.com/gajop/springcabal-rs", rev = "b77bbfe6c47147d2d632613d0269f8a36cd15848" }
+springcabal-control = { git = "https://github.com/gajop/springcabal-rs", rev = "b77bbfe6c47147d2d632613d0269f8a36cd15848" }

@@ -1,0 +1,52 @@
+use alloc::collections::BTreeMap;
+use alloc::vec::Vec;
+
+use crate::defs::UnitKind;
+
+#[derive(Default)]
+pub struct Roster {
+    by_kind: [BTreeMap<i32, spring::Float3>; UnitKind::ALL.len()],
+    kinds: BTreeMap<i32, UnitKind>,
+}
+
+impl Roster {
+    pub fn track(&mut self, unit: i32, kind: UnitKind, position: spring::Float3) {
+        if let Some(old) = self.kinds.insert(unit, kind) {
+            self.by_kind[old.index()].remove(&unit);
+        }
+        self.by_kind[kind.index()].insert(unit, position);
+    }
+
+    pub fn untrack(&mut self, unit: i32) {
+        if let Some(kind) = self.kinds.remove(&unit) {
+            self.by_kind[kind.index()].remove(&unit);
+        }
+    }
+
+    pub fn kind(&self, unit: i32) -> Option<UnitKind> {
+        self.kinds.get(&unit).copied()
+    }
+
+    pub fn units(&self, kind: UnitKind) -> Vec<i32> {
+        self.by_kind[kind.index()].keys().copied().collect()
+    }
+
+    pub fn count(&self, kind: UnitKind) -> usize {
+        self.by_kind[kind.index()].len()
+    }
+
+    pub fn positions(&self, kind: UnitKind) -> Vec<(i32, spring::Float3)> {
+        self.by_kind[kind.index()]
+            .iter()
+            .map(|(unit, position)| (*unit, *position))
+            .collect()
+    }
+
+    pub fn carrot_count(&self) -> i32 {
+        UnitKind::ALL
+            .into_iter()
+            .filter(|kind| kind.is_carrot())
+            .map(|kind| self.count(kind) as i32)
+            .sum()
+    }
+}

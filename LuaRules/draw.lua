@@ -1,4 +1,3 @@
--- Wiki: http://springrts.com/wiki/Gamedev:Glossary#springcontent.sdz
-
--- Include base content gadget handler to run unsynced gadgets
-VFS.Include("luagadgets/gadgets.lua",nil, VFS.BASE)
+-- Keep the split LuaRules handler alive for the synced unit-script framework.
+-- Hunted's unsynced gameplay/UI is implemented by Core-WASM and RmlUi.
+return true

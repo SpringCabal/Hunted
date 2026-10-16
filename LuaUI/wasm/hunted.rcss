@@ -1,0 +1,266 @@
+body {
+  position: absolute;
+  left: 0dp;
+  right: 0dp;
+  top: 0dp;
+  bottom: 0dp;
+  width: auto;
+  height: auto;
+  font-family: FreeSans;
+  color: #ffffff;
+  font-size: 24dp;
+  pointer-events: none;
+}
+
+/* The HUD is display-only. World input must continue to reach Spring's game
+ * input receiver underneath the document. */
+body * {
+  pointer-events: none;
+}
+
+#ammo, #mines {
+  position: absolute;
+  left: 10dp;
+  width: 200dp;
+  height: 38dp;
+  text-align: left;
+  color: #ffff00;
+  font-size: 24dp;
+}
+
+#ammo { top: 10dp; }
+#mines { top: 45dp; }
+
+#carrots {
+  position: absolute;
+  top: 10dp;
+  left: 50%;
+  width: 300dp;
+  height: 50dp;
+  margin-left: -150dp;
+  color: #ffa500;
+  font-size: 32dp;
+  text-align: center;
+}
+
+#rabbits, #kills, #score, #time {
+  position: absolute;
+  right: 10dp;
+  width: 250dp;
+  height: 40dp;
+  font-size: 24dp;
+  text-align: right;
+}
+
+#rabbits { top: 10dp; color: #1e90ff; }
+#kills { top: 45dp; color: #1e90ff; }
+#score { bottom: 45dp; color: #ffff00; }
+#time { bottom: 10dp; color: #ffff00; }
+
+#flash-label, #flash-bar {
+  position: absolute;
+  left: 45%;
+  width: 10%;
+  text-align: center;
+}
+
+#flash-label {
+  bottom: 50dp;
+  height: 28dp;
+  color: #9370db;
+  font-size: 20dp;
+}
+
+#flash-bar {
+  bottom: 20dp;
+  height: 26dp;
+  box-sizing: border-box;
+  border: 2dp #ffffff;
+  border-radius: 4dp;
+  background-color: rgba(0, 0, 0, 0.6);
+  padding: 1dp;
+  overflow: hidden;
+}
+
+#flash-fill {
+  display: block;
+  height: 100%;
+  background-color: #0f0fca;
+  border-radius: 2dp;
+}
+
+#events {
+  position: absolute;
+  left: 25%;
+  right: 25%;
+  top: 22%;
+  bottom: 10%;
+  overflow: hidden;
+  text-align: center;
+}
+
+.event-line {
+  position: absolute;
+  left: 0dp;
+  right: 0dp;
+  height: 48dp;
+  text-align: center;
+}
+
+/* Floating events use Lua's event colors, rather than the fixed HUD colors. */
+.event-rabbits { color: #0000ff; }
+.event-carrots { color: rgb(255, 128, 79); }
+.event-kill-streak { color: #ff0000; }
+
+#flare {
+  position: absolute;
+  left: 0dp;
+  right: 0dp;
+  top: 0dp;
+  bottom: 0dp;
+  background-color: transparent;
+}
+
+.flare-screen {
+  position: absolute;
+  left: 0dp;
+  right: 0dp;
+  top: 0dp;
+  bottom: 0dp;
+  background-color: #ffffff;
+  opacity: 0.25;
+}
+
+#endgame {
+  position: absolute;
+  left: 0dp;
+  right: 0dp;
+  top: 0dp;
+  bottom: 0dp;
+  text-align: center;
+}
+
+.endgame-panel {
+  position: absolute;
+  left: 50%;
+  top: 30%;
+  width: 680dp;
+  margin-left: -340dp;
+  padding: 30dp 36dp 34dp;
+  box-sizing: border-box;
+  color: #ffffff;
+  background-color: rgba(33, 24, 44, 245);
+  border-width: 2dp;
+  border-color: #9370db;
+  border-radius: 6dp;
+  font-size: 22dp;
+  pointer-events: auto;
+}
+
+.endgame-panel > div,
+.endgame-panel > button {
+  display: block;
+}
+
+.endgame-title {
+  margin-bottom: 10dp;
+  color: #ffa500;
+  font-size: 34dp;
+  font-weight: bold;
+  line-height: 40dp;
+}
+
+.endgame-message {
+  color: #ffffff;
+  font-size: 22dp;
+  line-height: 30dp;
+}
+
+.endgame-stats {
+  margin-top: 22dp;
+  padding: 14dp 10dp;
+  background-color: rgba(0, 0, 0, 80);
+  border-width: 1dp;
+  border-color: rgba(147, 112, 219, 130);
+}
+
+.endgame-stat {
+  display: inline-block;
+  width: 32%;
+  text-align: center;
+  vertical-align: top;
+}
+
+.endgame-stat-label {
+  display: block;
+  color: #9370db;
+  font-size: 18dp;
+  line-height: 24dp;
+}
+
+.endgame-stat-value {
+  display: block;
+  margin-top: 2dp;
+  color: #ffff00;
+  font-size: 28dp;
+  font-weight: bold;
+  line-height: 34dp;
+}
+
+.endgame-actions {
+  margin-top: 26dp;
+  text-align: center;
+}
+
+.endgame-button {
+  display: inline-block;
+  width: 210dp;
+  height: 52dp;
+  margin: 0 7dp;
+  padding: 0 12dp;
+  box-sizing: border-box;
+  border-width: 1dp;
+  border-color: #ffa500;
+  border-radius: 4dp;
+  background-color: #5b3b18;
+  color: #ffffff;
+  font-size: 21dp;
+  font-weight: bold;
+  line-height: 50dp;
+  text-align: center;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.endgame-button:hover {
+  background-color: #ffa500;
+  color: #21182c;
+}
+
+.endgame-button.secondary {
+  border-color: #c86464;
+  background-color: #452626;
+  color: #f0a0a0;
+}
+
+.endgame-button.secondary:hover {
+  background-color: #c86464;
+  color: #ffffff;
+}
+
+#controls {
+  position: absolute;
+  left: 10dp;
+  bottom: 10dp;
+  color: #ffffff;
+  font-size: 16dp;
+  line-height: 20dp;
+}
+
+#controls div {
+  display: block;
+}
+
+.control-key {
+  color: #ff0aff;
+}

@@ -1,8 +1,8 @@
 local modinfo = {
-	name = "Hunted",
-	shortname = "HHH",
-	game = "Hunted",
-	shortgame = "HHH",
+	name = "Hunted WASM",
+	shortname = "HHW",
+	game = "Hunted WASM",
+	shortgame = "HHW",
 	version = "$VERSION",
 	description = "Hunted LD33 prep game",
 	modtype = "1",

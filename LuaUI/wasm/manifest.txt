@@ -1,0 +1,3 @@
+# UI is a separate Wasm instance.  It owns the RmlUi context and never shares
+# mutable guest state with the rules module.
+module(hunted-ui, LuaUI/wasm/hunted-ui.wasm, ui, 0, 1.0.0)
