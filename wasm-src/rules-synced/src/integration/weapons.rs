@@ -147,10 +147,10 @@ impl Tracker {
         self.before.shotgun_ammo = global.weapons.access().shotgun_ammo;
         self.before.shots = global.score.access().shots_fired;
         self.before.fear = fear(global, self.rabbit).unwrap_or(0.0);
-        let target = spring::Float3 {
-            x: position.x + SHOT_OFFSET,
-            z: position.z - SHOT_OFFSET,
-            ..position
+        let gun = global.weapons.access().gun_id;
+        let Some(target) = nearby_shot_target(spring, gun, position) else {
+            self.fail(spring, "the shotgun muzzle is available for a nearby shot");
+            return;
         };
         self.shot_at = (target.x, target.z);
         send(ctx, protocol::FIRE, target);
@@ -510,4 +510,69 @@ fn highest_ground(spring: &spring::Spring<'_, spring::RulesSynced>) -> Option<sp
         .zip(heights)
         .max_by(|a, b| a.1.total_cmp(&b.1))
         .map(|(&[x, z], y)| spring::Float3 { x, y, z })
+}
+
+// This case measures fear from a nearby shot, not a pellet hitting its subject.
+// Pick among the same four diagonal offsets by their distance from the actual
+// muzzle-to-target segment. A fixed diagonal can put the rabbit on that segment
+// when the UI first spawns the gun a frame earlier or later.
+fn nearby_shot_target(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    gun: i32,
+    rabbit: spring::Float3,
+) -> Option<spring::Float3> {
+    let flare = spring
+        .units_pieces()
+        .get_unit_piece_map(gun)
+        .ok()?
+        .into_iter()
+        .find(|piece| piece.name == "flare")?
+        .piece_num;
+    let muzzle = spring
+        .units_pieces()
+        .get_unit_piece_pos_dir(gun, flare)
+        .ok()?
+        .position;
+    let mut best = None;
+    let mut clearance = -1.0;
+    for (dx, dz) in [
+        (SHOT_OFFSET, -SHOT_OFFSET),
+        (SHOT_OFFSET, SHOT_OFFSET),
+        (-SHOT_OFFSET, -SHOT_OFFSET),
+        (-SHOT_OFFSET, SHOT_OFFSET),
+    ] {
+        let target = spring::Float3 {
+            x: rabbit.x + dx,
+            z: rabbit.z + dz,
+            ..rabbit
+        };
+        let direction = [
+            target.x - muzzle.x,
+            target.y - muzzle.y,
+            target.z - muzzle.z,
+        ];
+        let offset = [
+            rabbit.x - muzzle.x,
+            rabbit.y - muzzle.y,
+            rabbit.z - muzzle.z,
+        ];
+        let length_squared = direction.iter().map(|x| x * x).sum::<f32>();
+        let along = (offset
+            .iter()
+            .zip(direction)
+            .map(|(a, b)| a * b)
+            .sum::<f32>()
+            / length_squared.max(0.001))
+        .clamp(0.0, 1.0);
+        let distance_squared = offset
+            .iter()
+            .zip(direction)
+            .map(|(a, b)| (a - along * b).powi(2))
+            .sum::<f32>();
+        if distance_squared > clearance {
+            clearance = distance_squared;
+            best = Some(target);
+        }
+    }
+    best
 }

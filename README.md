@@ -26,12 +26,12 @@ Verification on the SDK test engine:
 
 - Strict Clippy passes for all workspace targets/features and for the default
   build. All 30 common Rust unit tests pass.
-- All 35 existing integration checks have passed on Linux and Wine, with no
-  engine errors or warnings. The Linux run is not reliably green: the fear
-  check sometimes loses its moving rabbit after a nearby shot. Its first UI
-  response arrives on different simulation frames between runs. A pre-port
-  baseline run passed; the cause of the intermittent failure still needs
-  resolving. No checks or expected counts were relaxed.
+- All 35 existing integration checks pass on Linux and Wine. A repeated Linux
+  failure also reproduced in the old code: the nearby-shot fear test sometimes
+  killed its moving rabbit before checking its fear. The fixture now chooses
+  among the same nearby aim offsets using the actual muzzle position, so the
+  shot goes beside the rabbit. All fear, ammunition and damage assertions are
+  unchanged. The corrected suite passes at three different run speeds.
 - The five-shot visual scenario and HUD binding/restart checks complete on
   GPU and software renderers. All eight manually measured images/crops meet
   the existing limits (full frames 3.66–4.83% against 10%; HUD/end screen
