@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 
 use hunted_common::protocol;
-use spring::commands;
+
 use spring_addons::AddonContext;
 use spring_addons::rules::Gadget;
 use springcabal::message;
@@ -30,13 +30,15 @@ impl Gadget<Global> for UiInputGadget {
 }
 
 pub fn receive(ctx: &AddonContext<'_, Global>, data: &[u8]) -> bool {
+    let spring = ctx.spring();
     let Ok(text) = core::str::from_utf8(data) else {
         return false;
     };
     if text == protocol::RESTART {
-        let accepted = request_restart(ctx.global());
+        let accepted = request_restart(spring, ctx.global());
         if !accepted {
             crate::diagnostics::info(
+                spring,
                 "restart ignored: the hunt isn't over, or is already restarting",
             );
         }
@@ -70,7 +72,10 @@ pub fn receive(ctx: &AddonContext<'_, Global>, data: &[u8]) -> bool {
     true
 }
 
-fn request_restart(global: &state::Global) -> bool {
+fn request_restart(
+    _spring: &spring::Spring<'_, spring::RulesSynced>,
+    global: &state::Global,
+) -> bool {
     {
         let mut session = global.session.access_mut();
         if !session.game_over || session.restart_in_progress {
@@ -78,26 +83,32 @@ fn request_restart(global: &state::Global) -> bool {
         }
         session.restart_in_progress = true;
     }
-    commands::run(|| {
-        crate::with_global(|global| {
-            let units: Vec<i32> = {
-                let roster = global.roster.access();
-                UnitKind::ALL
-                    .into_iter()
-                    .filter(|kind| *kind != UnitKind::Shotgun)
-                    .flat_map(|kind| roster.units(kind))
-                    .collect()
-            };
-            for unit_id in units {
-                units::destroy_now(unit_id, false, -1);
-            }
-            reset_round(global, spring::game::frame().unwrap_or(0) as i32);
-        });
+    crate::with_addon_context(|ctx| {
+        ctx.commands().run(|spring| {
+            crate::with_global(|global| {
+                let units: Vec<i32> = {
+                    let roster = global.roster.access();
+                    UnitKind::ALL
+                        .into_iter()
+                        .filter(|kind| *kind != UnitKind::Shotgun)
+                        .flat_map(|kind| roster.units(kind))
+                        .collect()
+                };
+                for unit_id in units {
+                    units::destroy_now(spring, unit_id, false, -1);
+                }
+                reset_round(spring, global, spring.game().current_frame().unwrap_or(0));
+            });
+        })
     });
     true
 }
 
-fn reset_round(global: &state::Global, frame: i32) {
+fn reset_round(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    global: &state::Global,
+    frame: i32,
+) {
     let (gun_id, target) = {
         let weapons = global.weapons.access();
         (weapons.gun_id, weapons.target)
@@ -121,6 +132,6 @@ fn reset_round(global: &state::Global, frame: i32) {
         *waves = state::Waves::default();
         waves.next_wave_frame = frame + hunted_common::waves::FIRST_WAVE_FRAME;
     }
-    status::send(global, frame);
-    crate::diagnostics::info("hunt restarted");
+    status::send(spring, global, frame);
+    crate::diagnostics::info(spring, "hunt restarted");
 }

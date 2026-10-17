@@ -31,7 +31,7 @@ impl Widget<Global> for CameraWidget {
         "Camera"
     }
 
-    fn update(&self, ctx: &AddonContext<'_, Global>, dt: f32) {
+    fn update(&self, ctx: &AddonContext<'_, Global, spring::Ui>, dt: f32) {
         self.camera.update(ctx, dt);
     }
 }

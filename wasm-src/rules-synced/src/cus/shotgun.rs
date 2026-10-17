@@ -24,7 +24,11 @@ pub(super) async fn fire(state: Rc<RefCell<ShotgunState>>, ctx: UnitCtx) {
     ctx.set_signal_mask(SIG_RELOAD);
     if pieces.shell != Piece::INVALID {
         let (ctx, shell) = (ctx.clone(), pieces.shell);
-        spring::commands::run(move || ctx.explode(shell, SfxFlags(0)));
+        crate::with_addon_context(|addon| {
+            addon
+                .commands()
+                .run(move |_spring| ctx.explode(shell, SfxFlags(0)))
+        });
     }
     turn(
         &ctx,

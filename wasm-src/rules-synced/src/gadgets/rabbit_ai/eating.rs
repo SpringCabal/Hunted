@@ -1,6 +1,7 @@
 use super::*;
 
 pub(super) fn update_carried_rabbit(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
     game: &mut RabbitCtx<'_>,
     memory_index: usize,
     position: &Position,
@@ -21,8 +22,9 @@ pub(super) fn update_carried_rabbit(
         game.rabbits.memories[memory_index].carried_carrot = -1;
         game.rabbits.memories[memory_index].carrying_since = -1;
         *game.carrots_stolen += 1;
-        crate::diagnostics::info_once!("rabbit returned a carrot to a burrow");
+        crate::diagnostics::info_once!(spring, "rabbit returned a carrot to a burrow");
         issue_goal(
+            spring,
             rabbit_id,
             burrow.x,
             burrow.z,
@@ -63,6 +65,7 @@ pub(super) enum Eating {
 }
 
 pub(super) fn update_eating_rabbit(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
     game: &mut RabbitCtx<'_>,
     memory_index: usize,
     tick: &RabbitTick,
@@ -73,11 +76,11 @@ pub(super) fn update_eating_rabbit(
         return Eating::No;
     }
     if game.rabbits.memories[memory_index].data.panic.is_some() {
-        cancel_eating(game, memory_index);
+        cancel_eating(spring, game, memory_index);
         return Eating::No;
     }
     let Some((_, carrot_position, _)) = carrots.iter().find(|(id, _, _)| *id == carrot_id) else {
-        cancel_eating(game, memory_index);
+        cancel_eating(spring, game, memory_index);
         return Eating::No;
     };
 
@@ -98,10 +101,11 @@ pub(super) fn update_eating_rabbit(
     }
     if !stealing_notified {
         game.rabbits.memories[memory_index].stealing_notified = true;
-        set_stealing(tick.rabbit, true);
+        set_stealing(spring, tick.rabbit, true);
         Call::carrot_start_being_stolen(carrot_id, eating_progress).queue();
     }
     issue_goal(
+        spring,
         tick.rabbit,
         carrot_position.x,
         carrot_position.z,
@@ -113,7 +117,11 @@ pub(super) fn update_eating_rabbit(
     Eating::Busy
 }
 
-pub(super) fn cancel_eating(game: &mut RabbitCtx<'_>, memory_index: usize) {
+pub(super) fn cancel_eating(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    game: &mut RabbitCtx<'_>,
+    memory_index: usize,
+) {
     let memory = game.rabbits.memories[memory_index];
     if memory.stealing_notified {
         let carrot_id = memory.reserved_carrot;
@@ -126,7 +134,7 @@ pub(super) fn cancel_eating(game: &mut RabbitCtx<'_>, memory_index: usize) {
     let memory = &mut game.rabbits.memories[memory_index];
     memory.eating_progress = 0;
     memory.stealing_notified = false;
-    set_stealing(memory.unit_id, false);
+    set_stealing(spring, memory.unit_id, false);
 }
 
 pub(super) fn remember_carrot_progress(rabbits: &mut Rabbits, memory: &RabbitMemory) {

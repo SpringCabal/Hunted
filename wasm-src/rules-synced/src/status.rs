@@ -8,7 +8,7 @@ use crate::defs::UnitKind;
 use crate::diagnostics;
 use crate::state::{self, Global};
 
-pub fn send(global: &Global, frame: i32) {
+pub fn send(spring: &spring::Spring<'_, spring::RulesSynced>, global: &Global, frame: i32) {
     let rabbit_count = global.roster.access().count(UnitKind::Rabbit);
     let score = *global.score.access();
     let flare = *global.flare.access();
@@ -39,19 +39,24 @@ pub fn send(global: &Global, frame: i32) {
         .kv_flag(key::FLARE_ACTIVE, flare.active)
         .kv_flag(key::GAME_OVER, game_over)
         .finish();
-    spring::commands::run(move || {
-        springcabal::message::send_to_ui(&message);
+    crate::with_addon_context(|ctx| {
+        ctx.commands().run(move |spring| {
+            springcabal::message::send_to_ui(spring, &message);
+        })
     });
     global.session.access_mut().status_dirty = false;
     if frame.rem_euclid(diagnostics::LOG_PERIOD_FRAMES) == 0 {
-        diagnostics::info(&format!(
-            "status sent frame={frame} rabbits={rabbit_count} kills={} carrots={} stolen={} shots={} flare_active={}",
-            score.rabbits_killed,
-            score.carrots,
-            score.carrots_stolen,
-            score.shots_fired,
-            flare.active,
-        ));
+        diagnostics::info(
+            spring,
+            &format!(
+                "status sent frame={frame} rabbits={rabbit_count} kills={} carrots={} stolen={} shots={} flare_active={}",
+                score.rabbits_killed,
+                score.carrots,
+                score.carrots_stolen,
+                score.shots_fired,
+                flare.active,
+            ),
+        );
     }
 }
 

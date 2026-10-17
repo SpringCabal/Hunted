@@ -49,7 +49,7 @@ pub(super) async fn controller(state: Rc<RefCell<RabbitState>>, ctx: UnitCtx) {
         }
         if state.borrow().moving == Some(false) {
             reset_pose(&ctx, pieces, 17.0);
-            if random::int(0, 1) == 1 {
+            if random::int(&ctx, 0, 1) == 1 {
                 idle(&ctx, pieces).await;
             }
         }
@@ -80,14 +80,14 @@ async fn move_animation(ctx: &UnitCtx, p: RabbitPieces) {
 }
 
 async fn idle(ctx: &UnitCtx, p: RabbitPieces) {
-    for _ in 0..random::int(1, 6) {
-        let degrees = random::int(10, 35) as f32;
-        let tail_degrees = random::int(-10, 10) as f32;
+    for _ in 0..random::int(ctx, 1, 6) {
+        let degrees = random::int(ctx, 10, 35) as f32;
+        let tail_degrees = random::int(ctx, -10, 10) as f32;
         turn(ctx, p.head, Axis::Y, degrees.to_radians(), 9.0);
         turn(ctx, p.wiggle_tail, Axis::X, tail_degrees.to_radians(), 8.0);
         ctx.wait_for_turn(p.head, Axis::Y).await;
 
-        let tail_degrees = random::int(-10, 10) as f32;
+        let tail_degrees = random::int(ctx, -10, 10) as f32;
         turn(ctx, p.head, Axis::Y, -degrees.to_radians(), 9.0);
         turn(ctx, p.wiggle_tail, Axis::X, tail_degrees.to_radians(), 8.0);
         ctx.wait_for_turn(p.head, Axis::Y).await;
@@ -132,15 +132,23 @@ pub(super) fn stop_moving(ctx: &UnitCtx, state: &Rc<RefCell<RabbitState>>) {
 pub(super) fn killed(ctx: &UnitCtx, state: &Rc<RefCell<RabbitState>>) -> WreckLevel {
     let p = state.borrow().pieces;
     let script = ctx.clone();
-    spring::commands::run(move || {
-        for piece in [p.body, p.bleg1, p.bleg2, p.fleg1, p.fleg2] {
-            if piece != Piece::INVALID {
-                script.explode(piece, SfxFlags::EXPLODE);
+    crate::with_addon_context(|addon| {
+        addon.commands().run(move |_spring| {
+            for piece in [p.body, p.bleg1, p.bleg2, p.fleg1, p.fleg2] {
+                if piece != Piece::INVALID {
+                    script.explode(piece, SfxFlags::EXPLODE);
+                }
             }
-        }
+        })
     });
-    let position = spring::get_unit_position(ctx.unit(), false, false).unwrap_or_default();
-    play_sound_at("sounds/splat1.wav", 100.0, position);
+    let position = ctx
+        .with_spring(|spring| {
+            spring
+                .units_info()
+                .get_unit_position(ctx.unit().0, Default::default())
+        })
+        .unwrap_or_default();
+    play_sound_at(ctx, "sounds/splat1.wav", 100.0, position);
     WreckLevel::One
 }
 

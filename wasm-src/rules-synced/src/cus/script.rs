@@ -2,7 +2,7 @@ use alloc::rc::Rc;
 use core::cell::RefCell;
 
 use spring::UnitId;
-use spring::commands;
+
 use spring::cus::host::UnitDefScript;
 use spring::cus::{
     Angle, Axis, InitCtx, Piece, ScriptCapabilities, TaskDefinition, UnitCtx, UnitScript,
@@ -29,8 +29,11 @@ pub enum HuntedUnitScript {
 }
 
 impl UnitDefScript for HuntedUnitScript {
-    fn capabilities(def: i32) -> Option<ScriptCapabilities> {
-        let kind = defs::kind_of(def)?;
+    fn capabilities(
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        def: i32,
+    ) -> Option<ScriptCapabilities> {
+        let kind = defs::kind_of(spring, def)?;
         let mut bits = ScriptCapabilities::KILLED | ScriptCapabilities::CREATE;
         if kind == UnitKind::Rabbit {
             bits |= ScriptCapabilities::START_MOVING | ScriptCapabilities::STOP_MOVING;
@@ -38,10 +41,18 @@ impl UnitDefScript for HuntedUnitScript {
         Some(ScriptCapabilities::new(bits))
     }
 
-    fn for_def(def: i32, ctx: &mut InitCtx<'_>, _: &mut ()) -> Self {
-        match defs::kind_of(def) {
+    fn for_def(
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        def: i32,
+        ctx: &mut InitCtx<'_>,
+        _: &mut (),
+    ) -> Self {
+        match defs::kind_of(spring, def) {
             Some(UnitKind::Rabbit) => {
-                let _ = random::int(0, 0);
+                let _ = spring
+                    .synced_random()
+                    .next_int(0, 0)
+                    .expect("synced random int");
                 Self::Rabbit(Rc::new(RefCell::new(RabbitState {
                     pieces: RabbitPieces::from_init(ctx),
                     moving: None,
@@ -67,7 +78,11 @@ impl UnitDefScript for HuntedUnitScript {
                         light_head: piece(ctx, "LightHead"),
                         light_pitch: piece(ctx, "LightPitch"),
                     },
-                    angle: random::float() * TAU,
+                    angle: spring
+                        .synced_random()
+                        .next_float()
+                        .expect("synced random float")
+                        * TAU,
                 })))
             }
             Some(UnitKind::Mine) => Self::Mine,
@@ -95,9 +110,12 @@ impl UnitScript for HuntedUnitScript {
                 ));
             }
             Self::Carrot(state) => {
-                let position = unit_position(ctx.unit());
-                let ground =
-                    spring::get_ground_height(position.x, position.z).unwrap_or(position.y);
+                let position = unit_position(ctx);
+                let ground = ctx
+                    .with_spring(|spring| {
+                        spring.terrain().get_ground_height(position.x, position.z)
+                    })
+                    .unwrap_or(position.y);
                 let mut carrot = state.borrow_mut();
                 carrot.x = position.x;
                 carrot.y = ground + 1.0;
@@ -171,14 +189,22 @@ impl HuntedUnitScript {
             (Self::Rabbit(state), "AttachCarrot") => {
                 if !arguments.is_empty() {
                     let (ctx, center) = (ctx.clone(), state.borrow().pieces.center);
-                    commands::run(move || ctx.attach_unit(center, UnitId(first as i32)));
+                    crate::with_addon_context(|addon| {
+                        addon
+                            .commands()
+                            .run(move |_spring| ctx.attach_unit(center, UnitId(first as i32)))
+                    });
                 }
                 None
             }
             (Self::Rabbit(_), "DropCarrot") => {
                 if !arguments.is_empty() {
                     let ctx = ctx.clone();
-                    commands::run(move || ctx.drop_unit(UnitId(first as i32)));
+                    crate::with_addon_context(|addon| {
+                        addon
+                            .commands()
+                            .run(move |_spring| ctx.drop_unit(UnitId(first as i32)))
+                    });
                 }
                 None
             }

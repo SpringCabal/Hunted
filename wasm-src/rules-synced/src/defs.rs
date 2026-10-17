@@ -61,20 +61,32 @@ pub struct Defs {
 }
 
 impl Defs {
-    fn resolve() -> Self {
-        let unit_ids = UnitKind::ALL
-            .map(|kind| spring::get_unit_def_id_by_name(kind.def_name()).unwrap_or(-1));
-        let speed =
-            |kind: UnitKind| spring::get_unit_def_speed(unit_ids[kind.index()]).unwrap_or(0.0);
-        let shotgun_weapon = spring::weapon_defs::get_weapon_def_id("shotgun").ok();
+    fn resolve(spring: &spring::Spring<'_, spring::RulesSynced>) -> Self {
+        let unit_ids = UnitKind::ALL.map(|kind| {
+            spring
+                .unit_defs()
+                .get_unit_def_id_by_name(kind.def_name())
+                .unwrap_or(-1)
+        });
+        let speed = |kind: UnitKind| {
+            spring
+                .unit_defs()
+                .get_unit_def_speed(unit_ids[kind.index()])
+                .unwrap_or(0.0)
+        };
+        let shotgun_weapon = spring.weapon_defs().get_weapon_def_id("shotgun").ok();
         let shotgun_projectile_speed = shotgun_weapon
-            .and_then(|id| spring::weapon_defs::get_weapon_def_by_id(id).ok())
+            .and_then(|id| spring.weapon_defs().get_weapon_def_by_id(id).ok())
             .filter(|def| def.exists)
             .map_or(2000.0 / spring::consts::GAME_SPEED as f32, |def| {
                 def.info.projectile_speed
             });
-        let projectile_params = shotgun_weapon
-            .and_then(|id| spring::weapon_defs::get_weapon_def_projectile_params(id).ok());
+        let projectile_params = shotgun_weapon.and_then(|id| {
+            spring
+                .weapon_defs()
+                .get_weapon_def_projectile_params(id)
+                .ok()
+        });
         Self {
             shotgun_projectiles: projectile_params
                 .as_ref()
@@ -104,12 +116,15 @@ impl Defs {
     }
 }
 
-static DEFS: DefCache<Defs> = DefCache::new(Defs::resolve);
+static DEFS: DefCache<Defs> = DefCache::new();
 
-pub fn defs() -> Defs {
-    *DEFS.get()
+pub fn defs(spring: &spring::Spring<'_, spring::RulesSynced>) -> Defs {
+    *DEFS.get_or_init(|| Defs::resolve(spring))
 }
 
-pub fn kind_of(unit_def: i32) -> Option<UnitKind> {
-    defs().kind_of(unit_def)
+pub fn kind_of(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    unit_def: i32,
+) -> Option<UnitKind> {
+    defs(spring).kind_of(unit_def)
 }

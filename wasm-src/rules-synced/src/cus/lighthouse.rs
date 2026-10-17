@@ -30,12 +30,18 @@ pub(super) fn create(ctx: &UnitCtx, state: Rc<RefCell<LighthouseState>>) {
         -angle + core::f32::consts::FRAC_PI_2,
         0.0,
     );
-    let position = unit_position(ctx.unit());
+    let position = unit_position(ctx);
     let x = position.x + BEAM_DISTANCE * angle.cos();
     let z = position.z + BEAM_DISTANCE * angle.sin();
     point_beam(ctx, x, z);
-    spring::set_unit_rules_param_f32(ctx.unit(), PARAM_SIZE, BEAM_SIZE, PUBLIC)
-        .log_err_once("publishing the lighthouse beam size");
+    ctx.with_spring(|spring| {
+        spring
+            .rules_params()
+            .set_unit_rules_param_f32(ctx.unit().0, PARAM_SIZE, BEAM_SIZE, PUBLIC)
+            .log_err_once(spring, "publishing the lighthouse beam size");
+        Ok(())
+    })
+    .expect("active unit-script scope");
     ctx.spawn(TaskDefinition::with_state(
         "hunted-lighthouse-loop",
         state,
@@ -55,10 +61,12 @@ async fn update(state: Rc<RefCell<LighthouseState>>, ctx: UnitCtx) {
             (state.angle, state.pieces)
         };
         let unit = ctx.unit();
-        let position = unit_position(unit);
+        let position = unit_position(&ctx);
         let x = position.x + BEAM_DISTANCE * angle.cos();
         let z = position.z + BEAM_DISTANCE * angle.sin();
-        let y = spring::get_ground_height(x, z).unwrap_or(position.y);
+        let y = ctx
+            .with_spring(|spring| spring.terrain().get_ground_height(x, z))
+            .unwrap_or(position.y);
         turn(
             &ctx,
             pieces.light_head,
@@ -66,9 +74,11 @@ async fn update(state: Rc<RefCell<LighthouseState>>, ctx: UnitCtx) {
             -angle,
             rotation_speed * 30.0,
         );
-        if let Ok(piece_pos) =
-            spring::units_pieces::get_unit_piece_pos_dir(unit.0, pieces.light_pitch.0 + 1)
-        {
+        if let Ok(piece_pos) = ctx.with_spring(|spring| {
+            spring
+                .units_pieces()
+                .get_unit_piece_pos_dir(unit.0, pieces.light_pitch.0 + 1)
+        }) {
             let dx = x - position.x;
             let dz = z - position.z;
             let distance = (dx * dx + dz * dz).sqrt();
@@ -87,8 +97,20 @@ async fn update(state: Rc<RefCell<LighthouseState>>, ctx: UnitCtx) {
 }
 
 fn point_beam(ctx: &UnitCtx, x: f32, z: f32) {
-    spring::set_unit_rules_param_f32(ctx.unit(), PARAM_X, x, PUBLIC)
-        .log_err_once("publishing the lighthouse beam");
-    spring::set_unit_rules_param_f32(ctx.unit(), PARAM_Z, z, PUBLIC)
-        .log_err_once("publishing the lighthouse beam");
+    ctx.with_spring(|spring| {
+        spring
+            .rules_params()
+            .set_unit_rules_param_f32(ctx.unit().0, PARAM_X, x, PUBLIC)
+            .log_err_once(spring, "publishing the lighthouse beam");
+        Ok(())
+    })
+    .expect("active unit-script scope");
+    ctx.with_spring(|spring| {
+        spring
+            .rules_params()
+            .set_unit_rules_param_f32(ctx.unit().0, PARAM_Z, z, PUBLIC)
+            .log_err_once(spring, "publishing the lighthouse beam");
+        Ok(())
+    })
+    .expect("active unit-script scope");
 }

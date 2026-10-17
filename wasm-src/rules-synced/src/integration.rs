@@ -99,8 +99,9 @@ impl Gadget<Global> for IntegrationGadget {
     }
 
     fn unit_destroyed(&self, ctx: &AddonContext<'_, Global>, event: &UnitDestroyedEvent) {
+        let spring = ctx.spring();
         let protected = matches!(
-            defs::kind_of(event.unit_def_id),
+            defs::kind_of(spring, event.unit_def_id),
             Some(kind) if kind.is_carrot() || matches!(kind, UnitKind::Burrow | UnitKind::Shotgun)
         );
         if protected && event.attacker_id >= 0 && !ctx.global().session.access().restart_in_progress
@@ -166,60 +167,71 @@ impl Tracker {
         self.since = frame;
     }
 
-    fn timed_out(&mut self, frame: i32, what: &str) -> bool {
+    fn timed_out(
+        &mut self,
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        frame: i32,
+        what: &str,
+    ) -> bool {
         if frame - self.since <= TIMEOUT {
             return false;
         }
-        self.fail(&format!("{what} within {TIMEOUT} frames"));
+        self.fail(spring, &format!("{what} within {TIMEOUT} frames"));
         true
     }
 
-    fn fail(&mut self, what: &str) {
-        self.suite.check(false, what);
-        self.suite.finish();
+    fn fail(&mut self, spring: &spring::Spring<'_, spring::RulesSynced>, what: &str) {
+        self.suite.check(spring, false, what);
+        self.suite.finish(spring);
         self.step = Step::Done;
     }
 
     fn update(&mut self, ctx: &AddonContext<'_, Global>, frame: i32) {
+        let spring = ctx.spring();
         let global = ctx.global();
         match self.step {
-            Step::Spawned => self.spawned(global, frame),
+            Step::Spawned => self.spawned(spring, global, frame),
             Step::Lit => self.lit(ctx, frame),
             Step::Fire => self.fire(ctx, frame),
-            Step::Fired => self.fired(global, frame),
-            Step::Scared => self.scared(global, frame),
+            Step::Fired => self.fired(spring, global, frame),
+            Step::Scared => self.scared(spring, global, frame),
             Step::ShootField => self.shoot_field(ctx, frame),
-            Step::FieldShot => self.field_shot(global, frame),
+            Step::FieldShot => self.field_shot(spring, global, frame),
             Step::PlaceMine => self.place_mine(ctx, frame),
-            Step::MinePlaced => self.mine_placed(global, frame),
-            Step::FuseLit => self.fuse_lit(global, frame),
-            Step::Detonated => self.detonated(global, frame),
+            Step::MinePlaced => self.mine_placed(spring, global, frame),
+            Step::FuseLit => self.fuse_lit(spring, global, frame),
+            Step::Detonated => self.detonated(spring, global, frame),
             Step::HillMine => self.hill_mine(ctx, frame),
-            Step::HillMinePlaced => self.hill_mine_placed(global, frame),
-            Step::Kill => self.kill(global, frame),
-            Step::Killed => self.killed(global, frame),
+            Step::HillMinePlaced => self.hill_mine_placed(spring, global, frame),
+            Step::Kill => self.kill(spring, global, frame),
+            Step::Killed => self.killed(spring, global, frame),
             Step::CarrotTick => self.carrot_tick(global, frame),
-            Step::CarrotScored => self.carrot_scored(global, frame),
-            Step::Eat => self.eat(global, frame),
-            Step::Eating => self.eating(global, frame),
-            Step::Carrying => self.carrying(global, frame),
-            Step::CarryHome => self.carry_home(global, frame),
-            Step::CarriedHome => self.carried_home(global, frame),
-            Step::Flare => self.flare(global, frame),
-            Step::FlareStarted => self.flare_started(global, frame),
+            Step::CarrotScored => self.carrot_scored(spring, global, frame),
+            Step::Eat => self.eat(spring, global, frame),
+            Step::Eating => self.eating(spring, global, frame),
+            Step::Carrying => self.carrying(spring, global, frame),
+            Step::CarryHome => self.carry_home(spring, global, frame),
+            Step::CarriedHome => self.carried_home(spring, global, frame),
+            Step::Flare => self.flare(spring, global, frame),
+            Step::FlareStarted => self.flare_started(spring, global, frame),
             Step::RestartMidHunt => self.restart_mid_hunt(ctx, frame),
-            Step::Lose => self.lose(global, frame),
-            Step::Lost => self.lost(global, frame),
+            Step::Lose => self.lose(spring, global, frame),
+            Step::Lost => self.lost(spring, global, frame),
             Step::RestartTwice => self.restart_twice(ctx, frame),
-            Step::Restarted => self.restarted(global, frame),
-            Step::NewHunt => self.new_hunt(global, frame),
+            Step::Restarted => self.restarted(spring, global, frame),
+            Step::NewHunt => self.new_hunt(spring, global, frame),
             Step::Done => {}
         }
     }
 
-    fn check_nothing_shot_down(&mut self, what: &str) {
+    fn check_nothing_shot_down(
+        &mut self,
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        what: &str,
+    ) {
         let shot_down = self.shot_down.len();
         self.suite.check(
+            spring,
             shot_down == 0,
             format!("{what}: {shot_down} carrots, burrows or guns destroyed by weapons"),
         );
@@ -264,9 +276,17 @@ fn free_carrots(global: &Global) -> Vec<(i32, spring::Float3)> {
         .collect()
 }
 
-fn teleport(unit: i32, position: spring::Float3) -> Result<(), spring::ApiError> {
-    spring::set_unit_position(unit, position)?;
-    spring::set_unit_velocity(unit, spring::Float3::default())?;
-    spring::set_unit_move_goal(unit, position, 16.0, 0.0, true)?;
+fn teleport(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    unit: i32,
+    position: spring::Float3,
+) -> Result<(), spring::ApiError> {
+    spring.unit_control().set_unit_position(unit, position)?;
+    spring
+        .unit_control()
+        .set_unit_velocity(unit, spring::Float3::default())?;
+    spring
+        .unit_control()
+        .set_unit_move_goal(unit, position, 16.0, 0.0, true)?;
     Ok(())
 }

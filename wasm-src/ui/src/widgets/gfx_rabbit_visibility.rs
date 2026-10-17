@@ -37,10 +37,10 @@ pub struct Visibility {
 }
 
 impl Visibility {
-    pub fn add_rabbit(&mut self, unit_id: i32) {
-        let _ = spring::unsynced_ctrl::set_unit_no_draw(unit_id, true);
-        let _ = spring::unsynced_ctrl::set_unit_no_select(unit_id, true);
-        let _ = spring::unsynced_ctrl::set_unit_no_minimap(unit_id, true);
+    pub fn add_rabbit(&mut self, spring: &spring::Spring<'_, spring::Ui>, unit_id: i32) {
+        let _ = spring.unsynced_ctrl().set_unit_no_draw(unit_id, true);
+        let _ = spring.unsynced_ctrl().set_unit_no_select(unit_id, true);
+        let _ = spring.unsynced_ctrl().set_unit_no_minimap(unit_id, true);
         self.rabbits.insert(unit_id);
     }
 
@@ -54,11 +54,17 @@ impl Visibility {
         self.lighthouses.retain(|lighthouse| *lighthouse != unit_id);
     }
 
-    pub fn update(&mut self, flashlight: Option<Point3>, flare_active: bool, frame: i32) {
+    pub fn update(
+        &mut self,
+        spring: &spring::Spring<'_, spring::Ui>,
+        flashlight: Option<Point3>,
+        flare_active: bool,
+        frame: i32,
+    ) {
         self.beams = self
             .lighthouses
             .iter()
-            .filter_map(|unit| beam(*unit))
+            .filter_map(|unit| beam(spring, *unit))
             .collect();
         let revealed = if flare_active {
             self.rabbits.clone()
@@ -73,7 +79,10 @@ impl Visibility {
                         .map(|beam| (beam.x, beam.z, beam.reveal_radius())),
                 );
             for (x, z, radius) in areas {
-                let Ok(units) = spring::get_units_in_cylinder(x, z, radius, ALL_UNITS) else {
+                let Ok(units) = spring
+                    .units_query()
+                    .get_units_in_cylinder(x, z, radius, ALL_UNITS)
+                else {
                     continue;
                 };
                 revealed.extend(units.into_iter().filter(|unit| self.rabbits.contains(unit)));
@@ -91,11 +100,16 @@ impl Visibility {
                     .map(|unit| (*unit, true)),
             )
         {
-            if spring::unsynced_ctrl::set_unit_no_draw(unit, !drawn).is_err() {
+            if spring
+                .unsynced_ctrl()
+                .set_unit_no_draw(unit, !drawn)
+                .is_err()
+            {
                 failures += 1;
             }
         }
         diagnostics::visibility(
+            spring,
             frame,
             self.rabbits.len() as i32,
             revealed.len() as i32,
@@ -106,13 +120,20 @@ impl Visibility {
     }
 }
 
-fn beam(lighthouse: i32) -> Option<Beam> {
-    let position = spring::units_info::get_unit_position(
-        lighthouse,
-        spring::units_info::GetUnitPositionOptions::default(),
-    )
-    .ok()?;
-    let param = |name: &str| spring::get_unit_rules_param_f32(lighthouse, name).ok();
+fn beam(spring: &spring::Spring<'_, spring::Ui>, lighthouse: i32) -> Option<Beam> {
+    let position = spring
+        .units_info()
+        .get_unit_position(
+            lighthouse,
+            spring::units_info::GetUnitPositionOptions::default(),
+        )
+        .ok()?;
+    let param = |name: &str| {
+        spring
+            .rules_params()
+            .get_unit_rules_param_f32(lighthouse, name)
+            .ok()
+    };
     Some(Beam {
         x: param(lighthouse::PARAM_X).unwrap_or(position.x),
         z: param(lighthouse::PARAM_Z).unwrap_or(position.z),
@@ -133,10 +154,10 @@ impl GfxRabbitVisibilityWidget {
         Self::default()
     }
 
-    fn add(&self, unit: i32, def: i32) {
-        let defs = defs();
+    fn add(&self, spring: &spring::Spring<'_, spring::Ui>, unit: i32, def: i32) {
+        let defs = defs(spring);
         if Some(def) == defs.rabbit {
-            self.visibility.borrow_mut().add_rabbit(unit);
+            self.visibility.borrow_mut().add_rabbit(spring, unit);
         } else if Some(def) == defs.lighthouse {
             self.visibility.borrow_mut().add_lighthouse(unit);
         }
@@ -148,35 +169,42 @@ impl Widget<Global> for GfxRabbitVisibilityWidget {
         "GfxRabbitVisibility"
     }
 
-    fn init(&self, _ctx: &AddonContext<'_, Global>) {
-        for unit in spring::get_all_units().unwrap_or_default() {
-            if let Ok(def) = spring::units_info::get_unit_def_id(unit) {
-                self.add(unit, def);
+    fn init(&self, _ctx: &AddonContext<'_, Global, spring::Ui>) {
+        let spring = _ctx.spring();
+        for unit in spring.units_query().get_all_units().unwrap_or_default() {
+            if let Ok(def) = spring.units_info().get_unit_def_id(unit) {
+                self.add(spring, unit, def);
             }
         }
     }
 
     fn unit_created(
         &self,
-        _ctx: &AddonContext<'_, Global>,
+        _ctx: &AddonContext<'_, Global, spring::Ui>,
         unit: i32,
         def: i32,
         _team: i32,
         _builder: i32,
     ) {
-        self.add(unit, def);
+        let spring = _ctx.spring();
+        self.add(spring, unit, def);
     }
 
-    fn unit_destroyed(&self, _ctx: &AddonContext<'_, Global>, event: &UnitDestroyedEvent) {
+    fn unit_destroyed(
+        &self,
+        _ctx: &AddonContext<'_, Global, spring::Ui>,
+        event: &UnitDestroyedEvent,
+    ) {
         self.visibility.borrow_mut().remove(event.unit_id);
     }
 
-    fn update(&self, ctx: &AddonContext<'_, Global>, _dt: f32) {
+    fn update(&self, ctx: &AddonContext<'_, Global, spring::Ui>, _dt: f32) {
+        let spring = ctx.spring();
         let global = ctx.global();
         let round = *global.round.access();
         let flashlight = global.lights.access().flashlight;
         let pass = (
-            spring::game::frame().unwrap_or(0) as i32,
+            spring.game().current_frame().unwrap_or(0),
             flashlight.map(|target| (target.x, target.z)),
             round.flare_active,
         );
@@ -184,7 +212,7 @@ impl Widget<Global> for GfxRabbitVisibilityWidget {
             return;
         }
         let mut visibility = self.visibility.borrow_mut();
-        visibility.update(flashlight, round.flare_active, round.frame);
+        visibility.update(spring, flashlight, round.flare_active, round.frame);
         global
             .lights
             .access_mut()

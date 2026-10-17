@@ -24,14 +24,21 @@ impl Widget<Global> for GfxFlashlightWidget {
         "GfxFlashlight"
     }
 
-    fn draw_world(&self, ctx: &spring_addons::AddonContext<'_, Global>) {
+    fn draw_world(&self, ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>) {
+        let spring = ctx.spring();
         let lights = ctx.global().lights.access();
         let mut volumes = self.volumes.borrow_mut();
         if let Some(target) = lights.flashlight {
-            volumes.draw_ground_circle(target.x, target.z, FLASHLIGHT_RADIUS, FLASHLIGHT_COLOR);
+            volumes.draw_ground_circle(
+                spring,
+                target.x,
+                target.z,
+                FLASHLIGHT_RADIUS,
+                FLASHLIGHT_COLOR,
+            );
         }
         for beam in &lights.beams {
-            volumes.draw_ground_circle(beam.x, beam.z, beam.size, FLASHLIGHT_COLOR);
+            volumes.draw_ground_circle(spring, beam.x, beam.z, beam.size, FLASHLIGHT_COLOR);
         }
     }
 }

@@ -50,14 +50,19 @@ async fn stealing(state: Rc<RefCell<CarrotState>>, ctx: UnitCtx) {
             let state = state.borrow();
             spring::Float3::new(state.x, state.y, state.z)
         };
-        let _ = spring::spawn_ceg(
-            "dirtfling",
-            position,
-            spring::Float3::new(0.0, 1.0, 0.0),
-            0.0,
-            0.0,
-            0.0,
-        );
+        let _ = ctx.with_spring(|spring| {
+            spring.effects_control().spawn_ceg(
+                &spring::effects_control::DefRef {
+                    name: ("dirtfling").to_owned(),
+                    id: -1,
+                },
+                position,
+                spring::Float3::new(0.0, 1.0, 0.0),
+                0.0,
+                0.0,
+                0.0,
+            )
+        });
         ctx.sleep(spring::cus::Duration::from_millis(500)).await;
     }
 }
@@ -65,12 +70,12 @@ async fn stealing(state: Rc<RefCell<CarrotState>>, ctx: UnitCtx) {
 async fn sound(state: Rc<RefCell<CarrotState>>, ctx: UnitCtx) {
     ctx.set_signal_mask(SIG_STEAL);
     loop {
-        if random::float() < 0.7 {
+        if random::float(&ctx) < 0.7 {
             let position = {
                 let state = state.borrow();
                 spring::Float3::new(state.x, state.y, state.z)
             };
-            play_sound_at("sounds/digitout.wav", 4.0, position);
+            play_sound_at(&ctx, "sounds/digitout.wav", 4.0, position);
         }
         ctx.sleep(spring::cus::Duration::from_millis(600)).await;
     }
@@ -78,7 +83,7 @@ async fn sound(state: Rc<RefCell<CarrotState>>, ctx: UnitCtx) {
 
 pub(super) async fn consume(ctx: UnitCtx) {
     ctx.sleep(spring::cus::Duration::from_millis(1)).await;
-    destroy(ctx.unit());
+    destroy(&ctx);
 }
 
 pub(super) fn be_dropped(ctx: &UnitCtx, state: Rc<RefCell<CarriedState>>) {
@@ -103,29 +108,35 @@ async fn dropped(state: Rc<RefCell<CarriedState>>, ctx: UnitCtx) {
     ctx.sleep(spring::cus::Duration::from_millis(500)).await;
     let base = state.borrow().base;
     move_piece(&ctx, base, Axis::Y, -100.0, 0.0);
-    let position = unit_position(ctx.unit());
-    let team = spring::get_unit_team(ctx.unit())
-        .map(|team| team.0)
+    let position = unit_position(&ctx);
+    let team = ctx
+        .with_spring(|spring| spring.units_info().get_unit_team(ctx.unit().0))
         .unwrap_or(0);
     let carried = ctx.unit().0;
-    crate::units::create(
-        crate::defs::UnitKind::CarrotDropped,
-        position.x,
-        position.z,
-        team,
-    )
-    .then(move |carrot| {
+    ctx.with_spring(|spring| {
+        Ok(crate::units::create(
+            spring,
+            crate::defs::UnitKind::CarrotDropped,
+            position.x,
+            position.z,
+            team,
+        ))
+    })
+    .expect("active unit-script scope")
+    .then(move |spring, carrot| {
         if let Some(carrot) = carrot
-            && let Ok(direction) = spring::units_info::get_unit_direction(carried)
+            && let Ok(direction) = spring.units_info().get_unit_direction(carried)
         {
             let right = spring::Float3::new(-direction.z, 0.0, direction.x);
-            let _ = spring::set_unit_direction(carrot, direction, right);
+            let _ = spring
+                .unit_control()
+                .set_unit_direction(carrot, direction, right);
         }
     });
-    destroy(ctx.unit());
+    destroy(&ctx);
 }
 
 pub(super) async fn score(ctx: UnitCtx) {
     ctx.sleep(spring::cus::Duration::from_millis(1)).await;
-    destroy(ctx.unit());
+    destroy(&ctx);
 }

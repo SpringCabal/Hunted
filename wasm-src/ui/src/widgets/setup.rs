@@ -13,13 +13,13 @@ const E2E_SHOT_FRAMES: [u32; 5] = [18, 47, 85, 130, 180];
 #[cfg(feature = "e2e")]
 const E2E_QUIT_DELAY_FRAMES: u32 = 30;
 
-pub fn setup(handler: &mut WidgetHandler<Global>) {
+pub fn setup(handler: &mut WidgetHandler<Global>, spring: &spring::Spring<'_, spring::Ui>) {
     register_widgets!(
         handler,
         [springcabal::controls::GameControls::new().with_pause_key("space")]
     );
-    if springcabal::verification::world_only() {
-        gallery::setup(handler);
+    if springcabal::verification::world_only(spring) {
+        gallery::setup(spring, handler);
         return;
     }
     register_widgets!(

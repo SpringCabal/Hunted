@@ -37,8 +37,8 @@ pub const STREAKS: [Streak; 4] = [
     },
 ];
 
-pub fn play_streak_sound(streak: &Streak) {
-    let result = spring::sound::play_sound_file(
+pub fn play_streak_sound(spring: &spring::Spring<'_, spring::Ui>, streak: &Streak) {
+    let result = spring.sound().play_sound_file(
         streak.sound,
         EFFECT_VOLUME,
         spring::Float3::default(),
@@ -47,6 +47,7 @@ pub fn play_streak_sound(streak: &Streak) {
     );
     if !matches!(result, Ok(true)) {
         spring::log_once!(
+            spring,
             spring::log_level::WARNING,
             crate::diagnostics::LOG_SECTION,
             "kill-streak sound {} could not be played: {result:?}",

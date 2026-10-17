@@ -143,13 +143,16 @@ pub(super) fn food_units_with_positions(
         .collect()
 }
 
-pub(super) fn lighthouse_beams(roster: &Roster) -> Vec<Source> {
+pub(super) fn lighthouse_beams(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    roster: &Roster,
+) -> Vec<Source> {
     roster
         .positions(UnitKind::Lighthouse)
         .into_iter()
         .map(|(unit_id, position)| {
-            let (x, z) =
-                crate::unit_scripts::lighthouse_beam(unit_id).unwrap_or((position.x, position.z));
+            let (x, z) = crate::unit_scripts::lighthouse_beam(spring, unit_id)
+                .unwrap_or((position.x, position.z));
             Source {
                 x,
                 z,

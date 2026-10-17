@@ -67,10 +67,7 @@ impl Events {
         self.shown = true;
     }
 
-    pub fn update(
-        &mut self,
-        delta_seconds: f32,
-    ) -> Option<Vec<spring::owned::rml_ui::RmlDataValue>> {
+    pub fn update(&mut self, delta_seconds: f32) -> Option<Vec<spring::rml_ui::RmlDataValue>> {
         for event in &mut self.events {
             event.age_seconds += delta_seconds;
         }
@@ -93,17 +90,17 @@ impl Events {
             values.extend([
                 string_value(&event.text),
                 string_value(event.kind.name()),
-                spring::owned::rml_ui::RmlDataValue {
+                spring::rml_ui::RmlDataValue {
                     type_: FIELD_PERCENT,
                     float_value: top,
                     ..Default::default()
                 },
-                spring::owned::rml_ui::RmlDataValue {
+                spring::rml_ui::RmlDataValue {
                     type_: FIELD_FLOAT,
                     float_value: opacity,
                     ..Default::default()
                 },
-                spring::owned::rml_ui::RmlDataValue {
+                spring::rml_ui::RmlDataValue {
                     type_: FIELD_FLOAT,
                     float_value: size,
                     ..Default::default()
@@ -114,17 +111,20 @@ impl Events {
     }
 }
 
-pub fn bind(model: u64) -> Option<u64> {
-    let fields = EVENT_FIELDS.map(|(name, type_)| spring::owned::rml_ui::RmlDataFieldDef {
+pub fn bind(spring: &spring::Spring<'_, spring::Ui>, model: u64) -> Option<u64> {
+    let fields = EVENT_FIELDS.map(|(name, type_)| spring::rml_ui::RmlDataFieldDef {
         name: name.into(),
         type_,
     });
-    let rows = spring::data_model_bind_rows(model, "events", &fields).ok()?;
+    let rows = spring
+        .rml_ui()
+        .data_model_bind_rows(model, "events", &fields)
+        .ok()?;
     (rows.success && rows.rows_handle != 0).then_some(rows.rows_handle)
 }
 
-fn string_value(text: &str) -> spring::owned::rml_ui::RmlDataValue {
-    spring::owned::rml_ui::RmlDataValue {
+fn string_value(text: &str) -> spring::rml_ui::RmlDataValue {
+    spring::rml_ui::RmlDataValue {
         type_: FIELD_STRING,
         string_value: text.into(),
         ..Default::default()

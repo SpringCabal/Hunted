@@ -30,15 +30,15 @@ impl GuiInputWidget {
         Self::default()
     }
 
-    fn update_target(&self, global: &Global) {
-        let Some((x, y)) = self.mouse_position(global) else {
+    fn update_target(&self, spring: &spring::Spring<'_, spring::Ui>, global: &Global) {
+        let Some((x, y)) = self.mouse_position(spring, global) else {
             return;
         };
         self.mouse.set(Some((x, y)));
-        let Some(target) = ground_at(x, y) else {
+        let Some(target) = ground_at(spring, x, y) else {
             return;
         };
-        let current_frame = spring::game::frame().unwrap_or(0) as i32;
+        let current_frame = spring.game().current_frame().unwrap_or(0);
         let target_changed = self
             .last_target
             .get()
@@ -48,14 +48,21 @@ impl GuiInputWidget {
         }
         self.last_sent_frame.set(current_frame);
         global.lights.access_mut().flashlight = Some(target);
-        diagnostics::mouse_target(x, y, target);
-        if send_target(protocol::MOVE_GUN, target) {
+        diagnostics::mouse_target(spring, x, y, target);
+        if send_target(spring, protocol::MOVE_GUN, target) {
             self.last_target.set(Some(target));
         }
     }
 
-    fn handle_mouse_press(&self, global: &Global, x: i32, y: i32, button: i32) -> bool {
-        diagnostics::mouse_press(x, y, button);
+    fn handle_mouse_press(
+        &self,
+        spring: &spring::Spring<'_, spring::Ui>,
+        global: &Global,
+        x: i32,
+        y: i32,
+        button: i32,
+    ) -> bool {
+        diagnostics::mouse_press(spring, x, y, button);
         if global.round.access().game_over {
             return true;
         }
@@ -65,16 +72,22 @@ impl GuiInputWidget {
             spring::mouse::RIGHT => protocol::PLACE_MINE,
             _ => return false,
         };
-        let Some(target) = ground_at(x, y).or(self.last_target.get()) else {
+        let Some(target) = ground_at(spring, x, y).or(self.last_target.get()) else {
             return true;
         };
         global.lights.access_mut().flashlight = Some(target);
-        send_target(command, target);
+        send_target(spring, command, target);
         true
     }
 
-    fn mouse_position(&self, global: &Global) -> Option<(i32, i32)> {
-        let (x, y) = spring::input::get_mouse_state(0)
+    fn mouse_position(
+        &self,
+        spring: &spring::Spring<'_, spring::Ui>,
+        global: &Global,
+    ) -> Option<(i32, i32)> {
+        let (x, y) = spring
+            .input()
+            .get_mouse_state()
             .ok()
             .filter(|mouse| !mouse.offscreen && mouse.x.is_finite() && mouse.y.is_finite())
             .map(|mouse| (mouse.x.round() as i32, mouse.y.round() as i32))
@@ -84,8 +97,9 @@ impl GuiInputWidget {
     }
 }
 
-fn send_target(command: &str, target: Point3) -> bool {
+fn send_target(spring: &spring::Spring<'_, spring::Ui>, command: &str, target: Point3) -> bool {
     springcabal::message::send_to_rules(
+        spring,
         &Encoder::new(command)
             .field(target.x)
             .field(target.y)
@@ -94,8 +108,16 @@ fn send_target(command: &str, target: Point3) -> bool {
     )
 }
 
-fn ground_at(screen_x: i32, screen_y: i32) -> Option<Point3> {
-    let ground = spring::pick::ground_at(screen_x as f32, screen_y as f32)?;
+fn ground_at(
+    spring: &spring::Spring<'_, spring::Ui>,
+    screen_x: i32,
+    screen_y: i32,
+) -> Option<Point3> {
+    let ground = spring
+        .camera()
+        .ground_at(screen_x as f32, screen_y as f32)
+        .ok()
+        .flatten()?;
     Some(Point3 {
         x: ground.x,
         y: ground.y,
@@ -108,13 +130,14 @@ impl Widget<Global> for GuiInputWidget {
         "GuiInput"
     }
 
-    fn update(&self, ctx: &spring_addons::AddonContext<'_, Global>, _dt: f32) {
-        self.update_target(ctx.global());
+    fn update(&self, ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>, _dt: f32) {
+        let spring = ctx.spring();
+        self.update_target(spring, ctx.global());
     }
 
     fn mouse_move(
         &self,
-        _ctx: &spring_addons::AddonContext<'_, Global>,
+        _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
         x: i32,
         y: i32,
         _dx: i32,
@@ -127,33 +150,36 @@ impl Widget<Global> for GuiInputWidget {
 
     fn mouse_press(
         &self,
-        ctx: &spring_addons::AddonContext<'_, Global>,
+        ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
         x: i32,
         y: i32,
         button: i32,
     ) -> EventResult {
-        self.handle_mouse_press(ctx.global(), x, y, button).into()
+        let spring = ctx.spring();
+        self.handle_mouse_press(spring, ctx.global(), x, y, button)
+            .into()
     }
 
     fn key_press(
         &self,
-        ctx: &spring_addons::AddonContext<'_, Global>,
+        ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
         event: &KeyEvent<'_>,
     ) -> EventResult {
+        let spring = ctx.spring();
         if menu::is_quit_to_menu(event) {
-            state::request_quit();
+            state::request_quit(spring);
             return EventResult::Handled;
         }
         if event.is_repeat {
             return EventResult::Ignored;
         }
         if event.matches("q") && ctx.global().round.access().game_over {
-            state::request_quit();
+            state::request_quit(spring);
             return EventResult::Handled;
         }
         if !event.matches("r") && !event.matches("enter") {
             return EventResult::Ignored;
         }
-        state::request_restart(ctx.global()).into()
+        state::request_restart(spring, ctx.global()).into()
     }
 }

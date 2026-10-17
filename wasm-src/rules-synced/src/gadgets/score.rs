@@ -15,25 +15,29 @@ impl Gadget<Global> for ScoreGadget {
     }
 
     fn game_frame(&self, ctx: &AddonContext<'_, Global>, frame: i32) {
+        let spring = ctx.spring();
         let global = ctx.global();
         if frame % status::RESOURCE_PERIOD_FRAMES == 0 {
-            spring::commands::run(|| {
-                crate::with_global(|global| {
-                    let mut score = global.score.access_mut();
-                    score.score += score.carrots;
-                    drop(score);
-                    global.status_changed();
-                });
+            crate::with_addon_context(|ctx| {
+                ctx.commands().run(|_spring| {
+                    crate::with_global(|global| {
+                        let mut score = global.score.access_mut();
+                        score.score += score.carrots;
+                        drop(score);
+                        global.status_changed();
+                    });
+                })
             });
         }
         if global.session.access().status_dirty {
-            status::send(global, frame);
+            status::send(spring, global, frame);
         }
     }
 
     fn unit_destroyed(&self, ctx: &AddonContext<'_, Global>, event: &UnitDestroyedEvent) {
+        let spring = ctx.spring();
         if super::restarting(ctx.global())
-            || defs::kind_of(event.unit_def_id) != Some(UnitKind::Rabbit)
+            || defs::kind_of(spring, event.unit_def_id) != Some(UnitKind::Rabbit)
         {
             return;
         }

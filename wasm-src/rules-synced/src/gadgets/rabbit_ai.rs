@@ -9,8 +9,7 @@ use core::cell::RefCell;
 
 use hunted_common::rabbit::*;
 use hunted_common::scare::{self, Scary, Source};
-use spring::commands;
-use spring::random::synced as random;
+
 use spring_addons::AddonContext;
 use spring_addons::rules::{Gadget, UnitDestroyedEvent};
 
@@ -55,7 +54,11 @@ struct Pickup {
     eating_progress: i32,
 }
 
-pub fn update(global: &state::Global, frame: i32) {
+pub fn update(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    global: &state::Global,
+    frame: i32,
+) {
     let roster = global.roster.access();
     let mut carrots = food_units_with_positions(&roster, UnitKind::Carrot, EAT_TIME);
     let field_carrots = carrots_by_field(&carrots);
@@ -69,7 +72,7 @@ pub fn update(global: &state::Global, frame: i32) {
         field_carrots,
         mines: roster.positions(UnitKind::Mine),
         burrows: roster.positions(UnitKind::Burrow),
-        lights: lighthouse_beams(&roster)
+        lights: lighthouse_beams(spring, &roster)
             .into_iter()
             .chain(flashlight(global))
             .collect(),
@@ -77,12 +80,13 @@ pub fn update(global: &state::Global, frame: i32) {
     });
     let rabbits = roster.units(UnitKind::Rabbit);
     drop(roster);
-    diagnostics::rabbit_motion(frame, &rabbits);
+    diagnostics::rabbit_motion(spring, frame, &rabbits);
     let consumed_carrots = Rc::new(RefCell::new(Vec::new()));
 
     with_rabbit_ctx(global, |game| {
         for rabbit in rabbits {
             let pickup = update_rabbit(
+                spring,
                 game,
                 frame,
                 rabbit,
@@ -91,6 +95,7 @@ pub fn update(global: &state::Global, frame: i32) {
             );
             if let Some(pickup) = pickup {
                 pick_up(
+                    spring,
                     pickup,
                     Rc::clone(&surroundings),
                     Rc::clone(&consumed_carrots),
@@ -101,6 +106,7 @@ pub fn update(global: &state::Global, frame: i32) {
 }
 
 fn pick_up(
+    _spring: &spring::Spring<'_, spring::RulesSynced>,
     pickup: Pickup,
     surroundings: Rc<Surroundings>,
     consumed_carrots: Rc<RefCell<Vec<i32>>>,
@@ -110,20 +116,29 @@ fn pick_up(
         y: pickup.tick.position.y + 8.0,
         ..pickup.tick.position
     };
-    commands::queue(move || {
-        let in_play = crate::with_global(|global| {
-            let roster = global.roster.access();
-            roster.kind(rabbit) == Some(UnitKind::Rabbit) && roster.kind(carrot).is_some()
-        });
-        if !in_play {
-            return None;
-        }
-        units::create_now(UnitKind::CarrotCarried, position, 0, units::FACING_SOUTH)
+    crate::with_addon_context(|ctx| {
+        ctx.commands().queue(move |spring| {
+            let in_play = crate::with_global(|global| {
+                let roster = global.roster.access();
+                roster.kind(rabbit) == Some(UnitKind::Rabbit) && roster.kind(carrot).is_some()
+            });
+            if !in_play {
+                return None;
+            }
+            units::create_now(
+                spring,
+                UnitKind::CarrotCarried,
+                position,
+                0,
+                units::FACING_SOUTH,
+            )
+        })
     })
-    .then(move |carried_id| {
+    .then(move |spring, carried_id| {
         crate::with_global(|global| {
             with_rabbit_ctx(global, |game| {
                 finish_pickup(
+                    spring,
                     game,
                     pickup,
                     carried_id,
@@ -150,9 +165,13 @@ pub fn destroyed(game: &mut RabbitCtx<'_>, rabbit: i32) {
     game.rabbits.retire(rabbit);
 }
 
-pub fn food_destroyed(game: &mut RabbitCtx<'_>, food: i32) {
+pub fn food_destroyed(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    game: &mut RabbitCtx<'_>,
+    food: i32,
+) {
     if let Some(memory_index) = game.rabbits.reserving(food) {
-        cancel_eating(game, memory_index);
+        cancel_eating(spring, game, memory_index);
         game.rabbits.clear_carrot_progress(food);
     }
     if let Some(memory) = game
@@ -167,6 +186,7 @@ pub fn food_destroyed(game: &mut RabbitCtx<'_>, food: i32) {
 }
 
 fn update_rabbit(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
     game: &mut RabbitCtx<'_>,
     frame: i32,
     rabbit: i32,
@@ -178,7 +198,7 @@ fn update_rabbit(
     if !due && surroundings.blasts.is_empty() {
         return None;
     }
-    let position = units::unit_position(rabbit)?;
+    let position = units::unit_position(spring, rabbit)?;
     let blasts: Vec<Scary> = surroundings
         .blasts
         .iter()
@@ -187,12 +207,20 @@ fn update_rabbit(
     if !due && blasts.is_empty() {
         return None;
     }
-    let original_reverse_speed = original_reverse_speed(&mut game.rabbits.memories[memory_index]);
+    let original_reverse_speed =
+        original_reverse_speed(spring, &mut game.rabbits.memories[memory_index]);
     let update_gap = {
         let memory = &mut game.rabbits.memories[memory_index];
         let gap = (frame - memory.last_update).max(0);
         memory.last_update = frame;
-        memory.next_update = frame + 5 + (random::float() * 10.0).ceil() as i32;
+        memory.next_update = frame
+            + 5
+            + (spring
+                .synced_random()
+                .next_float()
+                .expect("synced random float")
+                * 10.0)
+                .ceil() as i32;
         gap
     };
 
@@ -227,6 +255,7 @@ fn update_rabbit(
     }
 
     if update_carried_rabbit(
+        spring,
         game,
         memory_index,
         &position,
@@ -244,7 +273,7 @@ fn update_rabbit(
         scary,
         speed_multiplier,
     };
-    match update_eating_rabbit(game, memory_index, &tick, &surroundings.carrots) {
+    match update_eating_rabbit(spring, game, memory_index, &tick, &surroundings.carrots) {
         Eating::No => {}
         Eating::Busy => return None,
         Eating::Finished {
@@ -259,13 +288,25 @@ fn update_rabbit(
             });
         }
     }
-    update_movement(game, memory_index, &tick, surroundings, consumed_carrots);
+    update_movement(
+        spring,
+        game,
+        memory_index,
+        &tick,
+        surroundings,
+        consumed_carrots,
+    );
     None
 }
 
-fn original_reverse_speed(memory: &mut RabbitMemory) -> f32 {
+fn original_reverse_speed(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    memory: &mut RabbitMemory,
+) -> f32 {
     if memory.original_reverse_speed < 0.0 {
-        memory.original_reverse_speed = spring::move_ctrl::get_unit_move_type_data(memory.unit_id)
+        memory.original_reverse_speed = spring
+            .move_ctrl()
+            .get_unit_move_type_data(memory.unit_id)
             .ok()
             .filter(|data| data.name == "ground")
             .map_or(0.0, |data| data.max_reverse_speed);
@@ -291,6 +332,7 @@ fn carrier_light_factor(memory: &RabbitMemory, frame: i32) -> f32 {
 }
 
 fn finish_pickup(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
     game: &mut RabbitCtx<'_>,
     pickup: Pickup,
     carried_id: Option<i32>,
@@ -314,7 +356,7 @@ fn finish_pickup(
     Call::carrot_stop_being_stolen(carrot_id, eating_progress).queue();
     Call::carrot_consume(carrot_id).queue();
     game.rabbits.clear_carrot_progress(carrot_id);
-    set_stealing(tick.rabbit, false);
+    set_stealing(spring, tick.rabbit, false);
     game.rabbits.release_reservation(memory_index);
     let memory = &mut game.rabbits.memories[memory_index];
     memory.carried_carrot = carried_id;
@@ -324,29 +366,45 @@ fn finish_pickup(
     memory.stealing_notified = false;
     memory.data.boldness += STEAL_BOLDNESS_BONUS;
     Call::rabbit_attach_carrot(tick.rabbit, carried_id).queue();
-    let _ = spring::spawn_ceg(
-        "dirtfling",
+    let _ = spring.effects_control().spawn_ceg(
+        &spring::effects_control::DefRef {
+            name: "dirtfling".into(),
+            id: -1,
+        },
         tick.position,
         spring::Float3::default(),
         0.0,
         0.0,
         0.0,
     );
-    crate::diagnostics::info_once!("rabbit finished eating and is carrying a carrot");
-    update_movement(game, memory_index, &tick, surroundings, consumed_carrots);
+    crate::diagnostics::info_once!(spring, "rabbit finished eating and is carrying a carrot");
+    update_movement(
+        spring,
+        game,
+        memory_index,
+        &tick,
+        surroundings,
+        consumed_carrots,
+    );
 }
 
 type Position = spring::Float3;
 
-pub(super) fn set_stealing(rabbit: i32, active: bool) {
+pub(super) fn set_stealing(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    rabbit: i32,
+    active: bool,
+) {
     use spring::ResultExt;
-    spring::set_unit_rules_param_f32(
-        rabbit,
-        "stealing",
-        if active { 1.0 } else { 0.0 },
-        spring::rules_params::los::PUBLIC,
-    )
-    .log_err_once("publishing a rabbit's stealing state");
+    spring
+        .rules_params()
+        .set_unit_rules_param_f32(
+            rabbit,
+            "stealing",
+            if active { 1.0 } else { 0.0 },
+            spring::rules_params::los::PUBLIC,
+        )
+        .log_err_once(spring, "publishing a rabbit's stealing state");
 }
 
 pub struct RabbitAiGadget;
@@ -357,20 +415,25 @@ impl Gadget<Global> for RabbitAiGadget {
     }
 
     fn game_frame(&self, _ctx: &AddonContext<'_, Global>, frame: i32) {
-        spring::commands::run(move || crate::with_global(|global| update(global, frame)));
+        let _spring = _ctx.spring();
+        crate::with_addon_context(|ctx| {
+            ctx.commands()
+                .run(move |spring| crate::with_global(|global| update(spring, global, frame)))
+        });
     }
 
     fn unit_destroyed(&self, ctx: &AddonContext<'_, Global>, event: &UnitDestroyedEvent) {
+        let spring = ctx.spring();
         if super::restarting(ctx.global()) {
             return;
         }
         let unit = event.unit_id;
-        match defs::kind_of(event.unit_def_id) {
+        match defs::kind_of(spring, event.unit_def_id) {
             Some(UnitKind::Rabbit) => {
                 with_rabbit_ctx(ctx.global(), |game| destroyed(game, unit));
             }
             Some(kind) if kind.is_carrot() => {
-                with_rabbit_ctx(ctx.global(), |game| food_destroyed(game, unit));
+                with_rabbit_ctx(ctx.global(), |game| food_destroyed(spring, game, unit));
             }
             _ => {}
         }

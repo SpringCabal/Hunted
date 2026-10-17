@@ -27,7 +27,10 @@ pub use ui_input::UiInputGadget;
 pub use wave_spawner::WaveSpawnerGadget;
 pub use weapon_handlers::WeaponHandlersGadget;
 
-pub fn setup(handler: &mut GadgetHandler<Global>) {
+pub fn setup(
+    handler: &mut GadgetHandler<Global>,
+    _spring: &spring::Spring<'_, spring::RulesSynced>,
+) {
     register_gadgets!(
         handler,
         [

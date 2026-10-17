@@ -62,19 +62,28 @@ impl Call {
         Self::new(mine, "StartFuse", &[])
     }
 
-    pub fn run(self) {
-        crate::cus::call(self);
+    pub fn run(self, spring: &spring::Spring<'_, spring::RulesSynced>) {
+        crate::cus::call(spring, self);
     }
 
     pub fn queue(self) {
-        spring::commands::run(move || self.run());
+        crate::with_addon_context(|ctx| ctx.commands().run(move |spring| self.run(spring)));
     }
 }
 
-pub fn lighthouse_beam(unit: i32) -> Option<(f32, f32)> {
+pub fn lighthouse_beam(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    unit: i32,
+) -> Option<(f32, f32)> {
     use hunted_common::lighthouse::{PARAM_X, PARAM_Z};
     Some((
-        spring::get_unit_rules_param_f32(unit, PARAM_X).ok()?,
-        spring::get_unit_rules_param_f32(unit, PARAM_Z).ok()?,
+        spring
+            .rules_params()
+            .get_unit_rules_param_f32(unit, PARAM_X)
+            .ok()?,
+        spring
+            .rules_params()
+            .get_unit_rules_param_f32(unit, PARAM_Z)
+            .ok()?,
     ))
 }

@@ -16,8 +16,9 @@ impl Gadget<Global> for InvulnerableGadget {
         _ctx: &AddonContext<'_, Global>,
         event: &UnitPreDamagedEvent,
     ) -> Option<spring::DamageResult> {
+        let spring = _ctx.spring();
         let vulnerable = matches!(
-            defs::kind_of(event.unit_def_id),
+            defs::kind_of(spring, event.unit_def_id),
             Some(UnitKind::Rabbit | UnitKind::Lighthouse | UnitKind::Mine)
         );
         (!vulnerable).then(|| spring::DamageResult::unchanged(0.0))

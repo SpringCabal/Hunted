@@ -4,7 +4,7 @@ use hunted_common::scare::{Area, Source};
 use spring::ResultExt;
 use spring::commands::Pending;
 use spring::consts::GAME_SPEED;
-use spring::random::synced as random;
+
 use spring_addons::AddonContext;
 use spring_addons::rules::{Gadget, UnitDestroyedEvent};
 
@@ -34,36 +34,42 @@ pub fn regenerate_ammo(global: &Global) {
         (weapons.mine_ammo + MINE_AMMO_PER_TICK * reload_multiplier).min(state::MAX_AMMO);
 }
 
-pub fn update_gun(global: &Global, frame: i32, then: impl FnOnce(&Global) + 'static) {
+pub fn update_gun(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    global: &Global,
+    frame: i32,
+    then: impl FnOnce(&spring::Spring<'_, spring::RulesSynced>, &Global) + 'static,
+) {
     let (target, gun_id, previous_goal) = {
         let weapons = global.weapons.access();
         (weapons.target, weapons.gun_id, weapons.gun_goal)
     };
     if !target.valid {
-        then(global);
+        then(spring, global);
         return;
     }
     if gun_id >= 0 {
-        track_target(global, frame, target, gun_id, previous_goal);
-        then(global);
+        track_target(spring, global, frame, target, gun_id, previous_goal);
+        then(spring, global);
         return;
     }
-    spawn_gun(target).then(move |gun_id| {
+    spawn_gun(spring, target).then(move |spring, gun_id| {
         crate::with_global(|global| {
             match gun_id {
                 Some(gun_id) => {
-                    let _ = spring::set_unit_always_visible(gun_id, true);
-                    diagnostics::info("shotgun spawned for the first mouse target");
-                    track_target(global, frame, target, gun_id, None);
+                    let _ = spring.unit_control().set_unit_always_visible(gun_id, true);
+                    diagnostics::info(spring, "shotgun spawned for the first mouse target");
+                    track_target(spring, global, frame, target, gun_id, None);
                 }
                 None => global.weapons.access_mut().gun_goal = None,
             }
-            then(global);
+            then(spring, global);
         });
     });
 }
 
 fn track_target(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
     global: &Global,
     frame: i32,
     target: Target,
@@ -75,7 +81,7 @@ fn track_target(
         (old.0 - goal.x).abs() > 1.0 || (old.1 - goal.y).abs() > 1.0 || (old.2 - goal.z).abs() > 1.0
     });
     if goal_changed {
-        units::order(gun_id, spring::cmd::MOVE, &[goal.x, goal.y, goal.z]);
+        units::order(spring, gun_id, spring::cmd::MOVE, &[goal.x, goal.y, goal.z]);
     }
     {
         let mut weapons = global.weapons.access_mut();
@@ -84,32 +90,39 @@ fn track_target(
             weapons.gun_goal = Some((goal.x, goal.y, goal.z));
         }
     }
-    let position = units::unit_position(gun_id).unwrap_or(spring::Float3 {
+    let position = units::unit_position(spring, gun_id).unwrap_or(spring::Float3 {
         x: target.x + 50.0,
         y: target.y + 100.0,
         z: target.z + 50.0,
     });
-    units::set_heading(gun_id, target.x - position.x, target.z - position.z);
+    units::set_heading(spring, gun_id, target.x - position.x, target.z - position.z);
     let horizontal = ((target.x - position.x).powi(2) + (target.z - position.z).powi(2))
         .sqrt()
         .max(0.001);
-    Call::shotgun_set_pitch(gun_id, (position.y - target.y).atan2(horizontal)).run();
+    Call::shotgun_set_pitch(gun_id, (position.y - target.y).atan2(horizontal)).run(spring);
     if frame.rem_euclid(diagnostics::LOG_PERIOD_FRAMES) == 0 {
-        diagnostics::debug(&alloc::format!(
-            "gun tracking frame={frame} id={gun_id} target=({:.1},{:.1},{:.1}) position=({:.1},{:.1},{:.1})",
-            target.x,
-            target.y,
-            target.z,
-            position.x,
-            position.y,
-            position.z,
-        ));
+        diagnostics::debug(
+            spring,
+            &alloc::format!(
+                "gun tracking frame={frame} id={gun_id} target=({:.1},{:.1},{:.1}) position=({:.1},{:.1},{:.1})",
+                target.x,
+                target.y,
+                target.z,
+                position.x,
+                position.y,
+                position.z,
+            ),
+        );
     }
 }
 
-fn spawn_gun(target: Target) -> Pending<Option<i32>> {
-    let gaia_team = spring::game::get_gaia_team_id(0).unwrap_or(0);
+fn spawn_gun(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    target: Target,
+) -> Pending<spring::RulesSynced, Option<i32>> {
+    let gaia_team = spring.game().get_gaia_team_id().unwrap_or(0);
     units::create_at(
+        spring,
         UnitKind::Shotgun,
         spring::Float3 {
             x: target.x + 50.0,
@@ -121,7 +134,11 @@ fn spawn_gun(target: Target) -> Pending<Option<i32>> {
     )
 }
 
-pub fn fire_shotgun(global: &Global, target: Target) {
+pub fn fire_shotgun(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    global: &Global,
+    target: Target,
+) {
     let (gun_id, ammo, muzzle_piece) = {
         let weapons = global.weapons.access();
         (weapons.gun_id, weapons.shotgun_ammo, weapons.muzzle_piece)
@@ -131,22 +148,30 @@ pub fn fire_shotgun(global: &Global, target: Target) {
     }
 
     let muzzle_piece = muzzle_piece.or_else(|| {
-        let piece = muzzle_piece_number(gun_id)?;
+        let piece = muzzle_piece_number(spring, gun_id)?;
         global.weapons.access_mut().muzzle_piece = Some(piece);
         Some(piece)
     });
     let muzzle = muzzle_piece
-        .and_then(|piece| spring::units_pieces::get_unit_piece_pos_dir(gun_id, piece).ok())
+        .and_then(|piece| {
+            spring
+                .units_pieces()
+                .get_unit_piece_pos_dir(gun_id, piece)
+                .ok()
+        })
         .map(|pos_dir| pos_dir.position)
-        .or_else(|| units::unit_position(gun_id));
+        .or_else(|| units::unit_position(spring, gun_id));
     let Some(muzzle) = muzzle else {
-        diagnostics::info("shotgun fire skipped: muzzle position unavailable");
+        diagnostics::info(spring, "shotgun fire skipped: muzzle position unavailable");
         return;
     };
     let direction = direction_to(muzzle, target);
 
-    let Some(weapon_def_id) = defs().shotgun_weapon else {
-        diagnostics::info("shotgun fire skipped: weapon definition unavailable");
+    let Some(weapon_def_id) = defs(spring).shotgun_weapon else {
+        diagnostics::info(
+            spring,
+            "shotgun fire skipped: weapon definition unavailable",
+        );
         return;
     };
     global.weapons.access_mut().shotgun_ammo -= 1.0;
@@ -157,26 +182,26 @@ pub fn fire_shotgun(global: &Global, target: Target) {
         z: target.z,
         area: Area::SHOTGUN,
     });
-    Call::shotgun_fire(gun_id).run();
-    crate::diagnostics::debug_once!("shotgun fired");
-    let _ = spring::sound::play_sound_file(
+    Call::shotgun_fire(gun_id).run(spring);
+    crate::diagnostics::debug_once!(spring, "shotgun fired");
+    let _ = spring.sound().play_sound_file(
         "sounds/shotgun1.wav",
         20.0,
         muzzle,
         spring::Float3::default(),
         0,
     );
-    let projectile_speed = defs().shotgun_projectile_speed;
-    for _ in 0..defs().shotgun_projectiles {
-        let pellet_direction = spread_direction(direction);
-        let result = spring::spawn_projectile(
+    let projectile_speed = defs(spring).shotgun_projectile_speed;
+    for _ in 0..defs(spring).shotgun_projectiles {
+        let pellet_direction = spread_direction(spring, direction);
+        let result = spring.projectile_control().spawn_projectile(
             weapon_def_id,
-            spring::ProjectileParams {
-                position: muzzle,
+            &spring::projectile_control::NativeProjectileParams {
+                pos: muzzle,
                 speed: multiply(pellet_direction, projectile_speed),
                 owner: gun_id,
                 team: -1,
-                weapon_number: -1,
+                weapon_num: -1,
                 up_time: -1.0,
                 end_alpha: 1.0,
                 ..Default::default()
@@ -184,17 +209,20 @@ pub fn fire_shotgun(global: &Global, target: Target) {
         );
         if result.is_err() {
             spring::log_warning!(
+                spring,
                 crate::diagnostics::LOG_SECTION,
                 "shotgun pellet spawn failed"
             );
         }
     }
-    spring::set_unit_velocity(gun_id, multiply(direction, -SHOTGUN_RECOIL))
-        .log_err_once("shotgun recoil");
+    spring
+        .unit_control()
+        .set_unit_velocity(gun_id, multiply(direction, -SHOTGUN_RECOIL))
+        .log_err_once(spring, "shotgun recoil");
 
-    units::order(gun_id, spring::cmd::STOP, &[]);
+    units::order(spring, gun_id, spring::cmd::STOP, &[]);
     let goal = gun_goal(target);
-    units::order(gun_id, spring::cmd::MOVE, &[goal.x, goal.y, goal.z]);
+    units::order(spring, gun_id, spring::cmd::MOVE, &[goal.x, goal.y, goal.z]);
     global.weapons.access_mut().gun_goal = Some((goal.x, goal.y, goal.z));
 }
 
@@ -206,11 +234,16 @@ fn gun_goal(target: Target) -> spring::Float3 {
     }
 }
 
-pub fn place_mine(global: &Global, x: f32, z: f32) {
+pub fn place_mine(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    global: &Global,
+    x: f32,
+    z: f32,
+) {
     if global.weapons.access().mine_ammo < 1.0 {
         return;
     }
-    units::create(UnitKind::Mine, x, z, 0).then(move |unit_id| {
+    units::create(spring, UnitKind::Mine, x, z, 0).then(move |_spring, unit_id| {
         let Some(unit_id) = unit_id else {
             return;
         };
@@ -238,7 +271,7 @@ pub fn destroyed(state: &mut Weapons, mine_id: i32) -> Option<(f32, f32)> {
     Some((mine.x, mine.z))
 }
 
-pub fn update_mines(global: &Global) {
+pub fn update_mines(spring: &spring::Spring<'_, spring::RulesSynced>, global: &Global) {
     let mines = global.weapons.access().mines.clone();
     if mines.is_empty() {
         return;
@@ -247,7 +280,7 @@ pub fn update_mines(global: &Global) {
     let mut detonations = Vec::new();
     for mine in &mines {
         match mine.fuse {
-            None if rabbit_near(global, mine) => fuses.push(mine.unit_id),
+            None if rabbit_near(spring, global, mine) => fuses.push(mine.unit_id),
             Some(frames_left) if frames_left <= 0 => detonations.push(*mine),
             _ => {}
         }
@@ -267,15 +300,15 @@ pub fn update_mines(global: &Global) {
         weapons.gun_id
     };
     if !fuses.is_empty() {
-        crate::diagnostics::info_once!("mine fuse started");
+        crate::diagnostics::info_once!(spring, "mine fuse started");
     }
     for mine in fuses {
-        Call::mine_start_fuse(mine).run();
+        Call::mine_start_fuse(mine).run(spring);
     }
     for mine in detonations {
-        units::destroy(mine.unit_id, true, gun_id);
+        units::destroy(spring, mine.unit_id, true, gun_id);
         scare_from_mine(global, mine.x, mine.z);
-        crate::diagnostics::info_once!("mine detonated");
+        crate::diagnostics::info_once!(spring, "mine detonated");
     }
 }
 
@@ -287,8 +320,15 @@ pub fn scare_from_mine(global: &Global, x: f32, z: f32) {
     });
 }
 
-fn rabbit_near(global: &Global, mine: &Mine) -> bool {
-    let Ok(units) = spring::get_units_in_cylinder(mine.x, mine.z, MINE_TRIGGER_RADIUS, ALL_UNITS)
+fn rabbit_near(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    global: &Global,
+    mine: &Mine,
+) -> bool {
+    let Ok(units) =
+        spring
+            .units_query()
+            .get_units_in_cylinder(mine.x, mine.z, MINE_TRIGGER_RADIUS, ALL_UNITS)
     else {
         return false;
     };
@@ -298,8 +338,13 @@ fn rabbit_near(global: &Global, mine: &Mine) -> bool {
         .any(|unit| roster.kind(unit) == Some(UnitKind::Rabbit))
 }
 
-fn muzzle_piece_number(unit_id: i32) -> Option<i32> {
-    spring::units_pieces::get_unit_piece_map(unit_id)
+fn muzzle_piece_number(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    unit_id: i32,
+) -> Option<i32> {
+    spring
+        .units_pieces()
+        .get_unit_piece_map(unit_id)
         .ok()?
         .into_iter()
         .find(|piece| piece.name == "flare")
@@ -322,12 +367,36 @@ fn direction_to(from: spring::Float3, target: Target) -> spring::Float3 {
     direction
 }
 
-fn spread_direction(direction: spring::Float3) -> spring::Float3 {
-    let angle = defs().shotgun_spray_angle;
+fn spread_direction(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    direction: spring::Float3,
+) -> spring::Float3 {
+    let angle = defs(spring).shotgun_spray_angle;
     let mut spread = spring::Float3 {
-        x: direction.x + (random::float() * 2.0 - 1.0) * angle,
-        y: direction.y + (random::float() * 2.0 - 1.0) * angle,
-        z: direction.z + (random::float() * 2.0 - 1.0) * angle,
+        x: direction.x
+            + (spring
+                .synced_random()
+                .next_float()
+                .expect("synced random float")
+                * 2.0
+                - 1.0)
+                * angle,
+        y: direction.y
+            + (spring
+                .synced_random()
+                .next_float()
+                .expect("synced random float")
+                * 2.0
+                - 1.0)
+                * angle,
+        z: direction.z
+            + (spring
+                .synced_random()
+                .next_float()
+                .expect("synced random float")
+                * 2.0
+                - 1.0)
+                * angle,
     };
     let length = (spread.x * spread.x + spread.y * spread.y + spread.z * spread.z)
         .sqrt()
@@ -354,16 +423,20 @@ impl Gadget<Global> for WeaponHandlersGadget {
     }
 
     fn game_frame(&self, ctx: &AddonContext<'_, Global>, frame: i32) {
+        let spring = ctx.spring();
         let global = ctx.global();
-        update_mines(global);
+        update_mines(spring, global);
         if frame % status::RESOURCE_PERIOD_FRAMES == 0 {
-            spring::commands::run(|| crate::with_global(regenerate_ammo));
+            crate::with_addon_context(|ctx| {
+                ctx.commands()
+                    .run(|_spring| crate::with_global(regenerate_ammo))
+            });
         }
         if global.session.access().game_over {
             global.weapons.access_mut().pending_action = None;
             return;
         }
-        update_gun(global, frame, |global| {
+        update_gun(spring, global, frame, |spring, global| {
             let action = {
                 let mut weapons = global.weapons.access_mut();
                 weapons
@@ -372,9 +445,11 @@ impl Gadget<Global> for WeaponHandlersGadget {
                     .map(|action| (action, weapons.target))
             };
             match action {
-                Some((state::PendingAction::Shotgun, target)) => fire_shotgun(global, target),
+                Some((state::PendingAction::Shotgun, target)) => {
+                    fire_shotgun(spring, global, target)
+                }
                 Some((state::PendingAction::Mine, target)) => {
-                    place_mine(global, target.x, target.z)
+                    place_mine(spring, global, target.x, target.z)
                 }
                 None => {}
             }
@@ -389,21 +464,23 @@ impl Gadget<Global> for WeaponHandlersGadget {
         _team: i32,
         _builder: i32,
     ) {
-        if defs::kind_of(def) != Some(UnitKind::Shotgun) {
+        let spring = ctx.spring();
+        if defs::kind_of(spring, def) != Some(UnitKind::Shotgun) {
             return;
         }
-        units::set_gunship_movement_attributes(unit);
-        units::order(unit, spring::cmd::IDLEMODE, &[0.0]);
+        units::set_gunship_movement_attributes(spring, unit);
+        units::order(spring, unit, spring::cmd::IDLEMODE, &[0.0]);
         ctx.global().weapons.access_mut().gun_id = unit;
     }
 
     fn unit_destroyed(&self, ctx: &AddonContext<'_, Global>, event: &UnitDestroyedEvent) {
+        let spring = ctx.spring();
         if super::restarting(ctx.global()) {
             return;
         }
         let global = ctx.global();
         let unit = event.unit_id;
-        match defs::kind_of(event.unit_def_id) {
+        match defs::kind_of(spring, event.unit_def_id) {
             Some(UnitKind::Shotgun) => {
                 let mut weapons = global.weapons.access_mut();
                 if weapons.gun_id == unit {

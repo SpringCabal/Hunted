@@ -13,18 +13,20 @@ impl Gadget<Global> for RosterGadget {
     }
 
     fn init(&self, ctx: &AddonContext<'_, Global>) {
-        if let Ok(units) = spring::get_all_units() {
+        let spring = ctx.spring();
+        if let Ok(units) = spring.units().get_all_units() {
             for unit in units {
-                if let Ok(def) = spring::get_unit_def_id(unit) {
-                    track(ctx.global(), unit, def.0);
+                if let Ok(def) = spring.units_info().get_unit_def_id(unit) {
+                    track(spring, ctx.global(), unit, def);
                 }
             }
         }
-        cus::attach_existing();
+        cus::attach_existing(spring);
     }
 
     fn game_frame(&self, _ctx: &AddonContext<'_, Global>, frame: i32) {
-        cus::game_frame(frame);
+        let spring = _ctx.spring();
+        cus::game_frame(spring, frame);
     }
 
     fn unit_created(
@@ -35,8 +37,9 @@ impl Gadget<Global> for RosterGadget {
         _team: i32,
         _builder: i32,
     ) {
-        track(ctx.global(), unit, def);
-        cus::attach(unit, def);
+        let spring = ctx.spring();
+        track(spring, ctx.global(), unit, def);
+        cus::attach(spring, unit, def);
     }
 
     fn unit_destroyed(&self, ctx: &AddonContext<'_, Global>, event: &UnitDestroyedEvent) {
@@ -44,10 +47,13 @@ impl Gadget<Global> for RosterGadget {
     }
 }
 
-fn track(global: &Global, unit: i32, def: i32) {
-    let Some(kind) = defs::kind_of(def) else {
+fn track(spring: &spring::Spring<'_, spring::RulesSynced>, global: &Global, unit: i32, def: i32) {
+    let Some(kind) = defs::kind_of(spring, def) else {
         return;
     };
-    let position = spring::get_unit_position(unit, false, false).unwrap_or_default();
+    let position = spring
+        .units_info()
+        .get_unit_position(unit, Default::default())
+        .unwrap_or_default();
     global.roster.access_mut().track(unit, kind, position);
 }

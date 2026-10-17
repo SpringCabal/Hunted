@@ -1,10 +1,19 @@
-use spring::UnitId;
 use spring::cus::{Angle, AngularSpeed, Axis, InitCtx, Piece, UnitCtx};
 
 pub const PUBLIC: i32 = spring::rules_params::los::PUBLIC;
 pub const TAU: f32 = core::f32::consts::TAU;
 
-pub use spring::random::synced as random;
+pub mod random {
+    use spring::cus::UnitCtx;
+    pub fn float(ctx: &UnitCtx) -> f32 {
+        ctx.with_spring(|spring| spring.synced_random().next_float())
+            .expect("synced random float")
+    }
+    pub fn int(ctx: &UnitCtx, lower: i32, upper: i32) -> i32 {
+        ctx.with_spring(|spring| spring.synced_random().next_int(lower, upper))
+            .expect("synced random int")
+    }
+}
 
 pub fn piece(ctx: &InitCtx<'_>, name: &str) -> Piece {
     let direct = ctx.piece(name);
@@ -45,14 +54,27 @@ pub fn move_piece(ctx: &UnitCtx, piece: Piece, axis: Axis, target: f32, speed: f
     }
 }
 
-pub fn unit_position(unit: UnitId) -> spring::Float3 {
-    spring::get_unit_position(unit, false, false).unwrap_or_default()
+pub fn unit_position(ctx: &UnitCtx) -> spring::Float3 {
+    ctx.with_spring(|spring| {
+        spring
+            .units_info()
+            .get_unit_position(ctx.unit().0, Default::default())
+    })
+    .unwrap_or_default()
 }
 
-pub fn destroy(unit: UnitId) {
-    crate::units::destroy(unit.0, false, -1);
+pub fn destroy(ctx: &UnitCtx) {
+    ctx.with_spring(|spring| {
+        crate::units::destroy(spring, ctx.unit().0, false, -1);
+        Ok(())
+    })
+    .expect("active unit-script scope");
 }
 
-pub fn play_sound_at(name: &str, volume: f32, position: spring::Float3) {
-    let _ = spring::sound::play_sound_file(name, volume, position, spring::Float3::default(), 0);
+pub fn play_sound_at(ctx: &UnitCtx, name: &str, volume: f32, position: spring::Float3) {
+    let _ = ctx.with_spring(|spring| {
+        spring
+            .sound()
+            .play_sound_file(name, volume, position, spring::Float3::default(), 0)
+    });
 }

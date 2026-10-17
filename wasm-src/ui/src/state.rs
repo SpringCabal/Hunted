@@ -47,11 +47,11 @@ pub struct Global {
     pub view: Resource<View>,
 }
 
-pub fn request_restart(global: &Global) -> bool {
+pub fn request_restart(spring: &spring::Spring<'_, spring::Ui>, global: &Global) -> bool {
     if !global.round.access().game_over {
         return false;
     }
-    if !springcabal::message::send_to_rules(hunted_common::protocol::RESTART) {
+    if !springcabal::message::send_to_rules(spring, hunted_common::protocol::RESTART) {
         return false;
     }
     let mut round = global.round.access_mut();
@@ -60,6 +60,6 @@ pub fn request_restart(global: &Global) -> bool {
     true
 }
 
-pub fn request_quit() {
-    springcabal::menu::quit_to_menu();
+pub fn request_quit(spring: &spring::Spring<'_, spring::Ui>) {
+    springcabal::menu::quit_to_menu(spring);
 }

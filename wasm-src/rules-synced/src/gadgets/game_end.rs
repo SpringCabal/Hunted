@@ -10,7 +10,10 @@ impl Gadget<Global> for GameEndGadget {
     }
 
     fn game_frame(&self, _ctx: &spring_addons::AddonContext<'_, Global>, _frame: i32) {
-        spring::commands::run(|| crate::with_global(count_carrots));
+        crate::with_addon_context(|ctx| {
+            ctx.commands()
+                .run(|_spring| crate::with_global(count_carrots))
+        });
     }
 }
 

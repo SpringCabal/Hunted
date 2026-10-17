@@ -32,7 +32,12 @@ enum Outcome {
 }
 
 impl Tracker {
-    pub(super) fn eat(&mut self, global: &Global, frame: i32) {
+    pub(super) fn eat(
+        &mut self,
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        global: &Global,
+        frame: i32,
+    ) {
         let target = {
             let target = global.weapons.access().target;
             spring::Float3::new(target.x, 0.0, target.z)
@@ -42,7 +47,7 @@ impl Tracker {
             .access()
             .units(UnitKind::Rabbit)
             .into_iter()
-            .filter_map(|rabbit| Some((rabbit, crate::units::unit_position(rabbit)?)))
+            .filter_map(|rabbit| Some((rabbit, crate::units::unit_position(spring, rabbit)?)))
             .collect();
         let calmest = {
             let memory = global.rabbits.access();
@@ -72,41 +77,57 @@ impl Tracker {
             })
             .max_by(|a, b| loneliness(a.1).total_cmp(&loneliness(b.1)));
         let (Some(rabbit), Some((_, position))) = (calmest, carrot) else {
-            self.fail("an idle rabbit and a free carrot are left for the eating test");
+            self.fail(
+                spring,
+                "an idle rabbit and a free carrot are left for the eating test",
+            );
             return;
         };
         let beside = spring::Float3 {
             x: position.x + CARROT_OFFSET,
             ..position
         };
-        if let Err(error) = teleport(rabbit, beside) {
-            self.fail(&format!("a rabbit moves beside a carrot: {error:?}"));
+        if let Err(error) = teleport(spring, rabbit, beside) {
+            self.fail(
+                spring,
+                &format!("a rabbit moves beside a carrot: {error:?}"),
+            );
             return;
         }
         self.eat = EatTrial {
             rabbit,
             spot: beside,
             attempts: self.eat.attempts + 1,
-            center: center_piece(rabbit),
+            center: center_piece(spring, rabbit),
             ..EatTrial::default()
         };
         self.next(Step::Eating, frame);
     }
 
-    pub(super) fn eating(&mut self, global: &Global, frame: i32) {
-        match self.watch_eating(global, frame - self.since) {
+    pub(super) fn eating(
+        &mut self,
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        global: &Global,
+        frame: i32,
+    ) {
+        match self.watch_eating(spring, global, frame - self.since) {
             Outcome::Waiting => {}
             Outcome::Retry(why) if self.eat.attempts < EAT_ATTEMPTS => {
-                spring::log_info!("hunted-test", "eating test: {why}; trying another rabbit");
+                spring::log_info!(
+                    spring,
+                    "hunted-test",
+                    "eating test: {why}; trying another rabbit"
+                );
                 self.next(Step::Eat, frame);
             }
             Outcome::Retry(why) => {
-                self.fail(&format!(
-                    "a rabbit eats a carrot standing still: {why}, {EAT_ATTEMPTS} times"
-                ));
+                self.fail(
+                    spring,
+                    &format!("a rabbit eats a carrot standing still: {why}, {EAT_ATTEMPTS} times"),
+                );
             }
             Outcome::Rested(range) => {
-                self.suite.check(
+                self.suite.check(spring,
                     range < 0.05,
                     format!(
                         "an eating rabbit that stands still stops hopping: its body moved {range:.2} over {} frames",
@@ -118,7 +139,12 @@ impl Tracker {
         }
     }
 
-    fn watch_eating(&mut self, global: &Global, elapsed: i32) -> Outcome {
+    fn watch_eating(
+        &mut self,
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        global: &Global,
+        elapsed: i32,
+    ) -> Outcome {
         let rabbit = self.eat.rabbit;
         let memory = {
             let rabbits = global.rabbits.access();
@@ -139,10 +165,12 @@ impl Tracker {
                 rabbits.memories[index].reserved_eat_time = LONG_EAT_FRAMES;
             }
         }
-        if elapsed == SETTLE_FRAMES && teleport(rabbit, self.eat.spot).is_err() {
+        if elapsed == SETTLE_FRAMES && teleport(spring, rabbit, self.eat.spot).is_err() {
             return Outcome::Retry("the rabbit could not be put back on its spot");
         }
-        let speed = spring::units_info::get_unit_velocity(rabbit)
+        let speed = spring
+            .units_info()
+            .get_unit_velocity(rabbit)
             .map_or(f32::MAX, |velocity| velocity.x.hypot(velocity.z));
         if elapsed >= STILL_FROM && speed > STILL_SPEED {
             return Outcome::Retry("the rabbit moved");
@@ -151,7 +179,9 @@ impl Tracker {
             return Outcome::Waiting;
         }
         let Some(height) = self.eat.center.and_then(|piece| {
-            spring::units_pieces::get_unit_piece_position(rabbit, piece)
+            spring
+                .units_pieces()
+                .get_unit_piece_position(rabbit, piece)
                 .ok()
                 .map(|position| position.y)
         }) else {
@@ -165,7 +195,12 @@ impl Tracker {
         Outcome::Rested(high.max(height) - low.min(height))
     }
 
-    pub(super) fn carrying(&mut self, global: &Global, frame: i32) {
+    pub(super) fn carrying(
+        &mut self,
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        global: &Global,
+        frame: i32,
+    ) {
         let carried = {
             let rabbits = global.rabbits.access();
             rabbits
@@ -173,11 +208,11 @@ impl Tracker {
                 .map_or(-1, |index| rabbits.memories[index].carried_carrot)
         };
         if carried < 0 {
-            let _ = self.timed_out(frame, "the eating rabbit picks up its carrot");
+            let _ = self.timed_out(spring, frame, "the eating rabbit picks up its carrot");
             return;
         }
-        self.suite.check(
-            !blocks(carried),
+        self.suite.check(spring,
+            !blocks(spring, carried),
             format!(
                 "the rabbit carries the carrot it ate, and the carried carrot neither blocks nor collides: carrot {carried}"
             ),
@@ -186,14 +221,19 @@ impl Tracker {
         self.next(Step::CarryHome, frame);
     }
 
-    pub(super) fn carry_home(&mut self, global: &Global, frame: i32) {
+    pub(super) fn carry_home(
+        &mut self,
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        global: &Global,
+        frame: i32,
+    ) {
         let rabbit = self.eat.rabbit;
-        let burrow = crate::units::unit_position(rabbit).and_then(|position| {
+        let burrow = crate::units::unit_position(spring, rabbit).and_then(|position| {
             let burrows = global.roster.access().positions(UnitKind::Burrow);
             crate::units::nearest(position, &burrows).map(|(_, burrow, _)| burrow)
         });
         let Some(burrow) = burrow else {
-            self.fail("the carrier and a burrow are there to go home to");
+            self.fail(spring, "the carrier and a burrow are there to go home to");
             return;
         };
         self.before.stolen = global.score.access().carrots_stolen;
@@ -201,17 +241,29 @@ impl Tracker {
             x: burrow.x + BURROW_OFFSET,
             ..burrow
         };
-        if let Err(error) = teleport(rabbit, beside) {
-            self.fail(&format!("the carrier moves beside a burrow: {error:?}"));
+        if let Err(error) = teleport(spring, rabbit, beside) {
+            self.fail(
+                spring,
+                &format!("the carrier moves beside a burrow: {error:?}"),
+            );
             return;
         }
         self.next(Step::CarriedHome, frame);
     }
 
-    pub(super) fn carried_home(&mut self, global: &Global, frame: i32) {
+    pub(super) fn carried_home(
+        &mut self,
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        global: &Global,
+        frame: i32,
+    ) {
         let stolen = global.score.access().carrots_stolen - self.before.stolen;
         if stolen < 1 {
-            let _ = self.timed_out(frame, "the carrier takes its carrot into the burrow");
+            let _ = self.timed_out(
+                spring,
+                frame,
+                "the carrier takes its carrot into the burrow",
+            );
             return;
         }
         if self.eat.stolen_at.is_none() {
@@ -231,7 +283,7 @@ impl Tracker {
                 .find(self.eat.rabbit)
                 .is_some_and(|index| rabbits.memories[index].carried_carrot >= 0)
         };
-        self.suite.check(
+        self.suite.check(spring,
             stolen == 1 && carried_gone && !still_carries,
             format!(
                 "a rabbit carrying a carrot into a burrow steals it: stolen +{stolen}, carrot gone {carried_gone}, still carrying {still_carries}"
@@ -242,8 +294,10 @@ impl Tracker {
     }
 }
 
-fn center_piece(rabbit: i32) -> Option<i32> {
-    spring::units_pieces::get_unit_piece_map(rabbit)
+fn center_piece(spring: &spring::Spring<'_, spring::RulesSynced>, rabbit: i32) -> Option<i32> {
+    spring
+        .units_pieces()
+        .get_unit_piece_map(rabbit)
         .ok()?
         .into_iter()
         .find(|piece| piece.name == "center")

@@ -3,6 +3,7 @@ use hunted_common::movement::{self, normalize};
 use super::*;
 
 pub(super) fn update_movement(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
     game: &mut RabbitCtx<'_>,
     memory_index: usize,
     tick: &RabbitTick,
@@ -44,9 +45,10 @@ pub(super) fn update_movement(
         memory.reserved_eat_time = eating_time;
         memory.eating_progress = eating_progress + update_gap;
         memory.stealing_notified = true;
-        set_stealing(rabbit_id, true);
+        set_stealing(spring, rabbit_id, true);
         Call::carrot_start_being_stolen(carrot_id, eating_progress).queue();
         issue_goal(
+            spring,
             rabbit_id,
             carrot_position.x,
             carrot_position.z,
@@ -61,16 +63,19 @@ pub(super) fn update_movement(
     let (target_x, target_z) = target
         .map(|(x, z, _, _)| (x, z))
         .unwrap_or((position.x, position.z));
-    let move_goal = movement_goal(MovementInput {
-        memory: game.rabbits.memories[memory_index],
-        rabbit,
-        position,
-        target_x,
-        target_z,
-        scary,
-        speed_mult: speed_multiplier,
-        panic_resistance: game.panic_resistance,
-    });
+    let move_goal = movement_goal(
+        spring,
+        MovementInput {
+            memory: game.rabbits.memories[memory_index],
+            rabbit,
+            position,
+            target_x,
+            target_z,
+            scary,
+            speed_mult: speed_multiplier,
+            panic_resistance: game.panic_resistance,
+        },
+    );
     let jitter = game.rabbits.memories[memory_index].data.jitter();
     let (acceleration_multiplier, turn_multiplier) =
         if scary.is_some_and(|value| value.magnitude > PANIC_SCARE_MAGNITUDE) {
@@ -79,6 +84,7 @@ pub(super) fn update_movement(
             (1.0 / jitter, move_goal.2.max(f32::MIN_POSITIVE).powf(-0.1))
         };
     issue_goal(
+        spring,
         rabbit,
         move_goal.0,
         move_goal.1,
@@ -100,7 +106,10 @@ pub(super) struct MovementInput {
     pub(super) panic_resistance: f32,
 }
 
-pub(super) fn movement_goal(input: MovementInput) -> (f32, f32, f32) {
+pub(super) fn movement_goal(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    input: MovementInput,
+) -> (f32, f32, f32) {
     let data = input.memory.data;
     let scary_point = data.panic.or(input.scary).map(|scary| (scary.x, scary.z));
     let move_vector = movement::move_vector(
@@ -118,24 +127,48 @@ pub(super) fn movement_goal(input: MovementInput) -> (f32, f32, f32) {
         -f32::from(heading) / 32768.0 * core::f32::consts::PI + core::f32::consts::PI / 2.0;
     let direction_randomness =
         (core::f32::consts::PI * 0.4).min(20.0 * (10.0 + data.boldness).powf(-0.9));
-    let movement_direction =
-        movement_direction + random::float() * 2.0 * direction_randomness - direction_randomness;
+    let movement_direction = movement_direction
+        + spring
+            .synced_random()
+            .next_float()
+            .expect("synced random float")
+            * 2.0
+            * direction_randomness
+        - direction_randomness;
     let movement = (
         movement_magnitude * movement_direction.cos(),
         movement_magnitude * movement_direction.sin(),
     );
     let jitter = data.jitter();
-    let velocity = spring::units_info::get_unit_velocity(input.rabbit)
+    let velocity = spring
+        .units_info()
+        .get_unit_velocity(input.rabbit)
         .map(|velocity| {
             normalize(
-                (10.0 + random::float() * 5.0) * jitter,
+                (10.0
+                    + spring
+                        .synced_random()
+                        .next_float()
+                        .expect("synced random float")
+                        * 5.0)
+                    * jitter,
                 velocity.x,
                 velocity.z,
             )
         })
         .unwrap_or((0.0, 0.0));
-    let random_angle = random::float() * core::f32::consts::TAU;
-    let random_magnitude = (5.0 + random::float() * 10.0) * jitter;
+    let random_angle = spring
+        .synced_random()
+        .next_float()
+        .expect("synced random float")
+        * core::f32::consts::TAU;
+    let random_magnitude = (5.0
+        + spring
+            .synced_random()
+            .next_float()
+            .expect("synced random float")
+            * 10.0)
+        * jitter;
     let random_vector = (
         random_angle.cos() * random_magnitude,
         random_angle.sin() * random_magnitude,
@@ -153,6 +186,7 @@ pub(super) fn movement_goal(input: MovementInput) -> (f32, f32, f32) {
 }
 
 pub(super) fn issue_goal(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
     unit_id: i32,
     target_x: f32,
     target_z: f32,
@@ -162,11 +196,12 @@ pub(super) fn issue_goal(
     original_reverse_speed: f32,
 ) {
     units::set_rabbit_movement_attributes(
+        spring,
         unit_id,
         speed_multiplier,
         acceleration_multiplier,
         turn_multiplier,
         original_reverse_speed,
     );
-    units::set_goal(unit_id, target_x, target_z, 0.0);
+    units::set_goal(spring, unit_id, target_x, target_z, 0.0);
 }

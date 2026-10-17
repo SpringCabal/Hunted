@@ -105,7 +105,12 @@ impl Default for Hud {
 }
 
 impl Hud {
-    pub fn apply(&mut self, status: &Status, round: &mut Round) {
+    pub fn apply(
+        &mut self,
+        spring: &spring::Spring<'_, spring::Ui>,
+        status: &Status,
+        round: &mut Round,
+    ) {
         if status.game_over == Some(false) && (round.game_over || round.restart_pending) {
             self.time = 0;
         }
@@ -125,7 +130,7 @@ impl Hud {
                 self.streak_kills = 0;
             }
             if !first_status && delta > 0 {
-                self.count_streak(delta, round.frame);
+                self.count_streak(spring, delta, round.frame);
             }
         }
         if let Some(carrots) = status.carrots {
@@ -190,7 +195,7 @@ impl Hud {
         }
     }
 
-    fn count_streak(&mut self, kills: i32, frame: i32) {
+    fn count_streak(&mut self, spring: &spring::Spring<'_, spring::Ui>, kills: i32, frame: i32) {
         if self.streak_frame < 0 || frame - self.streak_frame > STREAK_WINDOW_FRAMES {
             self.streak_kills = 0;
         }
@@ -202,45 +207,59 @@ impl Hud {
             .find(|streak| self.streak_kills >= streak.kills && previous_streak < streak.kills)
         {
             self.events.show(streak.text, EventKind::KillStreak);
-            audio::play_streak_sound(streak);
+            audio::play_streak_sound(spring, streak);
         }
     }
 
-    pub fn push(&self, bindings: Option<Bindings>) {
+    pub fn push(&self, spring: &spring::Spring<'_, spring::Ui>, bindings: Option<Bindings>) {
         let Some(bindings) = bindings else {
             return;
         };
-        set_int(bindings.ammo, self.ammo);
-        set_int(bindings.mines, self.mines);
-        set_int(bindings.carrots, self.carrots);
-        set_int(bindings.rabbits, self.rabbits);
-        set_int(bindings.kills, self.kills);
-        set_int(bindings.score, self.score);
-        set_int(bindings.time, self.time);
-        set_percent(bindings.flash, self.flash);
+        set_int(spring, bindings.ammo, self.ammo);
+        set_int(spring, bindings.mines, self.mines);
+        set_int(spring, bindings.carrots, self.carrots);
+        set_int(spring, bindings.rabbits, self.rabbits);
+        set_int(spring, bindings.kills, self.kills);
+        set_int(spring, bindings.score, self.score);
+        set_int(spring, bindings.time, self.time);
+        set_percent(spring, bindings.flash, self.flash);
     }
 }
 
-pub fn create_bindings(context: u64) -> Option<Bindings> {
-    let model = spring::context_create_data_model(context, "hunted").ok()?;
+pub fn create_bindings(spring: &spring::Spring<'_, spring::Ui>, context: u64) -> Option<Bindings> {
+    let model = spring
+        .rml_ui()
+        .context_create_data_model(context, "hunted")
+        .ok()?;
     if !model.success || model.data_model_handle == 0 {
         return None;
     }
     let model = model.data_model_handle;
     let bind_int = |name: &str, initial: i32| {
-        let binding = spring::data_model_bind_int(model, name, initial).ok()?;
+        let binding = spring
+            .rml_ui()
+            .data_model_bind_int(model, name, initial)
+            .ok()?;
         (binding.success && binding.variable_handle != 0).then_some(binding.variable_handle)
     };
     let bind_percent = |name: &str, initial: f32| {
-        let binding = spring::data_model_bind_percent(model, name, initial).ok()?;
+        let binding = spring
+            .rml_ui()
+            .data_model_bind_percent(model, name, initial)
+            .ok()?;
         (binding.success && binding.variable_handle != 0).then_some(binding.variable_handle)
     };
-    bind_event(model, "restart", |global| {
-        crate::state::request_restart(global);
+    bind_event(spring, model, "restart", |spring, global| {
+        crate::state::request_restart(spring, global);
     })?;
-    bind_event(model, "quit", |_| crate::state::request_quit())?;
+    bind_event(spring, model, "quit", |spring, _| {
+        crate::state::request_quit(spring)
+    })?;
     let bind_bool = |name: &str| {
-        let binding = spring::data_model_bind_bool(model, name, false).ok()?;
+        let binding = spring
+            .rml_ui()
+            .data_model_bind_bool(model, name, false)
+            .ok()?;
         (binding.success && binding.variable_handle != 0).then_some(binding.variable_handle)
     };
     Some(Bindings {
@@ -254,34 +273,39 @@ pub fn create_bindings(context: u64) -> Option<Bindings> {
         flash: bind_percent("flash", 0.0)?,
         game_over: bind_bool("game_over")?,
         flare_active: bind_bool("flare_active")?,
-        events: events::bind(model)?,
+        events: events::bind(spring, model)?,
     })
 }
 
-fn set_int(handle: u64, value: i32) {
+fn set_int(spring: &spring::Spring<'_, spring::Ui>, handle: u64, value: i32) {
     if handle != 0 {
-        let _ = spring::data_model_set_int(handle, value);
+        let _ = spring.rml_ui().data_model_set_int(handle, value);
     }
 }
 
-fn set_percent(handle: u64, value: f32) {
+fn set_percent(spring: &spring::Spring<'_, spring::Ui>, handle: u64, value: f32) {
     if handle != 0 {
-        let _ = spring::data_model_set_percent(handle, value.clamp(0.0, 100.0));
+        let _ = spring
+            .rml_ui()
+            .data_model_set_percent(handle, value.clamp(0.0, 100.0));
     }
 }
 
 fn bind_event(
+    spring: &spring::Spring<'_, spring::Ui>,
     model: u64,
     name: &str,
-    handler: impl FnMut(&crate::state::Global) + 'static,
+    handler: impl Fn(&spring::Spring<'_, spring::Ui>, &crate::state::Global)
+    + spring::RetainedCapture
+    + 'static,
 ) -> Option<()> {
-    let callback = crate::register_callback(handler);
-    if spring::data_model_bind_event(model, name, callback, &[])
-        .is_ok_and(|event| event.success && event.handle != 0)
-    {
-        Some(())
-    } else {
-        crate::unregister_callback(callback);
-        None
-    }
+    spring
+        .rml_ui()
+        .data_model_bind_event(model, name, &[], move |spring, _| {
+            crate::with_global(|global| handler(spring, global));
+            Ok(())
+        })
+        .ok()
+        .filter(|event| event.success && event.event_handle != 0)
+        .map(|_| ())
 }

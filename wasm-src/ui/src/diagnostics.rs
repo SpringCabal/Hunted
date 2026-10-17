@@ -8,14 +8,21 @@ use alloc::format;
 use spring::log_level;
 
 #[cfg(feature = "diagnostics")]
-pub fn visibility(frame: i32, rabbits: i32, revealed: i32, failures: i32, flare_active: bool) {
+pub fn visibility(
+    spring: &spring::Spring<'_, spring::Ui>,
+    frame: i32,
+    rabbits: i32,
+    revealed: i32,
+    failures: i32,
+    flare_active: bool,
+) {
     if frame.rem_euclid(LOG_PERIOD_FRAMES) != 0 {
         return;
     }
     if LAST_VISIBILITY_LOG_FRAME.with(|last| last.replace(frame)) == frame {
         return;
     }
-    let _ = spring::log(
+    let _ = spring.messages().log(
         "hunted-wasm-ui",
         log_level::DEBUG,
         &format!(
@@ -24,7 +31,7 @@ pub fn visibility(frame: i32, rabbits: i32, revealed: i32, failures: i32, flare_
         ),
     );
     if failures > 0 {
-        let _ = spring::log(
+        let _ = spring.messages().log(
             "hunted-wasm-ui",
             log_level::WARNING,
             &format!("rabbit visibility no-draw failures={failures}"),
@@ -34,7 +41,14 @@ pub fn visibility(frame: i32, rabbits: i32, revealed: i32, failures: i32, flare_
 
 #[cfg(not(feature = "diagnostics"))]
 #[inline(always)]
-pub fn visibility(_frame: i32, _rabbits: i32, _revealed: i32, _failures: i32, _flare_active: bool) {
+pub fn visibility(
+    _spring: &spring::Spring<'_, spring::Ui>,
+    _frame: i32,
+    _rabbits: i32,
+    _revealed: i32,
+    _failures: i32,
+    _flare_active: bool,
+) {
 }
 
 #[cfg(feature = "diagnostics")]
@@ -44,7 +58,12 @@ thread_local! {
 }
 
 #[cfg(feature = "diagnostics")]
-pub fn mouse_target(x: i32, y: i32, target: crate::state::Point3) {
+pub fn mouse_target(
+    spring: &spring::Spring<'_, spring::Ui>,
+    x: i32,
+    y: i32,
+    target: crate::state::Point3,
+) {
     let due = MOUSE_TARGET_TICKS.with(|ticks| {
         let next = ticks.get() - 1;
         if next > 0 {
@@ -58,7 +77,7 @@ pub fn mouse_target(x: i32, y: i32, target: crate::state::Point3) {
     if !due {
         return;
     }
-    let _ = spring::log(
+    let _ = spring.messages().log(
         "hunted-wasm-ui",
         log_level::DEBUG,
         &format!(
@@ -70,11 +89,17 @@ pub fn mouse_target(x: i32, y: i32, target: crate::state::Point3) {
 
 #[cfg(not(feature = "diagnostics"))]
 #[inline(always)]
-pub fn mouse_target(_x: i32, _y: i32, _target: crate::state::Point3) {}
+pub fn mouse_target(
+    _spring: &spring::Spring<'_, spring::Ui>,
+    _x: i32,
+    _y: i32,
+    _target: crate::state::Point3,
+) {
+}
 
 #[cfg(feature = "diagnostics")]
-pub fn mouse_press(x: i32, y: i32, button: i32) {
-    let _ = spring::log(
+pub fn mouse_press(spring: &spring::Spring<'_, spring::Ui>, x: i32, y: i32, button: i32) {
+    let _ = spring.messages().log(
         "hunted-wasm-ui",
         log_level::DEBUG,
         &format!("mouse press screen=({x},{y}) button={button}"),
@@ -83,12 +108,18 @@ pub fn mouse_press(x: i32, y: i32, button: i32) {
 
 #[cfg(not(feature = "diagnostics"))]
 #[inline(always)]
-pub fn mouse_press(_x: i32, _y: i32, _button: i32) {}
+pub fn mouse_press(_spring: &spring::Spring<'_, spring::Ui>, _x: i32, _y: i32, _button: i32) {}
 
 #[cfg(feature = "diagnostics")]
-pub fn status_received(frame: i32, carrots: i32, ammo: i32, game_over: bool) {
+pub fn status_received(
+    spring: &spring::Spring<'_, spring::Ui>,
+    frame: i32,
+    carrots: i32,
+    ammo: i32,
+    game_over: bool,
+) {
     if frame.rem_euclid(LOG_PERIOD_FRAMES) == 0 {
-        let _ = spring::log(
+        let _ = spring.messages().log(
             "hunted-wasm-ui",
             log_level::DEBUG,
             &format!(
@@ -100,22 +131,33 @@ pub fn status_received(frame: i32, carrots: i32, ammo: i32, game_over: bool) {
 
 #[cfg(not(feature = "diagnostics"))]
 #[inline(always)]
-pub fn status_received(_frame: i32, _carrots: i32, _ammo: i32, _game_over: bool) {}
+pub fn status_received(
+    _spring: &spring::Spring<'_, spring::Ui>,
+    _frame: i32,
+    _carrots: i32,
+    _ammo: i32,
+    _game_over: bool,
+) {
+}
 
 #[cfg(feature = "diagnostics")]
-pub fn info(message: &str) {
-    let _ = spring::log("hunted-wasm-ui", log_level::INFO, message);
+pub fn info(spring: &spring::Spring<'_, spring::Ui>, message: &str) {
+    let _ = spring
+        .messages()
+        .log("hunted-wasm-ui", log_level::INFO, message);
 }
 
 #[cfg(not(feature = "diagnostics"))]
 #[inline(always)]
-pub fn info(_message: &str) {}
+pub fn info(_spring: &spring::Spring<'_, spring::Ui>, _message: &str) {}
 
 #[cfg(feature = "diagnostics")]
-pub fn debug(message: &str) {
-    let _ = spring::log("hunted-wasm-ui", log_level::DEBUG, message);
+pub fn debug(spring: &spring::Spring<'_, spring::Ui>, message: &str) {
+    let _ = spring
+        .messages()
+        .log("hunted-wasm-ui", log_level::DEBUG, message);
 }
 
 #[cfg(not(feature = "diagnostics"))]
 #[inline(always)]
-pub fn debug(_message: &str) {}
+pub fn debug(_spring: &spring::Spring<'_, spring::Ui>, _message: &str) {}
