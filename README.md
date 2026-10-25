@@ -41,3 +41,13 @@ Verification on the SDK test engine:
 
 Use the parent development repository's `just verify hunted` commands with
 `SPRING_ENGINE_DIR` pointing to the engine to test.
+
+## Startup visibility
+
+The rules enable global LOS for every ally team on the first game frame,
+matching Lua's `start_force` widget. The flashlight and lighthouse visibility
+pass still decides which rabbits are drawn. Omitting global LOS made the engine
+recompute visibility unnecessarily, including expensive terrain raycasts.
+
+The existing integration suite now has 36 checks, including the startup LOS
+assertion. That assertion fails before the fix and passes afterwards.

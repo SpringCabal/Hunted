@@ -84,6 +84,17 @@ impl Tracker {
             "the UI's mouse target reached the rules and spawned the gun",
         );
         let defs = crate::defs::defs(spring);
+        let ally_teams = spring.teams().get_ally_team_list();
+        self.suite.check(
+            spring,
+            ally_teams.as_ref().is_ok_and(|teams| {
+                !teams.is_empty()
+                    && teams
+                        .iter()
+                        .all(|&team| spring.game().get_global_los(team) == Ok(1))
+            }),
+            "all ally teams have global LOS, as in the Lua startup widget",
+        );
         let lua_spray = (2000.0 * core::f32::consts::PI / 0xafff as f32).sin();
         self.suite.check(
             spring,

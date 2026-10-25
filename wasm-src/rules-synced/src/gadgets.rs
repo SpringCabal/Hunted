@@ -34,7 +34,7 @@ pub fn setup(
     register_gadgets!(
         handler,
         [
-            RosterGadget,
+            RosterGadget::default(),
             BlockingGadget,
             InvulnerableGadget,
             WaveSpawnerGadget,
