@@ -101,6 +101,9 @@ local desirableThings = {}
 
 local desirableUnits = {}
 local rabbits = {}
+local FOOD_CELL_SIZE = 1500
+local foodCells = {}
+local globalDesirables = {}
 
 -- Rabbit AI is created by taking into account only the closest scary and desirable thing.
 
@@ -112,42 +115,27 @@ local function DistSq(x1,z1,x2,z2)
 	return (x1 - x2)*(x1 - x2) + (z1 - z2)*(z1 - z2)
 end
 
-local function Mult(b, v)
-	return {b*v[1], b*v[2]}
+local function AbsVal(x, z)
+	return sqrt(x*x + z*z)
 end
 
-local function AbsVal(v)
-	return sqrt(v[1]*v[1] + v[2]*v[2])
-end
-
-local function Unit(v)
-	local mag = AbsVal(v)
+-- Keep temporary vectors in numbers rather than allocating a table for every
+-- normalization, rotation and addition in every rabbit's AI update.
+local function Norm(b, x, z)
+	local mag = AbsVal(x, z)
 	if mag > 0 then
-		return {v[1]/mag, v[2]/mag}
+		return b*x/mag, b*z/mag
 	else
-		return v
+		return x, z
 	end
 end
 
-local function Norm(b, v)
-	local mag = AbsVal(v)
-	if mag > 0 then
-		return {b*v[1]/mag, b*v[2]/mag}
-	else
-		return v
-	end
-end
-
-local function Angle(v)
-	return -Spring.GetHeadingFromVector(v[1], v[2])/2^15*math.pi + math.pi/2
+local function Angle(x, z)
+	return -Spring.GetHeadingFromVector(x, z)/2^15*math.pi + math.pi/2
 end
 
 local function PolarToCart(mag, dir)
-	return {mag*math.cos(dir), mag*math.sin(dir)}
-end
-
-local function Add(v1, v2)
-	return {v1[1] + v2[1], v1[2] + v2[2]}
+	return mag*math.cos(dir), mag*math.sin(dir)
 end
 
 
@@ -208,6 +196,10 @@ local function GetBestThing(thingTable, x, z, typeMultiplier)
 	local bestMagnitude = 0
 	local bestX = 0
 	local bestZ = 0
+	-- Things sharing an attribute table have the same distance falloff. Once
+	-- a nearer one was considered, a farther one cannot beat it. Small light
+	-- lists use the simple loop without allocating a search cache.
+	local closest = #thingTable > 32 and {}
 	
 	local thing, distanceSquare, distance, thingAtt, adjustedMagnitude
 	
@@ -215,8 +207,16 @@ local function GetBestThing(thingTable, x, z, typeMultiplier)
 		thing = thingTable[i]
 		if not thing.inactive then
 			thingAtt = thing.attributes
-			distanceSquare = DistSq(x, z, thing.x, thing.z)
-			if distanceSquare < thingAtt.radiusSq then
+			-- A carrying rabbit ignores food; a hungry one ignores burrows.
+			-- Multiplying by zero can never beat the positive best magnitude.
+			local multiplier = typeMultiplier and thingAtt.thingType and typeMultiplier[thingAtt.thingType]
+			distanceSquare = multiplier ~= 0 and DistSq(x, z, thing.x, thing.z)
+			local monotone = thingAtt.proximityMagnitude >= 0 and not (multiplier and multiplier < 0)
+			if distanceSquare and distanceSquare < thingAtt.radiusSq
+					and (not closest or not monotone or not closest[thingAtt] or distanceSquare < closest[thingAtt]) then
+				if closest and monotone then
+					closest[thingAtt] = distanceSquare
+				end
 				distance = sqrt(distanceSquare)
 				adjustedMagnitude = GetThingAdjustedMagnitude(distance, thingAtt, typeMultiplier)
 				if adjustedMagnitude > bestMagnitude then
@@ -249,6 +249,69 @@ local function RemoveThing(thingTable, index)
 	--GG.TableEcho(thingTable)
 end
 
+local function IndexDesirable(thing, isUnit)
+	local list, indexKey
+	if isUnit and thing.attributes.thingType == 1 and thing.attributes.radius <= FOOD_CELL_SIZE then
+		local x, z = math.floor(thing.x/FOOD_CELL_SIZE), math.floor(thing.z/FOOD_CELL_SIZE)
+		foodCells[x] = foodCells[x] or {}
+		foodCells[x][z] = foodCells[x][z] or {}
+		list = foodCells[x][z]
+		indexKey = "foodIndex"
+	else
+		list, indexKey = globalDesirables, "globalIndex"
+	end
+	thing.searchList, thing.searchIndexKey = list, indexKey
+	list[#list + 1] = thing
+	thing[indexKey] = #list
+end
+
+local function UnindexDesirable(thing)
+	local list, key = thing.searchList, thing.searchIndexKey
+	local index = thing[key]
+	list[index] = list[#list]
+	list[index][key] = index
+	list[#list] = nil
+end
+
+local function GetBestDesirable(x, z, typeMultiplier)
+	if #desirableThings <= 32 then
+		return GetBestThing(desirableThings, x, z, typeMultiplier)
+	end
+	local best, bestMagnitude = nil, 0
+	local function scan(list)
+		for i = 1, #list do
+			local thing = list[i]
+			local attributes = thing.attributes
+			if not thing.inactive and typeMultiplier[attributes.thingType] ~= 0 then
+				local square = DistSq(x, z, thing.x, thing.z)
+				if square < attributes.radiusSq then
+					local magnitude = GetThingAdjustedMagnitude(sqrt(square), attributes, typeMultiplier)
+					-- Bucket order differs from the main list: retain its original
+					-- first-wins tie rule, including after swap-removal.
+					if magnitude > bestMagnitude or
+							(best and magnitude == bestMagnitude and thing.index < best.index) then
+						best, bestMagnitude = thing, magnitude
+					end
+				end
+			end
+		end
+	end
+	scan(globalDesirables)
+	if typeMultiplier[1] ~= 0 then
+		local cx, cz = math.floor(x/FOOD_CELL_SIZE), math.floor(z/FOOD_CELL_SIZE)
+		for gx = cx - 1, cx + 1 do
+			local row = foodCells[gx]
+			if row then
+				for gz = cz - 1, cz + 1 do
+					if row[gz] then scan(row[gz]) end
+				end
+			end
+		end
+	end
+	if best then return best, best.x, best.z, bestMagnitude end
+	return false, x, z, 0
+end
+
 -------------------------------------------------------------------
 -------------------------------------------------------------------
 -- Purea Scary/Desirable Area Handling
@@ -270,10 +333,12 @@ end
 
 local function AddDesirableArea(data)
 	local index = AddThing(desirableThings, data)
+	IndexDesirable(data, false)
 	return desirableThings[index]
 end
 
 local function RemoveDesirableArea(data)
+	UnindexDesirable(data)
 	RemoveThing(desirableThings, data.index)
 end
 
@@ -332,6 +397,7 @@ local function AddDesirableUnit(unitID, unitDefID)
 	})
 	
 	desirableUnits[unitID] = {thingTableEntry = desirableThings[index]}
+	IndexDesirable(desirableThings[index], true)
 end
 
 local function RemoveDesirableUnit(unitID)
@@ -341,6 +407,7 @@ local function RemoveDesirableUnit(unitID)
 	end
 
 	local index = thingRef.index
+	UnindexDesirable(thingRef)
 	RemoveThing(desirableThings, index)
 	desirableUnits[unitID] = nil
 end
@@ -391,13 +458,12 @@ local function RabbitFoodDestroyed(unitID)
 	end
 end
 
-local function SetRabbitMovement(unitID, x, z, goalVec, speedMult, accelMult, turnMult)
-	--Spring.MarkerAddPoint(goalVec[1] + x,0,goalVec[2] + z)
+local function SetRabbitMovement(unitID, x, z, goalX, goalZ, speedMult, accelMult, turnMult)
 	Spring.SetUnitRulesParam(unitID, "selfMoveSpeedChange", speedMult)
 		Spring.SetUnitRulesParam(unitID, "selfMaxAccelerationChange", accelMult)
 	Spring.SetUnitRulesParam(unitID, "selfTurnSpeedChange", turnMult)
 	GG.UpdateUnitAttributes(unitID)
-	GiveClampedOrderToUnit(unitID, CMD.MOVE, {goalVec[1] + x, 0, goalVec[2] + z}, 0 )
+	GiveClampedOrderToUnit(unitID, CMD.MOVE, {goalX + x, 0, goalZ + z}, 0 )
 end
 
 local function UpdateRabbit(unitID, frame, scaryOverride)
@@ -482,7 +548,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 		math.min(1, expectedFood), -- Desirability of Burrow
 	}
 	
-	local goalRef, gX, gZ, goalMag = GetBestThing(desirableThings, x, z, deisrableTypeTable)
+	local goalRef, gX, gZ, goalMag = GetBestDesirable(x, z, deisrableTypeTable)
 	
 	rabbitData.boldness = (rabbitData.boldness + goalMag*updateGap + BOLDNESS_ADDED*updateGap)*
 		(1/(0.99 + rabbitData.fear/(10000 - math.min(8000, rabbitData.boldness*20))))^updateGap
@@ -516,7 +582,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 				rabbitData.boldness = rabbitData.boldness + 150 -- Bonus boldness for being a good theif!
 				rabbitData.carryingSince = frame
 			else
-				SetRabbitMovement(unitID, x, z, {rabbitData.eatingThingRef.x - x, rabbitData.eatingThingRef.z - z}, 0.05, 2, 0.2)
+				SetRabbitMovement(unitID, x, z, rabbitData.eatingThingRef.x - x, rabbitData.eatingThingRef.z - z, 0.05, 2, 0.2)
 				return
 			end
 		end
@@ -533,11 +599,11 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	--// Determine move direction and speed
 	-- scaryVec is the direction and magnitude to the scariest thing.
 	-- goalVec is the same for the goal
-	local scaryVec
+	local scaryX, scaryZ
 	if rabbitData.panicMode then
-		scaryVec = {rabbitData.panicMode.x - x, rabbitData.panicMode.z - z}
+		scaryX, scaryZ = rabbitData.panicMode.x - x, rabbitData.panicMode.z - z
 	else
-		scaryVec = {sX - x, sZ - z}
+		scaryX, scaryZ = sX - x, sZ - z
 	end
 	
 	-- These vectors are scaled by fear and boldness
@@ -545,21 +611,21 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	-- moveVec is the resultant move direction from fear and boldness.
 
 	
-	scaryVec = Norm(-rabbitData.fear/8, scaryVec)
+	scaryX, scaryZ = Norm(-rabbitData.fear/8, scaryX, scaryZ)
 	
-	local moveVec, goalMag
+	local moveX, moveZ, goalMag
 	if rabbitData.fear < 180*global_rabbitPanicResist + 150*rabbitData.foodCarried then
-		local goalVec = {gX - x, gZ - z}
-		goalMag = AbsVal(goalVec)
+		local goalX, goalZ = gX - x, gZ - z
+		goalMag = AbsVal(goalX, goalZ)
 		if goalMag < 200 then
 			speedMult = speedMult*1.2
-			goalVec = Norm(rabbitData.boldness/10, goalVec)
+			goalX, goalZ = Norm(rabbitData.boldness/10, goalX, goalZ)
 		else
-			goalVec = Norm(rabbitData.boldness/30, goalVec)
+			goalX, goalZ = Norm(rabbitData.boldness/30, goalX, goalZ)
 		end
-		moveVec = Add(scaryVec, goalVec)
+		moveX, moveZ = scaryX + goalX, scaryZ + goalZ
 	else
-		moveVec = scaryVec
+		moveX, moveZ = scaryX, scaryZ
 	end 
 	
 	--// Handle Transition into Non-Moving (eating, depositing etc..)
@@ -568,7 +634,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 			(not rabbitData.eatingProgress) and rabbitData.foodCarried == 0 and (not rabbitData.panicMode) then
 		StartStealing(rabbitData, goalRef)
 		rabbitData.eatingProgress = rabbitData.eatingProgress + updateGap
-		SetRabbitMovement(unitID, x, z, {gX - x, gZ - z}, 0.05, 2, 0.2)
+		SetRabbitMovement(unitID, x, z, gX - x, gZ - z, 0.05, 2, 0.2)
 		return
 	end
 	
@@ -578,15 +644,15 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 		rabbitData.foodCarried = 0
 		rabbitData.carryingSince = false
 		GG.RabbitScoreCarrot(unitID)
-		SetRabbitMovement(unitID, x, z, {gX - x, gZ - z}, 0.05, 2, 1)
+		SetRabbitMovement(unitID, x, z, gX - x, gZ - z, 0.05, 2, 1)
 		return
 	end
 	
 	--// Normal Movement
 	-- At this point moveVec is the direction which a rabbit would go if it were bold.
 	-- Direction is 0 in positive x direction. Increases clockwise.
-	local moveDir = Angle(moveVec)
-	local moveMag = AbsVal(moveVec)
+	local moveDir = Angle(moveX, moveZ)
+	local moveMag = AbsVal(moveX, moveZ)
 	
 	--Spring.MarkerAddPoint(moveVec[1], 0 ,moveVec[2])
 	--Spring.Echo("Move", moveVec[1], moveVec[2], moveDir)
@@ -599,11 +665,11 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	
 	-- Rabbits have a small bias towards keeping their momentum
 	local vx, _, vz, velMag = Spring.GetUnitVelocity(unitID)
-	local velVector = Norm((10 + math.random()*5)*jitter, {vx, vz})
-	moveVec = PolarToCart(moveMag, moveDir)
+	local velX, velZ = Norm((10 + math.random()*5)*jitter, vx, vz)
+	moveX, moveZ = PolarToCart(moveMag, moveDir)
 	
 	-- Rabbits also just move randomly.
-	local randVec = PolarToCart((5 + math.random()*10)*jitter, math.random()*2*math.pi)
+	local randX, randZ = PolarToCart((5 + math.random()*10)*jitter, math.random()*2*math.pi)
 	
 	--Spring.Echo("jitter", jitter)
 	--Spring.Echo("moveVec Angle", Angle(moveVec)*180/math.pi)
@@ -611,13 +677,13 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	--Spring.Echo("dirRandomness", dirRandomness*180/math.pi)
 	
 	-- Add the randomVector, momentumVector and goal+scary vectors to get final direction.
-	moveVec = Norm(200*speedMult, Add(moveVec, Add(randVec, velVector)))
+	moveX, moveZ = Norm(200*speedMult, moveX + (randX + velX), moveZ + (randZ + velZ))
 	
 	--// Modify movement attributes and goal
 	if scaryMag > 80 then
-		SetRabbitMovement(unitID, x, z, moveVec, speedMult, 5/jitter, 1.5)
+		SetRabbitMovement(unitID, x, z, moveX, moveZ, speedMult, 5/jitter, 1.5)
 	else
-		SetRabbitMovement(unitID, x, z, moveVec, speedMult, 1/jitter, speedMult^-0.1)
+		SetRabbitMovement(unitID, x, z, moveX, moveZ, speedMult, 1/jitter, speedMult^-0.1)
 	end
 end
 
