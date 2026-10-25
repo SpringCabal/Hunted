@@ -118,6 +118,7 @@ impl Default for Flare {
 
 #[derive(Default)]
 pub struct Global {
+    pub jobs: Resource<springcabal::jobs::Options>,
     pub session: Resource<Session>,
     pub score: Resource<Score>,
     pub weapons: Resource<Weapons>,

@@ -80,6 +80,15 @@ name = "hunted-common"
 version = "0.1.0"
 
 [[package]]
+name = "hunted-jobs-wasm"
+version = "0.1.0"
+dependencies = [
+ "hunted-common",
+ "spring-sdk",
+ "springcabal",
+]
+
+[[package]]
 name = "hunted-rules-wasm"
 version = "0.1.0"
 dependencies = [

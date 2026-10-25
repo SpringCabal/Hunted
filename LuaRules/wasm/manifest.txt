@@ -1,3 +1,4 @@
 # One module per execution environment.  The paths are relative to this game
 # archive and are intentionally explicit so synced peers hash the same bytes.
 module(hunted-rules, LuaRules/wasm/hunted-rules.wasm, rules-synced, 0, 1.0.0)
+module(hunted-jobs, LuaRules/wasm/hunted-jobs.wasm, rules-synced, 0, 1.0.0)

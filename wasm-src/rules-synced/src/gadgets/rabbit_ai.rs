@@ -1,4 +1,5 @@
 mod eating;
+pub(crate) mod jobs;
 mod memory;
 mod movement;
 mod senses;
@@ -109,10 +110,11 @@ pub fn update(
     let rabbits = roster.units(UnitKind::Rabbit);
     drop(roster);
     diagnostics::rabbit_motion(spring, frame, &rabbits);
+    let prepared = jobs::prepare(spring, global, &rabbits, &surroundings, frame);
     let consumed_carrots = Rc::new(RefCell::new(Vec::new()));
 
     with_rabbit_ctx(global, |game| {
-        for rabbit in rabbits {
+        for (index, rabbit) in rabbits.into_iter().enumerate() {
             let pickup = update_rabbit(
                 spring,
                 game,
@@ -120,6 +122,7 @@ pub fn update(
                 rabbit,
                 &surroundings,
                 &mut consumed_carrots.borrow_mut(),
+                prepared.as_ref().and_then(|all| all[index].as_ref()),
             );
             if let Some(pickup) = pickup {
                 pick_up(
@@ -220,13 +223,29 @@ fn update_rabbit(
     rabbit: i32,
     surroundings: &Surroundings,
     consumed_carrots: &mut Vec<i32>,
+    prepared: Option<&jobs::Prepared>,
 ) -> Option<Pickup> {
     let memory_index = game.rabbits.memory_index(rabbit, frame);
     let due = frame >= game.rabbits.memories[memory_index].next_update;
     if !due && surroundings.blasts.is_empty() {
         return None;
     }
-    let position = units::unit_position(spring, rabbit)?;
+    let position = prepared
+        .map(|value| value.position)
+        .or_else(|| units::unit_position(spring, rabbit))?;
+    if prepared.is_some_and(|value| value.checking) {
+        let live = units::unit_position(spring, rabbit)
+            .expect("prepared rabbit position remains available");
+        assert_eq!(
+            (
+                position.x.to_bits(),
+                position.y.to_bits(),
+                position.z.to_bits()
+            ),
+            (live.x.to_bits(), live.y.to_bits(), live.z.to_bits()),
+            "rabbit job snapshot changed before use"
+        );
+    }
     let blasts: Vec<Scary> = surroundings
         .blasts
         .iter()
@@ -256,7 +275,17 @@ fn update_rabbit(
     let light_factor = carrier_light_factor(&game.rabbits.memories[memory_index], frame);
     let data = &mut game.rabbits.memories[memory_index].data;
     let (scary, speed_multiplier) = if blasts.is_empty() {
-        let light = scare::scariest(&surroundings.lights, position.x, position.z, light_factor);
+        let light = prepared.map_or_else(
+            || scare::scariest(&surroundings.lights, position.x, position.z, light_factor),
+            |value| value.light,
+        );
+        if prepared.is_some_and(|value| value.checking) {
+            assert_eq!(
+                light,
+                scare::scariest(&surroundings.lights, position.x, position.z, light_factor),
+                "rabbit light state changed before use"
+            );
+        }
         let magnitude = light.map_or(0.0, |light| light.magnitude);
         data.update_fear(
             light,

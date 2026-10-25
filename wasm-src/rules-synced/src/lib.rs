@@ -19,3 +19,7 @@ spring_addons::export_rules_gadgets! {
     scratch: 4096,
     cus: cus::HuntedCusModule,
 }
+
+pub const RABBIT_LIGHTS: spring::jobs::Worker =
+    spring::jobs::Worker::new("rabbit-lights", gadgets::rabbit_ai::jobs::worker)
+        .in_wasm_module("hunted-jobs");
