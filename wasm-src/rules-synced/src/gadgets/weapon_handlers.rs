@@ -201,7 +201,7 @@ pub fn fire_shotgun(
                 speed: multiply(pellet_direction, projectile_speed),
                 owner: gun_id,
                 team: -1,
-                weapon_num: -1,
+                weapon_num: 0,
                 up_time: -1.0,
                 end_alpha: 1.0,
                 ..Default::default()
