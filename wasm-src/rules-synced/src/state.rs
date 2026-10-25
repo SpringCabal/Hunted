@@ -126,6 +126,7 @@ pub struct Global {
     pub flare: Resource<Flare>,
     pub rabbits: Resource<crate::gadgets::rabbit_ai::Rabbits>,
     pub roster: Resource<crate::roster::Roster>,
+    pub senses: Resource<crate::gadgets::rabbit_ai::SenseCache>,
 }
 
 impl Global {

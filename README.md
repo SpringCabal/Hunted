@@ -25,7 +25,7 @@ reference when they run. This does not build native game modules.
 Verification on the SDK test engine:
 
 - Strict Clippy passes for all workspace targets/features and for the default
-  build. All 30 common Rust unit tests pass.
+  build. All 32 common Rust unit tests pass.
 - All 35 existing integration checks pass on Linux and Wine. A repeated Linux
   failure also reproduced in the old code: the nearby-shot fear test sometimes
   killed its moving rabbit before checking its fear. The fixture now chooses
@@ -51,3 +51,15 @@ recompute visibility unnecessarily, including expensive terrain raycasts.
 
 The existing integration suite now has 36 checks, including the startup LOS
 assertion. That assertion fails before the fix and passes afterwards.
+
+## AI search
+
+Static food, mine and burrow snapshots are shared until their roster revision
+changes. Food queries use spatial buckets, followed by the original strict
+radius, reservation and desirability checks. Equal scores retain the original
+carrot order, including across bucket boundaries. Dynamic lights and blasts
+are still gathered each update; eating callbacks retain their own snapshot.
+The common tests cover negative coordinates, cell boundaries and empty queries.
+
+Release builds use whole-program LTO and one code generation unit. The
+workspace profile applies to both installed modules and verification builds.

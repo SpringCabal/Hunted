@@ -33,16 +33,16 @@ pub(super) fn choose_target(
             game,
             rabbit,
             &position,
-            &surroundings.carrots,
+            &surroundings.static_data,
             consumed_carrots,
         )
     };
     let mine = if carried {
         None
     } else {
-        nearest_mine(&position, &surroundings.mines)
+        nearest_mine(&position, &surroundings.static_data.mines)
     };
-    let burrow = units::nearest(position, &surroundings.burrows);
+    let burrow = units::nearest(position, &surroundings.static_data.burrows);
     let target = if carried {
         burrow.map(|(_, target, distance)| {
             (
@@ -69,7 +69,11 @@ pub(super) fn choose_target(
                 food_magnitude(*distance, EAT_TIME),
             )
         });
-        let field_target = nearest_field(&position, &surroundings.field_carrots, consumed_carrots);
+        let field_target = nearest_field(
+            &position,
+            &surroundings.static_data.field_carrots,
+            consumed_carrots,
+        );
         [carrot_target, mine_target, field_target]
             .into_iter()
             .flatten()
@@ -87,29 +91,36 @@ pub(super) fn nearest_unreserved_carrot(
     game: &RabbitCtx<'_>,
     rabbit: i32,
     position: &Position,
-    carrots: &[(i32, Position, i32)],
+    surroundings: &StaticSurroundings,
     consumed_carrots: &[i32],
 ) -> Option<(i32, Position, f32, i32)> {
-    carrots
-        .iter()
-        .filter(|(_, carrot, _)| {
+    surroundings
+        .food_grid
+        .nearby(position.x, position.z)
+        .map(|index| (index, &surroundings.carrots[index]))
+        .filter(|(_, (_, carrot, _))| {
             horizontal_distance_squared(position, carrot) < FOOD_RADIUS * FOOD_RADIUS
         })
-        .filter(|(id, _, _)| !consumed_carrots.contains(id))
-        .filter(|(id, _, _)| !carrot_reserved_by_other(game, rabbit, *id))
-        .map(|(id, carrot, eating_time)| {
+        .filter(|(_, (id, _, _))| !consumed_carrots.contains(id))
+        .filter(|(_, (id, _, _))| !carrot_reserved_by_other(game, rabbit, *id))
+        .map(|(index, (id, carrot, eating_time))| {
+            let distance = horizontal_distance_squared(position, carrot);
             (
                 *id,
                 *carrot,
-                horizontal_distance_squared(position, carrot),
+                distance,
                 *eating_time,
+                food_magnitude(distance, *eating_time),
+                index,
             )
         })
         .max_by(|left, right| {
-            food_magnitude(left.2, left.3)
-                .partial_cmp(&food_magnitude(right.2, right.3))
+            left.4
+                .partial_cmp(&right.4)
                 .unwrap_or(core::cmp::Ordering::Equal)
+                .then_with(|| left.5.cmp(&right.5))
         })
+        .map(|(id, carrot, distance, eating_time, _, _)| (id, carrot, distance, eating_time))
 }
 
 pub(super) fn nearest_mine(

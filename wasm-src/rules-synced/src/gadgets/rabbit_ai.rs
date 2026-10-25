@@ -31,12 +31,50 @@ const DROPPED_EAT_TIME: i32 = 10;
 const GOAL_RADIUS: f32 = 60.0;
 
 struct Surroundings {
+    static_data: Rc<StaticSurroundings>,
+    lights: Vec<Source>,
+    blasts: Vec<Source>,
+}
+
+struct StaticSurroundings {
     carrots: Vec<(i32, Position, i32)>,
     field_carrots: Vec<Vec<i32>>,
     mines: Vec<(i32, Position)>,
     burrows: Vec<(i32, Position)>,
-    lights: Vec<Source>,
-    blasts: Vec<Source>,
+    food_grid: hunted_common::spatial::Grid,
+}
+
+#[derive(Default)]
+pub struct SenseCache(Option<(u64, Rc<StaticSurroundings>)>);
+
+impl SenseCache {
+    fn snapshot(&mut self, roster: &crate::roster::Roster) -> Rc<StaticSurroundings> {
+        if let Some((revision, data)) = &self.0
+            && *revision == roster.static_revision()
+        {
+            return Rc::clone(data);
+        }
+        let mut carrots = food_units_with_positions(roster, UnitKind::Carrot, EAT_TIME);
+        let field_carrots = carrots_by_field(&carrots);
+        carrots.extend(food_units_with_positions(
+            roster,
+            UnitKind::CarrotDropped,
+            DROPPED_EAT_TIME,
+        ));
+        let food_grid = hunted_common::spatial::Grid::new(
+            FOOD_RADIUS,
+            carrots.iter().map(|(_, p, _)| (p.x, p.z)),
+        );
+        let data = Rc::new(StaticSurroundings {
+            carrots,
+            field_carrots,
+            food_grid,
+            mines: roster.positions(UnitKind::Mine),
+            burrows: roster.positions(UnitKind::Burrow),
+        });
+        self.0 = Some((roster.static_revision(), Rc::clone(&data)));
+        data
+    }
 }
 
 struct RabbitTick {
@@ -60,18 +98,8 @@ pub fn update(
     frame: i32,
 ) {
     let roster = global.roster.access();
-    let mut carrots = food_units_with_positions(&roster, UnitKind::Carrot, EAT_TIME);
-    let field_carrots = carrots_by_field(&carrots);
-    carrots.extend(food_units_with_positions(
-        &roster,
-        UnitKind::CarrotDropped,
-        DROPPED_EAT_TIME,
-    ));
     let surroundings = Rc::new(Surroundings {
-        carrots,
-        field_carrots,
-        mines: roster.positions(UnitKind::Mine),
-        burrows: roster.positions(UnitKind::Burrow),
+        static_data: global.senses.access_mut().snapshot(&roster),
         lights: lighthouse_beams(spring, &roster)
             .into_iter()
             .chain(flashlight(global))
@@ -260,7 +288,7 @@ fn update_rabbit(
         memory_index,
         &position,
         original_reverse_speed,
-        &surroundings.burrows,
+        &surroundings.static_data.burrows,
     ) {
         return None;
     }
@@ -273,7 +301,13 @@ fn update_rabbit(
         scary,
         speed_multiplier,
     };
-    match update_eating_rabbit(spring, game, memory_index, &tick, &surroundings.carrots) {
+    match update_eating_rabbit(
+        spring,
+        game,
+        memory_index,
+        &tick,
+        &surroundings.static_data.carrots,
+    ) {
         Eating::No => {}
         Eating::Busy => return None,
         Eating::Finished {

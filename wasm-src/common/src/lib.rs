@@ -4,5 +4,6 @@ pub mod movement;
 pub mod protocol;
 pub mod rabbit;
 pub mod scare;
+pub mod spatial;
 pub mod waves;
 pub mod weapons;
