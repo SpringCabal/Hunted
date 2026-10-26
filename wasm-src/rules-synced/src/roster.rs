@@ -8,6 +8,7 @@ pub struct Roster {
     by_kind: [BTreeMap<i32, spring::Float3>; UnitKind::ALL.len()],
     kinds: BTreeMap<i32, UnitKind>,
     static_revision: u64,
+    pub desirables: hunted_common::desired::Desirables,
 }
 
 impl Roster {
@@ -15,11 +16,13 @@ impl Roster {
         if let Some(old) = self.kinds.insert(unit, kind) {
             self.by_kind[old.index()].remove(&unit);
             if is_static_target(old) {
+                self.desirables.remove_unit(unit);
                 self.static_revision += 1;
             }
         }
         self.by_kind[kind.index()].insert(unit, position);
         if is_static_target(kind) {
+            self.desirables.insert_unit(unit);
             self.static_revision += 1;
         }
     }
@@ -28,9 +31,20 @@ impl Roster {
         if let Some(kind) = self.kinds.remove(&unit) {
             self.by_kind[kind.index()].remove(&unit);
             if is_static_target(kind) {
+                self.desirables.remove_unit(unit);
                 self.static_revision += 1;
             }
         }
+    }
+
+    pub fn begin_field(&mut self, field: usize) {
+        self.desirables.begin_field(field);
+        self.static_revision += 1;
+    }
+
+    pub fn add_field_carrot(&mut self, field: usize, unit: i32) {
+        self.desirables.add_original_carrot(field, unit);
+        self.static_revision += 1;
     }
 
     pub fn static_revision(&self) -> u64 {

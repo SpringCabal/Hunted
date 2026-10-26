@@ -1,3 +1,5 @@
+pub mod cosmetic;
+pub mod desired;
 pub mod lighthouse;
 pub mod map;
 pub mod movement;

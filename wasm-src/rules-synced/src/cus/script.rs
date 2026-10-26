@@ -54,11 +54,13 @@ impl UnitDefScript for HuntedUnitScript {
                     .next_int(0, 0)
                     .expect("synced random int");
                 Self::Rabbit(Rc::new(RefCell::new(RabbitState {
+                    random: hunted_common::cosmetic::Random::for_unit(ctx.unit().0),
                     pieces: RabbitPieces::from_init(ctx),
                     moving: None,
                 })))
             }
             Some(UnitKind::Carrot) => Self::Carrot(Rc::new(RefCell::new(CarrotState {
+                random: hunted_common::cosmetic::Random::for_unit(ctx.unit().0),
                 base: piece(ctx, "base"),
                 x: 0.0,
                 y: 0.0,
@@ -78,6 +80,7 @@ impl UnitDefScript for HuntedUnitScript {
                         light_head: piece(ctx, "LightHead"),
                         light_pitch: piece(ctx, "LightPitch"),
                     },
+                    position: spring::Float3::ZERO,
                     angle: spring
                         .synced_random()
                         .next_float()

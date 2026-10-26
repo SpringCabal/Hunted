@@ -1,4 +1,5 @@
 use crate::scare::Scary;
+use springcabal_math::powf;
 
 pub const FEAR_DECAY: f32 = 0.995;
 pub const STAMINA_DECAY: f32 = 0.998;
@@ -32,6 +33,12 @@ const MIN_BOLDNESS_FEAR_DENOMINATOR: f32 = 2_000.0;
 const BOLDNESS_DECAY: f32 = 0.99;
 const JITTER_BOLDNESS_THRESHOLD: f32 = 300.0;
 const JITTER_BOLDNESS_DIVISOR: f32 = 100.0;
+
+/// Lua stores this absolute deadline in the engine's 32-bit Lua_Number.
+/// Add the frame before rounding: rounding the random gap first changes ticks.
+pub fn next_update_frame(frame: i32, random: f32) -> i32 {
+    (frame as f32 + 5.0 + 10.0 * random).ceil() as i32
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RabbitData {
@@ -70,7 +77,8 @@ impl RabbitData {
         {
             self.panic = Some(scary);
         }
-        self.fear = (self.fear + scary_fear + FEAR_ADDED * gap as f32) * FEAR_DECAY.powi(gap);
+        self.fear =
+            (self.fear + scary_fear + FEAR_ADDED * gap as f32) * powf(FEAR_DECAY, gap as f32);
         if self.panic.is_some() {
             if self.fear < PANIC_END_FEAR {
                 self.panic = None;
@@ -83,23 +91,25 @@ impl RabbitData {
     }
 
     pub fn update_motion(&mut self, scary_magnitude: f32, gap: i32, speed_multiplier: f32) -> f32 {
-        let base_speed = ((self.fear + (self.boldness - BOLDNESS_SPEED_THRESHOLD).max(0.0))
-            / FEAR_SPEED_DIVISOR)
-            .max(0.0)
-            .powf(FEAR_SPEED_EXPONENT)
-            * (BOLDNESS_SPEED_BASE
-                + (self.boldness / BOLDNESS_SPEED_DIVISOR)
-                    .max(0.0)
-                    .powf(BOLDNESS_SPEED_EXPONENT))
+        let base_speed = powf(
+            ((self.fear + (self.boldness - BOLDNESS_SPEED_THRESHOLD).max(0.0))
+                / FEAR_SPEED_DIVISOR)
+                .max(0.0),
+            FEAR_SPEED_EXPONENT,
+        ) * (BOLDNESS_SPEED_BASE
+            + powf(
+                (self.boldness / BOLDNESS_SPEED_DIVISOR).max(0.0),
+                BOLDNESS_SPEED_EXPONENT,
+            ))
             / BASE_SPEED_DIVISOR
             * self.stamina
             / STAMINA_SPEED_DIVISOR;
         let sudden_speed = ((scary_magnitude - SCARE_SPEED_THRESHOLD) * SCARE_SPEED_MULTIPLIER)
             .clamp(1.0, MAX_SCARE_SPEED);
         let speed = base_speed * sudden_speed;
-        self.stamina = (self.stamina - speed.max(0.0).powf(STAMINA_COST_EXPONENT) * gap as f32
+        self.stamina = (self.stamina - powf(speed.max(0.0), STAMINA_COST_EXPONENT) * gap as f32
             + STAMINA_RECOVERY * gap as f32)
-            * STAMINA_DECAY.powi(gap);
+            * powf(STAMINA_DECAY, gap as f32);
         speed * SPEED_MULTIPLIER * speed_multiplier
     }
 
@@ -108,7 +118,7 @@ impl RabbitData {
             .max(MIN_BOLDNESS_FEAR_DENOMINATOR);
         let decay = 1.0 / (BOLDNESS_DECAY + self.fear / denominator);
         self.boldness = (self.boldness + goal_magnitude * gap as f32 + BOLDNESS_ADDED * gap as f32)
-            * decay.powi(gap);
+            * powf(decay, gap as f32);
     }
 
     pub fn drops_carrot(&self, panic_resistance: f32) -> bool {
@@ -138,6 +148,14 @@ mod tests {
         z: 20.0,
         magnitude: 150.0,
     };
+
+    #[test]
+    fn absolute_deadlines_keep_the_engine_float_rounding() {
+        let draw = 22_937.0_f32 / 32_767.0;
+        assert_eq!(next_update_frame(555, draw), 567);
+        assert_eq!(555 + 5 + (10.0 * draw).ceil() as i32, 568);
+        assert_eq!(next_update_frame(0, 0.375), 9);
+    }
 
     #[test]
     fn fear_settles_without_scares() {

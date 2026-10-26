@@ -37,6 +37,7 @@ impl RabbitPieces {
 }
 
 pub struct RabbitState {
+    pub(super) random: hunted_common::cosmetic::Random,
     pub(super) pieces: RabbitPieces,
     pub(super) moving: Option<bool>,
 }
@@ -49,8 +50,9 @@ pub(super) async fn controller(state: Rc<RefCell<RabbitState>>, ctx: UnitCtx) {
         }
         if state.borrow().moving == Some(false) {
             reset_pose(&ctx, pieces, 17.0);
-            if random::int(&ctx, 0, 1) == 1 {
-                idle(&ctx, pieces).await;
+            let idle_now = state.borrow_mut().random.int(0, 1) == 1;
+            if idle_now {
+                idle(&state, &ctx, pieces).await;
             }
         }
         ctx.sleep(spring::cus::Duration::from_millis(100)).await;
@@ -79,15 +81,16 @@ async fn move_animation(ctx: &UnitCtx, p: RabbitPieces) {
     ctx.wait_for_move(p.center, Axis::Y).await;
 }
 
-async fn idle(ctx: &UnitCtx, p: RabbitPieces) {
-    for _ in 0..random::int(ctx, 1, 6) {
-        let degrees = random::int(ctx, 10, 35) as f32;
-        let tail_degrees = random::int(ctx, -10, 10) as f32;
+async fn idle(state: &Rc<RefCell<RabbitState>>, ctx: &UnitCtx, p: RabbitPieces) {
+    let count = state.borrow_mut().random.int(1, 6);
+    for _ in 0..count {
+        let degrees = state.borrow_mut().random.int(10, 35) as f32;
+        let tail_degrees = state.borrow_mut().random.int(-10, 10) as f32;
         turn(ctx, p.head, Axis::Y, degrees.to_radians(), 9.0);
         turn(ctx, p.wiggle_tail, Axis::X, tail_degrees.to_radians(), 8.0);
         ctx.wait_for_turn(p.head, Axis::Y).await;
 
-        let tail_degrees = random::int(ctx, -10, 10) as f32;
+        let tail_degrees = state.borrow_mut().random.int(-10, 10) as f32;
         turn(ctx, p.head, Axis::Y, -degrees.to_radians(), 9.0);
         turn(ctx, p.wiggle_tail, Axis::X, tail_degrees.to_radians(), 8.0);
         ctx.wait_for_turn(p.head, Axis::Y).await;

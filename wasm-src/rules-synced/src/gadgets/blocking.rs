@@ -30,7 +30,7 @@ impl Gadget<Global> for BlockingGadget {
     }
 }
 
-fn make_non_blocking(spring: &spring::Spring<'_, spring::RulesSynced>, unit: i32) {
+pub(crate) fn make_non_blocking(spring: &spring::Spring<'_, spring::RulesSynced>, unit: i32) {
     let Some(state) = spring
         .units_info()
         .get_unit_blocking(unit)

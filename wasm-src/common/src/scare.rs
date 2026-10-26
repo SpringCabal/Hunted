@@ -36,7 +36,7 @@ impl Area {
     };
 
     pub fn flashlight(x: f32, z: f32) -> Area {
-        let distance = (x - map::CENTER).hypot(z - map::CENTER);
+        let distance = ((x - map::CENTER).powi(2) + (z - map::CENTER).powi(2)).sqrt();
         let strength = ((FLASHLIGHT_REACH - distance) / FLASHLIGHT_FADE).clamp(0.0, 1.0);
         Area {
             edge: Self::FLASHLIGHT.edge * strength,

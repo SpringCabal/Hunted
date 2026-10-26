@@ -23,6 +23,9 @@ pub(super) struct EatTrial {
     hop: Option<(f32, f32)>,
     carried: i32,
     stolen_at: Option<i32>,
+    drop_carried: i32,
+    dropped_before: usize,
+    drop_checked: bool,
 }
 
 enum Outcome {
@@ -290,6 +293,79 @@ impl Tracker {
             ),
         );
         self.rabbit = -1;
+        self.next(Step::DropCarrot, frame);
+    }
+    pub(super) fn begin_drop(
+        &mut self,
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        global: &Global,
+        frame: i32,
+    ) {
+        let rabbit = self.eat.rabbit;
+        let Some(position) = crate::units::unit_position(spring, rabbit) else {
+            self.fail(spring, "the carrier remains for the drop trial");
+            return;
+        };
+        let Some(carried) =
+            crate::units::create_now(spring, UnitKind::CarrotCarried, position, 0, 0)
+        else {
+            self.fail(spring, "a carried carrot is created for the drop trial");
+            return;
+        };
+        self.eat.drop_carried = carried;
+        self.eat.dropped_before = global.roster.access().count(UnitKind::CarrotDropped);
+        crate::unit_scripts::Call::rabbit_attach_carrot(rabbit, carried).run(spring);
+        {
+            let mut rabbits = global.rabbits.access_mut();
+            let index = rabbits.find(rabbit).expect("trial rabbit");
+            let memory = &mut rabbits.memories[index];
+            memory.carried_carrot = carried;
+            memory.carrying_since = frame;
+            memory.data.fear = 600.0;
+            memory.next_update = frame;
+        }
+        spring
+            .unit_control()
+            .set_unit_velocity(rabbit, spring::Float3::new(8.0, 1.0, 2.0))
+            .expect("setting the drop trial's initial momentum");
+        self.next(Step::CarrotDropped, frame);
+    }
+
+    pub(super) fn check_drop(
+        &mut self,
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        global: &Global,
+        frame: i32,
+    ) {
+        if frame <= self.since {
+            return;
+        }
+        if !self.eat.drop_checked {
+            let velocity = spring
+                .units_info()
+                .get_unit_velocity(self.eat.drop_carried)
+                .unwrap_or_default();
+            let horizontal = (velocity.x * velocity.x + velocity.z * velocity.z).sqrt();
+            let no_longer_carrying = {
+                let rabbits = global.rabbits.access();
+                rabbits
+                    .find(self.eat.rabbit)
+                    .is_some_and(|i| rabbits.memories[i].carried_carrot < 0)
+            };
+            self.suite.check(spring, no_longer_carrying && !blocks(spring, self.eat.rabbit)
+                && horizontal > 0.001 && horizontal <= 1.01,
+                format!("a frightened carrier drops with bounded momentum and stops blocking: horizontal {horizontal}, released {no_longer_carrying}"));
+            self.eat.drop_checked = true;
+        }
+        if frame - self.since < 18 {
+            return;
+        }
+        let roster = global.roster.access();
+        let old_gone = roster.kind(self.eat.drop_carried).is_none();
+        let count = roster.count(UnitKind::CarrotDropped);
+        drop(roster);
+        self.suite.check(spring, old_gone && count == self.eat.dropped_before + 1,
+            format!("the thrown carrot becomes exactly one edible dropped carrot: old gone {old_gone}, dropped {count}"));
         self.next(Step::Lit, frame);
     }
 }

@@ -70,20 +70,3 @@ impl Call {
         crate::with_addon_context(|ctx| ctx.commands().run(move |spring| self.run(spring)));
     }
 }
-
-pub fn lighthouse_beam(
-    spring: &spring::Spring<'_, spring::RulesSynced>,
-    unit: i32,
-) -> Option<(f32, f32)> {
-    use hunted_common::lighthouse::{PARAM_X, PARAM_Z};
-    Some((
-        spring
-            .rules_params()
-            .get_unit_rules_param_f32(unit, PARAM_X)
-            .ok()?,
-        spring
-            .rules_params()
-            .get_unit_rules_param_f32(unit, PARAM_Z)
-            .ok()?,
-    ))
-}

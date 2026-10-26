@@ -8,6 +8,7 @@ use super::common::*;
 const SIG_STEAL: SignalMask = SignalMask::new(1);
 
 pub struct CarrotState {
+    pub(super) random: hunted_common::cosmetic::Random,
     pub(super) base: Piece,
     pub(super) x: f32,
     pub(super) y: f32,
@@ -70,7 +71,8 @@ async fn stealing(state: Rc<RefCell<CarrotState>>, ctx: UnitCtx) {
 async fn sound(state: Rc<RefCell<CarrotState>>, ctx: UnitCtx) {
     ctx.set_signal_mask(SIG_STEAL);
     loop {
-        if random::float(&ctx) < 0.7 {
+        let play_now = state.borrow_mut().random.float() < 0.7;
+        if play_now {
             let position = {
                 let state = state.borrow();
                 spring::Float3::new(state.x, state.y, state.z)

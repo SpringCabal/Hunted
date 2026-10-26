@@ -57,6 +57,7 @@ impl Gadget<Global> for RosterGadget {
 
     fn unit_destroyed(&self, ctx: &AddonContext<'_, Global>, event: &UnitDestroyedEvent) {
         ctx.global().roster.access_mut().untrack(event.unit_id);
+        ctx.global().beams.access_mut().forget(event.unit_id);
     }
 }
 

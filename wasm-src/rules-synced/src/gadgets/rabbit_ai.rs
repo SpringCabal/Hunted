@@ -6,7 +6,6 @@ mod senses;
 
 use alloc::rc::Rc;
 use alloc::vec::Vec;
-use core::cell::RefCell;
 
 use hunted_common::rabbit::*;
 use hunted_common::scare::{self, Scary, Source};
@@ -20,6 +19,7 @@ use crate::state::{self, Global};
 use crate::unit_scripts::Call;
 use crate::units;
 
+pub(crate) use eating::drop_carrot;
 use eating::*;
 use movement::*;
 use senses::*;
@@ -38,7 +38,7 @@ struct Surroundings {
 
 struct StaticSurroundings {
     carrots: Vec<(i32, Position, i32)>,
-    field_carrots: Vec<Vec<i32>>,
+    desirables: hunted_common::desired::Desirables,
     mines: Vec<(i32, Position)>,
     burrows: Vec<(i32, Position)>,
     food_grid: hunted_common::spatial::Grid,
@@ -55,22 +55,26 @@ impl SenseCache {
             return Rc::clone(data);
         }
         let mut carrots = food_units_with_positions(roster, UnitKind::Carrot, EAT_TIME);
-        let field_carrots = carrots_by_field(&carrots);
         carrots.extend(food_units_with_positions(
             roster,
             UnitKind::CarrotDropped,
             DROPPED_EAT_TIME,
         ));
+        carrots.sort_unstable_by_key(|(unit, _, _)| {
+            roster
+                .desirables
+                .rank(hunted_common::desired::Key::Unit(*unit))
+        });
         let food_grid = hunted_common::spatial::Grid::new(
             FOOD_RADIUS,
             carrots.iter().map(|(_, p, _)| (p.x, p.z)),
         );
         let data = Rc::new(StaticSurroundings {
             carrots,
-            field_carrots,
+            desirables: roster.desirables.clone(),
             food_grid,
-            mines: roster.positions(UnitKind::Mine),
-            burrows: roster.positions(UnitKind::Burrow),
+            mines: ordered_positions(roster, UnitKind::Mine),
+            burrows: ordered_positions(roster, UnitKind::Burrow),
         });
         self.0 = Some((roster.static_revision(), Rc::clone(&data)));
         data
@@ -93,6 +97,11 @@ struct Pickup {
     eating_progress: i32,
 }
 
+enum AfterRabbit {
+    Pickup(Pickup),
+    Score(i32),
+}
+
 pub fn update(
     spring: &spring::Spring<'_, spring::RulesSynced>,
     global: &state::Global,
@@ -101,105 +110,143 @@ pub fn update(
     let roster = global.roster.access();
     let surroundings = Rc::new(Surroundings {
         static_data: global.senses.access_mut().snapshot(&roster),
-        lights: lighthouse_beams(spring, &roster)
+        lights: flashlight(global)
             .into_iter()
-            .chain(flashlight(global))
+            .chain(lighthouse_beams(global))
             .collect(),
     });
     let rabbits = roster.units(UnitKind::Rabbit);
     drop(roster);
     diagnostics::rabbit_motion(spring, frame, &rabbits);
-    let consumed_carrots = Rc::new(RefCell::new(Vec::new()));
+    let mut consumed_carrots = Vec::new();
     let blasts = core::mem::take(&mut global.scares.access_mut().0);
-    // Lua dispatches each scare to all rabbits before processing the next
-    // scare. Preserve that order, including timers and movement RNG draws.
+    // Finish a rabbit's synchronous engine effects before the next rabbit.
+    // In particular, pickup destroys the original food and changes tie ranks.
+    let mut surroundings = surroundings;
     for blast in blasts {
-        with_rabbit_ctx(global, |game| {
-            for &rabbit in &rabbits {
-                let Some(position) = units::unit_position(spring, rabbit) else {
-                    continue;
-                };
-                let Some(scary) = blast.felt_at(position.x, position.z) else {
-                    continue;
-                };
-                if let Some(pickup) = update_rabbit(
+        for &rabbit in &rabbits {
+            let Some(position) = units::unit_position(spring, rabbit) else {
+                continue;
+            };
+            let Some(scary) = blast.felt_at(position.x, position.z) else {
+                continue;
+            };
+            let pickup = with_rabbit_ctx(global, |game| {
+                update_rabbit(
                     spring,
                     game,
                     frame,
                     rabbit,
                     &surroundings,
-                    &mut consumed_carrots.borrow_mut(),
+                    &mut consumed_carrots,
                     None,
                     Some(scary),
-                ) {
-                    pick_up(spring, pickup, Rc::clone(&consumed_carrots));
-                }
+                )
+            });
+            if let Some(pickup) = pickup {
+                finish_action(spring, global, pickup, &mut consumed_carrots);
+                refresh_surroundings(global, &mut surroundings);
             }
-        });
+        }
     }
     let prepared = jobs::prepare(spring, global, &rabbits, &surroundings, frame);
-    with_rabbit_ctx(global, |game| {
-        for (index, rabbit) in rabbits.into_iter().enumerate() {
-            if let Some(pickup) = update_rabbit(
+    for (index, rabbit) in rabbits.into_iter().enumerate() {
+        let pickup = with_rabbit_ctx(global, |game| {
+            update_rabbit(
                 spring,
                 game,
                 frame,
                 rabbit,
                 &surroundings,
-                &mut consumed_carrots.borrow_mut(),
+                &mut consumed_carrots,
                 prepared.as_ref().and_then(|all| all[index].as_ref()),
                 None,
-            ) {
-                pick_up(spring, pickup, Rc::clone(&consumed_carrots));
-            }
+            )
+        });
+        if let Some(pickup) = pickup {
+            finish_action(spring, global, pickup, &mut consumed_carrots);
+            refresh_surroundings(global, &mut surroundings);
         }
-    });
+    }
+}
+
+fn refresh_surroundings(global: &Global, surroundings: &mut Rc<Surroundings>) {
+    let roster = global.roster.access();
+    Rc::get_mut(surroundings)
+        .expect("AI owns its snapshot")
+        .static_data = global.senses.access_mut().snapshot(&roster);
+}
+
+fn finish_action(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    global: &Global,
+    action: AfterRabbit,
+    consumed: &mut Vec<i32>,
+) {
+    match action {
+        AfterRabbit::Pickup(pickup) => pick_up(spring, global, pickup, consumed),
+        AfterRabbit::Score(carried) => {
+            use spring::ResultExt;
+            spring
+                .rules_params()
+                .set_unit_rules_param_f32(
+                    carried,
+                    "carrotScored",
+                    1.0,
+                    spring::rules_params::los::PUBLIC,
+                )
+                .log_err_once(spring, "marking a returned carrot");
+            units::destroy_now(spring, carried, false, -1);
+        }
+    }
 }
 
 fn pick_up(
-    _spring: &spring::Spring<'_, spring::RulesSynced>,
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    global: &Global,
     pickup: Pickup,
-    consumed_carrots: Rc<RefCell<Vec<i32>>>,
+    consumed_carrots: &mut Vec<i32>,
 ) {
     let (rabbit, carrot) = (pickup.tick.rabbit, pickup.carrot_id);
-    let position = spring::Float3 {
-        y: pickup.tick.position.y + 8.0,
-        ..pickup.tick.position
+    let in_play = {
+        let roster = global.roster.access();
+        roster.kind(rabbit) == Some(UnitKind::Rabbit) && roster.kind(carrot).is_some()
     };
-    crate::with_addon_context(|ctx| {
-        ctx.commands().queue(move |spring| {
-            let in_play = crate::with_global(|global| {
-                let roster = global.roster.access();
-                roster.kind(rabbit) == Some(UnitKind::Rabbit) && roster.kind(carrot).is_some()
-            });
-            if !in_play {
-                return None;
+    if !in_play {
+        return;
+    }
+    // unit_position already requests the model midpoint, as Lua does.
+    let position = pickup.tick.position;
+    // No application resource borrow crosses CreateUnit/DestroyUnit: both can
+    // synchronously re-enter the gadget handlers.
+    let carried_id = units::create_now(
+        spring,
+        UnitKind::CarrotCarried,
+        position,
+        0,
+        units::FACING_SOUTH,
+    );
+    if let Some(carried) = carried_id {
+        Call::rabbit_attach_carrot(rabbit, carried).run(spring);
+        Call::carrot_stop_being_stolen(carrot, pickup.eating_progress).run(spring);
+        with_rabbit_ctx(global, |game| {
+            if let Some(index) = game.rabbits.find(rabbit) {
+                game.rabbits.release_reservation(index);
+                game.rabbits.memories[index].stealing_notified = false;
             }
-            units::create_now(
-                spring,
-                UnitKind::CarrotCarried,
-                position,
-                0,
-                units::FACING_SOUTH,
-            )
-        })
-    })
-    .then(move |spring, carried_id| {
-        crate::with_global(|global| {
-            with_rabbit_ctx(global, |game| {
-                finish_pickup(
-                    spring,
-                    game,
-                    pickup,
-                    carried_id,
-                    &mut consumed_carrots.borrow_mut(),
-                );
-            });
         });
+        units::destroy_now(spring, carrot, false, -1);
+    }
+    with_rabbit_ctx(global, |game| {
+        finish_pickup(spring, game, pickup, carried_id, consumed_carrots)
     });
 }
 
-pub fn destroyed(game: &mut RabbitCtx<'_>, rabbit: i32) {
+pub fn destroyed(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    game: &mut RabbitCtx<'_>,
+    rabbit: i32,
+) {
     let Some(memory_index) = game.rabbits.find(rabbit) else {
         return;
     };
@@ -209,7 +256,7 @@ pub fn destroyed(game: &mut RabbitCtx<'_>, rabbit: i32) {
         Call::carrot_stop_being_stolen(memory.reserved_carrot, memory.eating_progress).queue();
     }
     if memory.carried_carrot >= 0 {
-        drop_carrot(rabbit, memory.carried_carrot);
+        drop_carrot(spring, rabbit, memory.carried_carrot);
     }
     game.rabbits.retire(rabbit);
 }
@@ -221,8 +268,8 @@ pub fn food_destroyed(
 ) {
     if let Some(memory_index) = game.rabbits.reserving(food) {
         cancel_eating(spring, game, memory_index);
-        game.rabbits.clear_carrot_progress(food);
     }
+    game.rabbits.clear_carrot_progress(food);
     if let Some(memory) = game
         .rabbits
         .memories
@@ -243,7 +290,7 @@ fn update_rabbit(
     consumed_carrots: &mut Vec<i32>,
     prepared: Option<&jobs::Prepared>,
     override_scare: Option<Scary>,
-) -> Option<Pickup> {
+) -> Option<AfterRabbit> {
     let memory_index = game.rabbits.memory_index(rabbit, frame);
     let due = frame >= game.rabbits.memories[memory_index].next_update;
     if !due && override_scare.is_none() {
@@ -271,14 +318,13 @@ fn update_rabbit(
         let memory = &mut game.rabbits.memories[memory_index];
         let gap = (frame - memory.last_update).max(0);
         memory.last_update = frame;
-        memory.next_update = frame
-            + 5
-            + (spring
+        memory.next_update = next_update_frame(
+            frame,
+            spring
                 .synced_random()
                 .next_float()
-                .expect("synced random float")
-                * 10.0)
-                .ceil() as i32;
+                .expect("synced random float"),
+        );
         gap
     };
 
@@ -304,7 +350,11 @@ fn update_rabbit(
         magnitude * update_gap as f32
     };
     game.rabbits.memories[memory_index].data.update_fear(
-        light,
+        Some(light.unwrap_or(Scary {
+            x: position.x,
+            z: position.z,
+            magnitude: 0.0,
+        })),
         scary_fear,
         update_gap,
         panic_resistance,
@@ -314,7 +364,7 @@ fn update_rabbit(
         .drops_carrot(panic_resistance)
         && game.rabbits.memories[memory_index].carried_carrot >= 0
     {
-        drop_carried_carrot(game, memory_index);
+        drop_carried_carrot(spring, game, memory_index);
     }
     let memory = game.rabbits.memories[memory_index];
     let expected_food = memory.carried_carrot >= 0 || memory.reserved_carrot >= 0;
@@ -329,17 +379,13 @@ fn update_rabbit(
     let data = &mut game.rabbits.memories[memory_index].data;
     data.update_boldness(goal.1.map_or(0.0, |(_, _, _, m)| m.max(0.0)), update_gap);
     let speed_multiplier = data.update_motion(magnitude, update_gap, wave_speed);
+
     let scary = light;
 
-    if update_carried_rabbit(
-        spring,
-        game,
-        memory_index,
-        &position,
-        original_reverse_speed,
-        &surroundings.static_data.burrows,
-    ) {
-        return None;
+    if let Some(carried) =
+        update_carried_rabbit(spring, game, memory_index, original_reverse_speed, goal.1)
+    {
+        return Some(AfterRabbit::Score(carried));
     }
 
     let tick = RabbitTick {
@@ -365,11 +411,11 @@ fn update_rabbit(
             eating_progress,
         } => {
             consumed_carrots.push(carrot_id);
-            return Some(Pickup {
+            return Some(AfterRabbit::Pickup(Pickup {
                 tick,
                 carrot_id,
                 eating_progress,
-            });
+            }));
         }
     }
     update_movement(spring, game, memory_index, &tick);
@@ -395,17 +441,8 @@ fn carrier_light_factor(memory: &RabbitMemory, frame: i32) -> f32 {
     if memory.carried_carrot < 0 {
         return 1.0;
     }
-    memory
-        .carrying_since
-        .checked_add(CARRIER_LIGHT_FADE_FRAMES)
-        .map_or(1.0, |ignore_lights_after| {
-            if frame <= ignore_lights_after {
-                1.0
-            } else {
-                (1.0 - (frame - ignore_lights_after) as f32 / CARRIER_LIGHT_FADE_FRAMES as f32)
-                    .clamp(0.0, 1.0)
-            }
-        })
+    let carry_seconds = (frame - memory.carrying_since) as f32 / 30.0;
+    ((20.0 - carry_seconds) / 10.0).clamp(0.0, 1.0)
 }
 
 fn finish_pickup(
@@ -418,7 +455,7 @@ fn finish_pickup(
     let Pickup {
         tick,
         carrot_id,
-        eating_progress,
+        eating_progress: _,
     } = pickup;
     let Some(memory_index) = game.rabbits.find(tick.rabbit) else {
         return;
@@ -429,8 +466,7 @@ fn finish_pickup(
         memory.eating_progress = memory.reserved_eat_time - tick.update_gap;
         return;
     };
-    Call::carrot_stop_being_stolen(carrot_id, eating_progress).queue();
-    Call::carrot_consume(carrot_id).queue();
+
     game.rabbits.clear_carrot_progress(carrot_id);
     set_stealing(spring, tick.rabbit, false);
     game.rabbits.release_reservation(memory_index);
@@ -441,7 +477,6 @@ fn finish_pickup(
     memory.eating_progress = 0;
     memory.stealing_notified = false;
     memory.data.boldness += STEAL_BOLDNESS_BONUS;
-    Call::rabbit_attach_carrot(tick.rabbit, carried_id).queue();
     let _ = spring.effects_control().spawn_ceg(
         &spring::effects_control::DefRef {
             name: "dirtfling".into(),
@@ -508,6 +543,17 @@ impl Gadget<Global> for RabbitAiGadget {
                 .get_unit_move_type_data(id)
                 .map_or(0.0, |d| d.max_reverse_speed);
             units::set_rabbit_movement_attributes(ctx.spring(), id, 1.0, 1.0, 1.0, reverse);
+        } else if defs::kind_of(ctx.spring(), def) == Some(UnitKind::CarrotCarried) {
+            use spring::ResultExt;
+            // Lua's Attributes gadget applies its world speed scale to every
+            // mobile definition, including the attached carrot.
+            ctx.spring()
+                .move_ctrl()
+                .set_ground_move_type_max_speed(
+                    id,
+                    defs::defs(ctx.spring()).carried_carrot_speed * 0.05,
+                )
+                .log_err_once(ctx.spring(), "setting a carried carrot's max speed");
         }
     }
 
@@ -519,12 +565,38 @@ impl Gadget<Global> for RabbitAiGadget {
         let unit = event.unit_id;
         match defs::kind_of(spring, event.unit_def_id) {
             Some(UnitKind::Rabbit) => {
-                with_rabbit_ctx(ctx.global(), |game| destroyed(game, unit));
+                with_rabbit_ctx(ctx.global(), |game| destroyed(spring, game, unit));
             }
             Some(kind) if kind.is_carrot() => {
                 with_rabbit_ctx(ctx.global(), |game| food_destroyed(spring, game, unit));
             }
             _ => {}
         }
+    }
+}
+
+#[derive(Default)]
+pub struct LighthouseBeams(Vec<(i32, Source)>);
+
+impl LighthouseBeams {
+    pub fn set(&mut self, unit: i32, x: f32, z: f32) {
+        let source = Source {
+            x,
+            z,
+            area: scare::Area::LIGHTHOUSE,
+        };
+        if let Some((_, current)) = self.0.iter_mut().find(|(id, _)| *id == unit) {
+            *current = source;
+        } else {
+            self.0.push((unit, source));
+        }
+    }
+    pub fn forget(&mut self, unit: i32) {
+        if let Some(index) = self.0.iter().position(|(id, _)| *id == unit) {
+            self.0.swap_remove(index);
+        }
+    }
+    pub fn sources(&self) -> Vec<Source> {
+        self.0.iter().map(|(_, source)| *source).collect()
     }
 }

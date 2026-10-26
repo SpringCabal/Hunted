@@ -128,6 +128,7 @@ pub struct Global {
     pub rabbits: Resource<crate::gadgets::rabbit_ai::Rabbits>,
     pub roster: Resource<crate::roster::Roster>,
     pub senses: Resource<crate::gadgets::rabbit_ai::SenseCache>,
+    pub beams: Resource<crate::gadgets::rabbit_ai::LighthouseBeams>,
 }
 
 impl Global {

@@ -36,7 +36,7 @@ pub(super) fn update_movement(
         memory.eating_progress = eating_progress + update_gap;
         memory.stealing_notified = true;
         set_stealing(spring, rabbit_id, true);
-        Call::carrot_start_being_stolen(carrot_id, eating_progress).queue();
+        Call::carrot_start_being_stolen(carrot_id, eating_progress).run(spring);
         issue_goal(
             spring,
             rabbit_id,
@@ -71,7 +71,10 @@ pub(super) fn update_movement(
         if scary.is_some_and(|value| value.magnitude > PANIC_SCARE_MAGNITUDE) {
             (5.0 / jitter, 1.5)
         } else {
-            (1.0 / jitter, move_goal.2.max(f32::MIN_POSITIVE).powf(-0.1))
+            (
+                1.0 / jitter,
+                springcabal_math::powf(move_goal.2.max(f32::MIN_POSITIVE), -0.1),
+            )
         };
     issue_goal(
         spring,
@@ -115,8 +118,8 @@ pub(super) fn movement_goal(
     let heading = spring::Float3::new(move_vector.x, 0.0, move_vector.z).heading();
     let movement_direction =
         -f32::from(heading) / 32768.0 * core::f32::consts::PI + core::f32::consts::PI / 2.0;
-    let direction_randomness =
-        (core::f32::consts::PI * 0.4).min(20.0 * (10.0 + data.boldness).powf(-0.9));
+    let direction_randomness = (core::f32::consts::PI * 0.4)
+        .min(20.0 * springcabal_math::powf(10.0 + data.boldness, -0.9));
     let movement_direction = movement_direction
         + spring
             .synced_random()
@@ -126,8 +129,8 @@ pub(super) fn movement_goal(
             * direction_randomness
         - direction_randomness;
     let movement = (
-        movement_magnitude * movement_direction.cos(),
-        movement_magnitude * movement_direction.sin(),
+        movement_magnitude * springcabal_math::cosf(movement_direction),
+        movement_magnitude * springcabal_math::sinf(movement_direction),
     );
     let jitter = data.jitter();
     let velocity = spring
@@ -161,8 +164,8 @@ pub(super) fn movement_goal(
         * 2.0
         * core::f32::consts::PI;
     let random_vector = (
-        random_angle.cos() * random_magnitude,
-        random_angle.sin() * random_magnitude,
+        springcabal_math::cosf(random_angle) * random_magnitude,
+        springcabal_math::sinf(random_angle) * random_magnitude,
     );
     let movement = (
         movement.0 + (random_vector.0 + velocity.0),

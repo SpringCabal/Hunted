@@ -18,9 +18,11 @@ pub struct LighthousePieces {
 pub struct LighthouseState {
     pub(super) pieces: LighthousePieces,
     pub(super) angle: f32,
+    pub(super) position: spring::Float3,
 }
 
 pub(super) fn create(ctx: &UnitCtx, state: Rc<RefCell<LighthouseState>>) {
+    state.borrow_mut().position = unit_position(ctx);
     let angle = state.borrow().angle;
     let p = state.borrow().pieces;
     turn(
@@ -30,9 +32,9 @@ pub(super) fn create(ctx: &UnitCtx, state: Rc<RefCell<LighthouseState>>) {
         -angle + core::f32::consts::FRAC_PI_2,
         0.0,
     );
-    let position = unit_position(ctx);
-    let x = position.x + BEAM_DISTANCE * angle.cos();
-    let z = position.z + BEAM_DISTANCE * angle.sin();
+    let position = state.borrow().position;
+    let x = position.x + BEAM_DISTANCE * springcabal_math::cosf(angle);
+    let z = position.z + BEAM_DISTANCE * springcabal_math::sinf(angle);
     point_beam(ctx, x, z);
     ctx.with_spring(|spring| {
         spring
@@ -52,18 +54,14 @@ pub(super) fn create(ctx: &UnitCtx, state: Rc<RefCell<LighthouseState>>) {
 async fn update(state: Rc<RefCell<LighthouseState>>, ctx: UnitCtx) {
     let rotation_speed = TAU / 250.0;
     loop {
-        let (angle, pieces) = {
+        let (angle, pieces, position) = {
             let mut state = state.borrow_mut();
             state.angle += rotation_speed;
-            if state.angle >= TAU {
-                state.angle -= TAU;
-            }
-            (state.angle, state.pieces)
+            (state.angle, state.pieces, state.position)
         };
         let unit = ctx.unit();
-        let position = unit_position(&ctx);
-        let x = position.x + BEAM_DISTANCE * angle.cos();
-        let z = position.z + BEAM_DISTANCE * angle.sin();
+        let x = position.x + BEAM_DISTANCE * springcabal_math::cosf(angle);
+        let z = position.z + BEAM_DISTANCE * springcabal_math::sinf(angle);
         let y = ctx
             .with_spring(|spring| spring.terrain().get_ground_height(x, z))
             .unwrap_or(position.y);
@@ -97,6 +95,7 @@ async fn update(state: Rc<RefCell<LighthouseState>>, ctx: UnitCtx) {
 }
 
 fn point_beam(ctx: &UnitCtx, x: f32, z: f32) {
+    crate::with_global(|global| global.beams.access_mut().set(ctx.unit().0, x, z));
     ctx.with_spring(|spring| {
         spring
             .rules_params()

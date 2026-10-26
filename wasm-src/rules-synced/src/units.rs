@@ -322,6 +322,7 @@ pub fn set_heading(
     );
 }
 
+#[cfg(feature = "headless-integration")]
 pub fn nearest(
     position: spring::Float3,
     units: &[(i32, spring::Float3)],

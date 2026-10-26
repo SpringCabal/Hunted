@@ -54,6 +54,7 @@ pub struct Defs {
     unit_ids: [i32; UnitKind::ALL.len()],
     pub rabbit_speed: f32,
     pub shotgun_speed: f32,
+    pub carried_carrot_speed: f32,
     pub shotgun_weapon: Option<i32>,
     pub shotgun_projectile_speed: f32,
     pub shotgun_projectiles: i32,
@@ -97,6 +98,7 @@ impl Defs {
             unit_ids,
             rabbit_speed: speed(UnitKind::Rabbit),
             shotgun_speed: speed(UnitKind::Shotgun),
+            carried_carrot_speed: speed(UnitKind::CarrotCarried),
             shotgun_weapon,
             shotgun_projectile_speed,
         }

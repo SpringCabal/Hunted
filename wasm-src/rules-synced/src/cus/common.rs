@@ -3,18 +3,6 @@ use spring::cus::{Angle, AngularSpeed, Axis, InitCtx, Piece, UnitCtx};
 pub const PUBLIC: i32 = spring::rules_params::los::PUBLIC;
 pub const TAU: f32 = core::f32::consts::TAU;
 
-pub mod random {
-    use spring::cus::UnitCtx;
-    pub fn float(ctx: &UnitCtx) -> f32 {
-        ctx.with_spring(|spring| spring.synced_random().next_float())
-            .expect("synced random float")
-    }
-    pub fn int(ctx: &UnitCtx, lower: i32, upper: i32) -> i32 {
-        ctx.with_spring(|spring| spring.synced_random().next_int(lower, upper))
-            .expect("synced random int")
-    }
-}
-
 pub fn piece(ctx: &InitCtx<'_>, name: &str) -> Piece {
     let direct = ctx.piece(name);
     if direct != Piece::INVALID {

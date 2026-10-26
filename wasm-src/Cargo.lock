@@ -78,6 +78,9 @@ checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 [[package]]
 name = "hunted-common"
 version = "0.1.0"
+dependencies = [
+ "springcabal-math",
+]
 
 [[package]]
 name = "hunted-jobs-wasm"
@@ -96,6 +99,7 @@ dependencies = [
  "spring-addons",
  "spring-sdk",
  "springcabal",
+ "springcabal-math",
 ]
 
 [[package]]
@@ -280,6 +284,10 @@ dependencies = [
  "spring-sdk",
  "springcabal",
 ]
+
+[[package]]
+name = "springcabal-math"
+version = "0.1.0"
 
 [[package]]
 name = "syn"

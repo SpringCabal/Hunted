@@ -4,24 +4,20 @@ pub(super) fn update_carried_rabbit(
     spring: &spring::Spring<'_, spring::RulesSynced>,
     game: &mut RabbitCtx<'_>,
     memory_index: usize,
-    position: &Position,
     original_reverse_speed: f32,
-    burrows: &[(i32, Position)],
-) -> bool {
+    target: Option<Target>,
+) -> Option<i32> {
     let memory = game.rabbits.memories[memory_index];
     if memory.data.panic.is_some() || !memory.data.moves_to_goal(game.panic_resistance, true) {
-        return false;
+        return None;
     }
     let carried_id = memory.carried_carrot;
     if carried_id < 0 {
-        return false;
+        return None;
     }
 
-    let Some((_, burrow, distance_sq)) = units::nearest(*position, burrows) else {
-        return false;
-    };
+    let (x, z, distance_sq, _) = target?;
     if distance_sq.sqrt() < GOAL_RADIUS {
-        Call::carrot_score(carried_id).queue();
         let rabbit_id = game.rabbits.memories[memory_index].unit_id;
         game.rabbits.memories[memory_index].carried_carrot = -1;
         game.rabbits.memories[memory_index].carrying_since = -1;
@@ -30,33 +26,70 @@ pub(super) fn update_carried_rabbit(
         issue_goal(
             spring,
             rabbit_id,
-            burrow.x,
-            burrow.z,
+            x,
+            z,
             0.05,
             2.0,
             1.0,
             original_reverse_speed,
         );
-        true
+        Some(carried_id)
     } else {
-        false
+        None
     }
 }
 
-pub(super) fn drop_carried_carrot(game: &mut RabbitCtx<'_>, memory_index: usize) {
+pub(super) fn drop_carried_carrot(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    game: &mut RabbitCtx<'_>,
+    memory_index: usize,
+) {
     let carried_id = game.rabbits.memories[memory_index].carried_carrot;
     if carried_id < 0 {
         return;
     }
     let rabbit_id = game.rabbits.memories[memory_index].unit_id;
-    drop_carrot(rabbit_id, carried_id);
+    drop_carrot(spring, rabbit_id, carried_id);
     game.rabbits.memories[memory_index].carried_carrot = -1;
     game.rabbits.memories[memory_index].carrying_since = -1;
 }
 
-pub(super) fn drop_carrot(rabbit_id: i32, carried_id: i32) {
-    Call::rabbit_drop_carrot(rabbit_id, carried_id).queue();
-    Call::carrot_be_dropped(carried_id).queue();
+pub(crate) fn drop_carrot(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    rabbit_id: i32,
+    carried_id: i32,
+) {
+    use spring::ResultExt;
+    // Read before the AI changes movement attributes, including death callbacks.
+    let mut velocity = spring
+        .units_info()
+        .get_unit_velocity(rabbit_id)
+        .log_err_once(spring, "reading a carrot carrier's velocity")
+        .unwrap_or_default();
+    let square = velocity.x * velocity.x + velocity.y * velocity.y + velocity.z * velocity.z;
+    if square > 50.0 {
+        let speed = square.sqrt();
+        velocity.x /= speed;
+        velocity.y /= speed;
+        velocity.z /= speed;
+    }
+    crate::with_addon_context(|ctx| {
+        ctx.commands().run(move |spring| {
+            Call::rabbit_drop_carrot(rabbit_id, carried_id).run(spring);
+            // The script queues its engine detachment. Append the remaining work
+            // after it, with no CUS or application borrow crossing engine callbacks.
+            crate::with_addon_context(|ctx| {
+                ctx.commands().run(move |spring| {
+                    crate::gadgets::blocking::make_non_blocking(spring, rabbit_id);
+                    Call::carrot_be_dropped(carried_id).run(spring);
+                    spring
+                        .unit_control()
+                        .set_unit_velocity(carried_id, velocity)
+                        .log_err_once(spring, "transferring a dropped carrot's momentum");
+                })
+            });
+        })
+    });
 }
 
 pub(super) enum Eating {
@@ -106,7 +139,7 @@ pub(super) fn update_eating_rabbit(
     if !stealing_notified {
         game.rabbits.memories[memory_index].stealing_notified = true;
         set_stealing(spring, tick.rabbit, true);
-        Call::carrot_start_being_stolen(carrot_id, eating_progress).queue();
+        Call::carrot_start_being_stolen(carrot_id, eating_progress).run(spring);
     }
     issue_goal(
         spring,
@@ -131,7 +164,7 @@ pub(super) fn cancel_eating(
         let carrot_id = memory.reserved_carrot;
         if carrot_id >= 0 {
             remember_carrot_progress(game.rabbits, &memory);
-            Call::carrot_stop_being_stolen(carrot_id, memory.eating_progress).queue();
+            Call::carrot_stop_being_stolen(carrot_id, memory.eating_progress).run(spring);
         }
     }
     game.rabbits.release_reservation(memory_index);

@@ -23,6 +23,7 @@ pub struct Waves {
     pub spawn_index: i32,
     pub wave_target: i32,
     pub wave_number: i32,
+    next_difficulty: f32,
     pub next_wave_frame: i32,
     pub rabbit_speed_multiplier: f32,
     pub rabbit_panic_resistance: f32,
@@ -35,6 +36,7 @@ impl Default for Waves {
             spawn_index: 0,
             wave_target: 0,
             wave_number: 0,
+            next_difficulty: 1.0,
             next_wave_frame: FIRST_WAVE_FRAME,
             rabbit_speed_multiplier: 1.5,
             rabbit_panic_resistance: 1.0,
@@ -51,20 +53,26 @@ impl Waves {
         mut pick_burrow: impl FnMut() -> usize,
     ) -> i32 {
         self.wave_number = self.wave_number.saturating_add(1);
-        let difficulty = 1.0 + 0.04 * (self.wave_number - 1) as f32;
+        let difficulty = self.next_difficulty;
+        self.next_difficulty *= 1.0 + 0.04 / self.next_difficulty;
         self.rabbit_panic_resistance = difficulty;
         self.rabbit_speed_multiplier = 1.0 + difficulty / 2.0;
         let mut wave_size = FIRST_WAVE_SIZE;
         let mut burrow_count = FIRST_WAVE_BURROWS;
         for _ in 1..self.wave_number {
-            wave_size = ((wave_size * 6 + 4) / 5).min(MAX_RABBITS);
-            burrow_count = ((burrow_count * 6 + 4) / 5).min(MAX_RABBITS);
+            wave_size = ((wave_size as f32 * 1.2).ceil() as i32).min(MAX_RABBITS);
+            burrow_count = ((burrow_count as f32 * 1.2).ceil() as i32).min(MAX_RABBITS);
             if wave_size == MAX_RABBITS && burrow_count == MAX_RABBITS {
                 break;
             }
         }
         self.wave_target = wave_size.min((MAX_RABBITS - rabbit_count).max(0));
-        self.burrow_spawns.fill(BurrowSpawn::default());
+        self.next_wave_frame = frame + WAVE_GAP;
+        // Lua leaves existing families alone and makes no picks when the
+        // live population already fills the cap.
+        if self.wave_target == 0 {
+            return burrow_count;
+        }
 
         let rabbits_per_burrow = if burrow_count > 0 {
             self.wave_target as f32 / burrow_count as f32
@@ -83,7 +91,6 @@ impl Waves {
             spawn.next_frame = frame + 1;
             spawn.active = spawn.pending > 0;
         }
-        self.next_wave_frame = frame + WAVE_GAP;
         burrow_count
     }
 
@@ -143,6 +150,29 @@ mod tests {
     }
 
     #[test]
+    fn a_new_wave_retains_pending_families_and_unselected_timers() {
+        let mut waves = Waves::default();
+        waves.start_wave(5, 0, || 0);
+        waves.burrow_spawns[1] = BurrowSpawn {
+            pending: 2,
+            next_frame: 777,
+            active: true,
+        };
+        waves.start_wave(555, 0, || 0);
+        assert_eq!(waves.burrow_spawns[0].pending, 56);
+        assert_eq!(waves.burrow_spawns[1].pending, 2);
+        assert_eq!(waves.burrow_spawns[1].next_frame, 777);
+    }
+
+    #[test]
+    fn wave_growth_keeps_the_original_float32_rounding() {
+        let mut waves = Waves::default();
+        waves.start_wave(5, 0, || 0);
+        waves.start_wave(555, 25, || 0);
+        assert_eq!(waves.wave_target, 31, "Lua ceil(25 * 1.2f) is 31");
+    }
+
+    #[test]
     fn creation_precedes_the_timer_draw_and_cloned_burrows_can_spawn() {
         use std::cell::RefCell;
         let mut waves = Waves::default();
@@ -199,14 +229,16 @@ mod tests {
     }
 
     #[test]
-    fn waves_grow_by_a_fifth_and_get_harder() {
+    fn waves_follow_float_growth_and_get_harder() {
         let mut waves = Waves::default();
         waves.start_wave(0, 0, || 0);
+        waves.burrow_spawns.fill(BurrowSpawn::default()); // prior wave completed
         waves.start_wave(550, 0, || 0);
-        assert_eq!(waves.wave_target, 30);
-        assert_eq!(pending(&waves), 30, "one burrow picked six times");
+        assert_eq!(waves.wave_target, 31);
+        assert_eq!(pending(&waves), 31, "one burrow picked six times");
+        waves.burrow_spawns.fill(BurrowSpawn::default());
         waves.start_wave(1100, 0, || 0);
-        assert_eq!(waves.wave_target, 36);
+        assert_eq!(waves.wave_target, 38);
         assert!((waves.rabbit_panic_resistance - 1.08).abs() < 1e-6);
         assert!((waves.rabbit_speed_multiplier - 1.54).abs() < 1e-6);
     }
@@ -216,9 +248,12 @@ mod tests {
         let mut waves = Waves::default();
         waves.start_wave(0, 590, || 0);
         assert_eq!(waves.wave_target, 10);
-        waves.start_wave(0, 700, || 0);
+        waves.start_wave(550, 700, || {
+            panic!("Lua does not pick burrows for an empty wave")
+        });
         assert_eq!(waves.wave_target, 0);
-        assert!(waves.burrow_spawns.iter().all(|spawn| !spawn.active));
+        assert_eq!(pending(&waves), 10, "already scheduled families remain");
+        assert_eq!(waves.next_wave_frame, 1100);
     }
 
     #[test]
@@ -253,7 +288,7 @@ mod tests {
         assert_eq!(waves.wave_target, 0);
         waves.start_wave(550, 0, || 0);
         assert_eq!(waves.wave_number, 2);
-        assert_eq!(pending(&waves), 30);
+        assert_eq!(pending(&waves), 31);
     }
 
     #[test]

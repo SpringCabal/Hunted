@@ -22,22 +22,9 @@ shared addon handler and the shared CUS host. Helpers receive `&Spring`;
 queued commands, Rml callbacks and unit-script operations obtain a fresh
 reference when they run. This does not build native game modules.
 
-Verification on the SDK test engine:
-
-- Strict Clippy passes for all workspace targets/features and for the default
-  build. All 32 common Rust unit tests pass.
-- All 35 existing integration checks pass on Linux and Wine. A repeated Linux
-  failure also reproduced in the old code: the nearby-shot fear test sometimes
-  killed its moving rabbit before checking its fear. The fixture now chooses
-  among the same nearby aim offsets using the actual muzzle position, so the
-  shot goes beside the rabbit. All fear, ammunition and damage assertions are
-  unchanged. The corrected suite passes at three different run speeds.
-- The five-shot visual scenario and HUD binding/restart checks complete on
-  GPU and software renderers. All eight manually measured images/crops meet
-  the existing limits (full frames 3.66–4.83% against 10%; HUD/end screen
-  0.48–0.56% against 2%). The visual suite still rejects this machine's Mesa
-  Ubuntu package revision `.4` versus the recorded `.2`. Goldens, renderer
-  checks and tolerances are unchanged.
+The existing verification framework passes 43 common Rust tests, 38 gameplay
+assertions and eight image/crop comparisons on NVIDIA hardware. Lua/Rust
+recordings compare the complete movement state, orders, health and projectiles.
 
 Use the parent development repository's `just verify hunted` commands with
 `SPRING_ENGINE_DIR` pointing to the engine to test.
@@ -49,8 +36,7 @@ matching Lua's `start_force` widget. The flashlight and lighthouse visibility
 pass still decides which rabbits are drawn. Omitting global LOS made the engine
 recompute visibility unnecessarily, including expensive terrain raycasts.
 
-The existing integration suite now has 36 checks, including the startup LOS
-assertion. That assertion fails before the fix and passes afterwards.
+The startup LOS assertion remains part of the integration suite.
 
 ## AI search
 
@@ -58,7 +44,8 @@ Static food, mine and burrow snapshots are shared until their roster revision
 changes. Food queries use spatial buckets, followed by the original strict
 radius, reservation and desirability checks. Equal scores retain the original
 carrot order, including across bucket boundaries. Dynamic lights and blasts
-are still gathered each update; eating callbacks retain their own snapshot.
+are still gathered each update. Food destruction refreshes the snapshot before
+the next rabbit is processed.
 The common tests cover negative coordinates, cell boundaries and empty queries.
 
 Release builds use whole-program LTO and one code generation unit. The
@@ -75,3 +62,15 @@ their original order. A dedicated worker module has an 8 MiB fixed memory.
 For measurements, use the springcabal-dev performance runner with
 `--rust-jobs off|on|check --worker-threads 1|4`; compare jobs at the same
 engine pool width.
+
+## Matching Lua behavior
+
+The shared `springcabal-math` crate uses the pinned engine's float32 math for
+spawning and steering; building it requires Clang and its LLVM archiver.
+AI deadlines and wave growth preserve Lua's float rounding. Reservations,
+pickup, deposit and dropping complete in the same order as Lua, including
+carried-carrot speed and momentum. Burrows retain their creation positions.
+Equal rounded desirability uses creation/swap-removal order.
+
+Idle animations and chewing sounds use independent per-unit random streams in
+both ports. Coroutine wake order therefore cannot change gameplay randomness.

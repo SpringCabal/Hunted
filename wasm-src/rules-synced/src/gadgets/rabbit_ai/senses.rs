@@ -2,6 +2,7 @@ use alloc::vec::Vec;
 
 use super::*;
 use crate::roster::Roster;
+use hunted_common::desired::{Desirables, Key};
 
 pub(super) const FIELD_RADIUS: f32 = 9000.0;
 
@@ -10,8 +11,6 @@ pub(super) const FIELD_EDGE_MAGNITUDE: f32 = 0.0;
 pub(super) const FIELD_PROXIMITY_MAGNITUDE: f32 = 0.1;
 
 pub(super) const FOOD_RADIUS: f32 = 1500.0;
-
-pub(super) const CARRIER_LIGHT_FADE_FRAMES: i32 = 300;
 
 pub(super) type Target = (f32, f32, f32, f32);
 
@@ -26,7 +25,7 @@ pub(super) fn choose_target(
     consumed_carrots: &[i32],
 ) -> (Option<CarrotChoice>, Option<Target>) {
     let position = *position;
-    let carrot = if carried {
+    let mut carrot = if carried {
         None
     } else {
         nearest_unreserved_carrot(
@@ -42,7 +41,13 @@ pub(super) fn choose_target(
     } else {
         nearest_mine(&position, &surroundings.static_data.mines)
     };
-    let burrow = units::nearest(position, &surroundings.static_data.burrows);
+    let burrow = strongest_unit(
+        &position,
+        &surroundings.static_data.burrows,
+        FIELD_RADIUS,
+        2.0,
+        1.0,
+    );
     let target = if carried {
         burrow.map(|(_, target, distance)| {
             (
@@ -71,16 +76,25 @@ pub(super) fn choose_target(
         });
         let field_target = nearest_field(
             &position,
-            &surroundings.static_data.field_carrots,
+            &surroundings.static_data.desirables,
             consumed_carrots,
         );
-        [carrot_target, mine_target, field_target]
+        let order = &surroundings.static_data.desirables;
+        let ranked_carrot = carrot_target.zip(carrot.as_ref().map(|c| Key::Unit(c.0)));
+        let ranked_mine = mine_target.zip(mine.as_ref().map(|m| Key::Unit(m.0)));
+        let ranked_field = field_target.map(|(field, target)| (target, Key::Field(field)));
+        [ranked_carrot, ranked_mine, ranked_field]
             .into_iter()
             .flatten()
-            .max_by(|left, right| {
+            .max_by(|(left, lk), (right, rk)| {
                 left.3
                     .partial_cmp(&right.3)
                     .unwrap_or(core::cmp::Ordering::Equal)
+                    .then_with(|| order.rank(*rk).cmp(&order.rank(*lk)))
+            })
+            .map(|(target, key)| {
+                carrot = carrot.filter(|(id, _, _, _)| key == Key::Unit(*id));
+                target
             })
     };
 
@@ -118,7 +132,7 @@ pub(super) fn nearest_unreserved_carrot(
             left.4
                 .partial_cmp(&right.4)
                 .unwrap_or(core::cmp::Ordering::Equal)
-                .then_with(|| left.5.cmp(&right.5))
+                .then_with(|| right.5.cmp(&left.5))
         })
         .map(|(id, carrot, distance, eating_time, _, _)| (id, carrot, distance, eating_time))
 }
@@ -127,15 +141,25 @@ pub(super) fn nearest_mine(
     position: &Position,
     mines: &[(i32, Position)],
 ) -> Option<(i32, Position, f32)> {
-    mines
-        .iter()
-        .map(|(id, mine)| (*id, *mine, horizontal_distance_squared(position, mine)))
-        .filter(|(_, _, distance_sq)| *distance_sq < FOOD_RADIUS * FOOD_RADIUS)
-        .min_by(|left, right| {
-            left.2
-                .partial_cmp(&right.2)
-                .unwrap_or(core::cmp::Ordering::Equal)
-        })
+    strongest_unit(position, mines, FOOD_RADIUS, 2.0, 0.1)
+}
+
+fn strongest_unit(
+    position: &Position,
+    units: &[(i32, Position)],
+    radius: f32,
+    proximity: f32,
+    edge: f32,
+) -> Option<(i32, Position, f32)> {
+    hunted_common::desired::best_falloff(
+        units
+            .iter()
+            .map(|(_, target)| horizontal_distance_squared(position, target)),
+        radius,
+        proximity,
+        edge,
+    )
+    .map(|(index, square, _)| (units[index].0, units[index].1, square))
 }
 
 pub(super) fn carrot_reserved_by_other(game: &RabbitCtx<'_>, rabbit: i32, carrot: i32) -> bool {
@@ -154,23 +178,8 @@ pub(super) fn food_units_with_positions(
         .collect()
 }
 
-pub(super) fn lighthouse_beams(
-    spring: &spring::Spring<'_, spring::RulesSynced>,
-    roster: &Roster,
-) -> Vec<Source> {
-    roster
-        .positions(UnitKind::Lighthouse)
-        .into_iter()
-        .map(|(unit_id, position)| {
-            let (x, z) = crate::unit_scripts::lighthouse_beam(spring, unit_id)
-                .unwrap_or((position.x, position.z));
-            Source {
-                x,
-                z,
-                area: scare::Area::LIGHTHOUSE,
-            }
-        })
-        .collect()
+pub(super) fn lighthouse_beams(global: &Global) -> Vec<Source> {
+    global.beams.access().sources()
 }
 
 pub(super) fn flashlight(global: &crate::state::Global) -> Option<Source> {
@@ -183,7 +192,13 @@ pub(super) fn flashlight(global: &crate::state::Global) -> Option<Source> {
     Some(Source {
         x,
         z,
-        area: scare::Area::flashlight(x, z),
+        // Lua creates the initial torch at (0, 0) with its base attributes;
+        // edge fading starts only when the first valid mouse target arrives.
+        area: if target.valid {
+            scare::Area::flashlight(x, z)
+        } else {
+            scare::Area::FLASHLIGHT
+        },
     })
 }
 
@@ -204,43 +219,37 @@ pub(super) fn food_magnitude(distance_sq: f32, eating_time: i32) -> f32 {
 
 pub(super) fn nearest_field(
     position: &Position,
-    field_carrots: &[Vec<i32>],
+    desirables: &Desirables,
     consumed_carrots: &[i32],
-) -> Option<(f32, f32, f32, f32)> {
+) -> Option<(usize, Target)> {
     crate::map::FIELD_SPECS
         .iter()
-        .zip(field_carrots)
-        .filter(|(_, carrots)| carrots.iter().any(|id| !consumed_carrots.contains(id)))
-        .map(|((top_x, top_z, bottom_x, bottom_z, _, _), _)| {
+        .zip(desirables.fields())
+        .enumerate()
+        .filter(|(_, (_, carrots))| carrots.iter().any(|id| !consumed_carrots.contains(id)))
+        .map(|(field, ((top_x, top_z, bottom_x, bottom_z, _, _), _))| {
             let x = (top_x + bottom_x) / 2.0;
             let z = (top_z + bottom_z) / 2.0;
             let distance_sq = (x - position.x).powi(2) + (z - position.z).powi(2);
             let magnitude = FIELD_PROXIMITY_MAGNITUDE * (1.0 - distance_sq.sqrt() / FIELD_RADIUS)
                 + FIELD_EDGE_MAGNITUDE;
-            (x, z, distance_sq, magnitude)
+            (field, (x, z, distance_sq, magnitude))
         })
-        .filter(|(_, _, distance_sq, _)| *distance_sq < FIELD_RADIUS * FIELD_RADIUS)
-        .max_by(|left, right| {
+        .filter(|(_, (_, _, distance_sq, _))| *distance_sq < FIELD_RADIUS * FIELD_RADIUS)
+        .max_by(|(lf, left), (rf, right)| {
             left.3
                 .partial_cmp(&right.3)
                 .unwrap_or(core::cmp::Ordering::Equal)
+                .then_with(|| {
+                    desirables
+                        .rank(Key::Field(*rf))
+                        .cmp(&desirables.rank(Key::Field(*lf)))
+                })
         })
 }
 
-pub(super) fn carrots_by_field(static_carrots: &[(i32, Position, i32)]) -> Vec<Vec<i32>> {
-    crate::map::FIELD_SPECS
-        .iter()
-        .map(|field| {
-            static_carrots
-                .iter()
-                .filter(|(_, carrot, _)| {
-                    carrot.x >= field.0
-                        && carrot.x <= field.2
-                        && carrot.z >= field.1
-                        && carrot.z <= field.3
-                })
-                .map(|(id, _, _)| *id)
-                .collect()
-        })
-        .collect()
+pub(super) fn ordered_positions(roster: &Roster, kind: UnitKind) -> Vec<(i32, Position)> {
+    let mut positions = roster.positions(kind);
+    positions.sort_unstable_by_key(|(unit, _)| roster.desirables.rank(Key::Unit(*unit)));
+    positions
 }

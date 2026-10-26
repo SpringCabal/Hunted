@@ -35,6 +35,18 @@ pub const FIELD_SPECS: &[(f32, f32, f32, f32, usize, usize)] = &[
     (3745.0, 2360.0, 3870.0, 2570.0, 4, 3),
 ];
 
+pub fn carrot_field(index: i32) -> Option<usize> {
+    let mut index = usize::try_from(index).ok()?;
+    for (field, spec) in FIELD_SPECS.iter().enumerate() {
+        let count = spec.4 * spec.5;
+        if index < count {
+            return Some(field);
+        }
+        index -= count;
+    }
+    None
+}
+
 pub fn carrot_position(index: i32) -> Option<(f32, f32)> {
     let mut index = usize::try_from(index).ok()?;
     for &(top_x, top_z, bot_x, bot_z, rows, cols) in FIELD_SPECS {

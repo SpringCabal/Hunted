@@ -19,7 +19,7 @@ use crate::gadgets::ui_input;
 use crate::map;
 use crate::state::Global;
 
-const EXPECTED_CHECKS: u32 = 36;
+const EXPECTED_CHECKS: u32 = 38;
 const TIMEOUT: i32 = 200;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -30,6 +30,8 @@ enum Step {
     Carrying,
     CarryHome,
     CarriedHome,
+    DropCarrot,
+    CarrotDropped,
     Lit,
     Fire,
     Fired,
@@ -212,6 +214,8 @@ impl Tracker {
             Step::Carrying => self.carrying(spring, global, frame),
             Step::CarryHome => self.carry_home(spring, global, frame),
             Step::CarriedHome => self.carried_home(spring, global, frame),
+            Step::DropCarrot => self.begin_drop(spring, global, frame),
+            Step::CarrotDropped => self.check_drop(spring, global, frame),
             Step::Flare => self.flare(spring, global, frame),
             Step::FlareStarted => self.flare_started(spring, global, frame),
             Step::RestartMidHunt => self.restart_mid_hunt(ctx, frame),

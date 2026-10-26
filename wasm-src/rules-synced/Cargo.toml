@@ -17,6 +17,7 @@ headless-integration = []
 e2e = []
 
 [dependencies]
+springcabal-math = { workspace = true }
 spring = { workspace = true }
 spring-addons = { workspace = true }
 springcabal = { workspace = true }
