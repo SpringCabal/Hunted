@@ -1,3 +1,4 @@
+local cosmeticRandom = VFS.Include("Scripts/cosmetic_random.lua")(unitID)
  include "lib_OS.lua"
  include "lib_UnitScript.lua"
  include "lib_Build.lua" 
@@ -59,7 +60,7 @@ function MoveAnimationController()
 		end
 			if boolMoving == false then
 				reseT(piecesTable, 17)
-			if maRa() == true then 
+			if cosmeticRandom(0, 1) == 1 then
 				idle()
 			end
 		end
@@ -68,15 +69,15 @@ function MoveAnimationController()
 end
 
 function idle()
-	val = math.random(1, 6)
+	val = cosmeticRandom(1, 6)
 	for i = 1, val do
-		deg = math.random(10, 35)
+		deg = cosmeticRandom(10, 35)
 		Turn(Head, y_axis, math.rad(deg), 9)
-		Turn(WiggleTail, x_axis, math.rad(math.random(-10, 10)), 8)
+		Turn(WiggleTail, x_axis, math.rad(cosmeticRandom(-10, 10)), 8)
 		WaitForTurn(Head, y_axis)
 		Turn(Head, y_axis, math.rad(deg*-1), 9)
 
-		Turn(WiggleTail, x_axis, math.rad(math.random(-10, 10)), 8)
+		Turn(WiggleTail, x_axis, math.rad(cosmeticRandom(-10, 10)), 8)
 		WaitForTurn(Head, y_axis)
 	end
 	reseT(piecesTable)

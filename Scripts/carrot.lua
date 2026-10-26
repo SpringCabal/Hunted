@@ -1,3 +1,4 @@
+local cosmeticRandom = VFS.Include("Scripts/cosmetic_random.lua")(unitID)
 local base = piece "base"
 
 local SIG_STEAL = 1
@@ -7,7 +8,7 @@ local x,y,z
 local function Sound()
 	SetSignalMask(SIG_STEAL)
 	while true do
-		if math.random() < 0.7 then
+		if cosmeticRandom() < 0.7 then
 			Spring.PlaySoundFile("sounds/digitout.wav", 4, x, y, z)
 		end
 		Sleep(600)
