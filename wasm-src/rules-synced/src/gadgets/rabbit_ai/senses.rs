@@ -108,33 +108,33 @@ pub(super) fn nearest_unreserved_carrot(
     surroundings: &StaticSurroundings,
     consumed_carrots: &[i32],
 ) -> Option<(i32, Position, f32, i32)> {
+    let mut best: Option<(CarrotChoice, f32, usize)> = None;
+    let mut nearest: [Option<(f32, usize)>; 2] = [None, None];
     surroundings
         .food_grid
-        .nearby(position.x, position.z)
-        .map(|index| (index, &surroundings.carrots[index]))
-        .filter(|(_, (_, carrot, _))| {
-            horizontal_distance_squared(position, carrot) < FOOD_RADIUS * FOOD_RADIUS
-        })
-        .filter(|(_, (id, _, _))| !consumed_carrots.contains(id))
-        .filter(|(_, (id, _, _))| !carrot_reserved_by_other(game, rabbit, *id))
-        .map(|(index, (id, carrot, eating_time))| {
-            let distance = horizontal_distance_squared(position, carrot);
-            (
-                *id,
-                *carrot,
-                distance,
-                *eating_time,
-                food_magnitude(distance, *eating_time),
-                index,
-            )
-        })
-        .max_by(|left, right| {
-            left.4
-                .partial_cmp(&right.4)
-                .unwrap_or(core::cmp::Ordering::Equal)
-                .then_with(|| right.5.cmp(&left.5))
-        })
-        .map(|(id, carrot, distance, eating_time, _, _)| (id, carrot, distance, eating_time))
+        .visit_nearby(position.x, position.z, |index| {
+            let (id, carrot, eating_time) = surroundings.carrots[index];
+            let distance = horizontal_distance_squared(position, &carrot);
+            if distance >= FOOD_RADIUS * FOOD_RADIUS {
+                return;
+            }
+            let category = usize::from(eating_time == DROPPED_EAT_TIME);
+            // A farther, later entry cannot win, including rounded falloff ties.
+            if nearest[category].is_some_and(|(d, i)| d <= distance && i <= index) {
+                return;
+            }
+            if consumed_carrots.contains(&id) || carrot_reserved_by_other(game, rabbit, id) {
+                return;
+            }
+            if nearest[category].is_none_or(|(d, i)| distance < d || (distance == d && index < i)) {
+                nearest[category] = Some((distance, index));
+            }
+            let magnitude = food_magnitude(distance, eating_time);
+            if best.is_none_or(|(_, m, i)| magnitude > m || (magnitude == m && index < i)) {
+                best = Some(((id, carrot, distance, eating_time), magnitude, index));
+            }
+        });
+    best.map(|(choice, _, _)| choice)
 }
 
 pub(super) fn nearest_mine(

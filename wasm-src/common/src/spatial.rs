@@ -26,6 +26,20 @@ impl Grid {
         )
     }
 
+    /// Visit candidates directly so the hot query has no nested flat-map state.
+    pub fn visit_nearby(&self, x: f32, z: f32, mut visit: impl FnMut(usize)) {
+        let (x, z) = self.cell(x, z);
+        for dx in -1..=1 {
+            for dz in -1..=1 {
+                if let Some(cell) = self.cells.get(&(x + dx, z + dz)) {
+                    for &index in cell {
+                        visit(index);
+                    }
+                }
+            }
+        }
+    }
+
     /// Includes every point within `size` of the query, without allocating.
     pub fn nearby(&self, x: f32, z: f32) -> impl Iterator<Item = usize> + '_ {
         let (x, z) = self.cell(x, z);

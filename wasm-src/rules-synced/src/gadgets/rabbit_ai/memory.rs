@@ -1,4 +1,3 @@
-use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 
 use hunted_common::rabbit::RabbitData;
@@ -37,14 +36,17 @@ const NEW_RABBIT_MEMORY: RabbitMemory = RabbitMemory {
 #[derive(Default)]
 pub struct Rabbits {
     pub memories: Vec<RabbitMemory>,
-    slots: BTreeMap<i32, usize>,
-    carrot_progress: BTreeMap<i32, i32>,
-    reserved_by: BTreeMap<i32, i32>,
+    slots: Vec<usize>,
+    carrot_progress: Vec<i32>,
+    reserved_by: Vec<i32>,
 }
 
 impl Rabbits {
     pub fn find(&self, rabbit: i32) -> Option<usize> {
-        self.slots.get(&rabbit).copied()
+        self.slots
+            .get(usize::try_from(rabbit).ok()?)
+            .copied()
+            .filter(|&slot| slot != usize::MAX)
     }
 
     pub fn memory_index(&mut self, rabbit: i32, frame: i32) -> usize {
@@ -57,7 +59,11 @@ impl Rabbits {
             ..NEW_RABBIT_MEMORY
         });
         let index = self.memories.len() - 1;
-        self.slots.insert(rabbit, index);
+        let key = usize::try_from(rabbit).expect("nonnegative rabbit ID");
+        if key >= self.slots.len() {
+            self.slots.resize(key + 1, usize::MAX);
+        }
+        self.slots[key] = index;
         index
     }
 
@@ -66,10 +72,10 @@ impl Rabbits {
             return;
         };
         self.release_reservation(index);
-        self.slots.remove(&rabbit);
+        self.slots[rabbit as usize] = usize::MAX;
         self.memories.swap_remove(index);
         if let Some(moved) = self.memories.get(index) {
-            self.slots.insert(moved.unit_id, index);
+            self.slots[moved.unit_id as usize] = index;
         }
     }
 
@@ -77,45 +83,59 @@ impl Rabbits {
         self.release_reservation(index);
         let memory = &mut self.memories[index];
         memory.reserved_carrot = carrot;
-        self.reserved_by.insert(carrot, memory.unit_id);
+        let key = usize::try_from(carrot).expect("nonnegative carrot ID");
+        if key >= self.reserved_by.len() {
+            self.reserved_by.resize(key + 1, -1);
+        }
+        self.reserved_by[key] = memory.unit_id;
     }
 
     pub fn release_reservation(&mut self, index: usize) {
         let memory = &mut self.memories[index];
         if memory.reserved_carrot >= 0
-            && self.reserved_by.get(&memory.reserved_carrot) == Some(&memory.unit_id)
+            && self.reserved_by.get(memory.reserved_carrot as usize) == Some(&memory.unit_id)
         {
-            self.reserved_by.remove(&memory.reserved_carrot);
+            self.reserved_by[memory.reserved_carrot as usize] = -1;
         }
         memory.reserved_carrot = -1;
     }
 
     pub fn reserving(&self, carrot: i32) -> Option<usize> {
         self.reserved_by
-            .get(&carrot)
-            .and_then(|rabbit| self.find(*rabbit))
+            .get(usize::try_from(carrot).ok()?)
+            .and_then(|&rabbit| self.find(rabbit))
     }
 
     pub fn reserved_by_other(&self, rabbit: i32, carrot: i32) -> bool {
-        self.reserved_by
-            .get(&carrot)
-            .is_some_and(|owner| *owner != rabbit)
+        usize::try_from(carrot)
+            .ok()
+            .and_then(|key| self.reserved_by.get(key))
+            .is_some_and(|&owner| owner >= 0 && owner != rabbit)
     }
 
     pub fn carrot_progress(&self, carrot: i32) -> i32 {
-        self.carrot_progress.get(&carrot).copied().unwrap_or(0)
+        usize::try_from(carrot)
+            .ok()
+            .and_then(|key| self.carrot_progress.get(key))
+            .copied()
+            .unwrap_or(0)
     }
 
     pub fn set_carrot_progress(&mut self, carrot: i32, progress: i32) {
-        if progress <= 0 {
-            self.carrot_progress.remove(&carrot);
-        } else {
-            self.carrot_progress.insert(carrot, progress);
+        let key = usize::try_from(carrot).expect("nonnegative carrot ID");
+        if key >= self.carrot_progress.len() {
+            self.carrot_progress.resize(key + 1, 0);
         }
+        self.carrot_progress[key] = progress.max(0);
     }
 
     pub fn clear_carrot_progress(&mut self, carrot: i32) {
-        self.carrot_progress.remove(&carrot);
+        if let Some(progress) = usize::try_from(carrot)
+            .ok()
+            .and_then(|key| self.carrot_progress.get_mut(key))
+        {
+            *progress = 0;
+        }
     }
 }
 

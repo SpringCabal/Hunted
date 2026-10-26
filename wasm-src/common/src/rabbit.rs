@@ -34,6 +34,24 @@ const BOLDNESS_DECAY: f32 = 0.99;
 const JITTER_BOLDNESS_THRESHOLD: f32 = 300.0;
 const JITTER_BOLDNESS_DIVISOR: f32 = 100.0;
 
+// Ordinary AI gaps are 0..=15. Both decays are pure functions of that
+// integer, so compute the exact original powers once instead of per rabbit.
+fn decays(gap: i32) -> (f32, f32) {
+    static DECAYS: std::sync::OnceLock<[(f32, f32); 16]> = std::sync::OnceLock::new();
+    if let Ok(index) = usize::try_from(gap)
+        && index < 16
+    {
+        DECAYS.get_or_init(|| {
+            core::array::from_fn(|i| (powf(FEAR_DECAY, i as f32), powf(STAMINA_DECAY, i as f32)))
+        })[index]
+    } else {
+        (
+            powf(FEAR_DECAY, gap as f32),
+            powf(STAMINA_DECAY, gap as f32),
+        )
+    }
+}
+
 /// Lua stores this absolute deadline in the engine's 32-bit Lua_Number.
 /// Add the frame before rounding: rounding the random gap first changes ticks.
 pub fn next_update_frame(frame: i32, random: f32) -> i32 {
@@ -77,8 +95,7 @@ impl RabbitData {
         {
             self.panic = Some(scary);
         }
-        self.fear =
-            (self.fear + scary_fear + FEAR_ADDED * gap as f32) * powf(FEAR_DECAY, gap as f32);
+        self.fear = (self.fear + scary_fear + FEAR_ADDED * gap as f32) * decays(gap).0;
         if self.panic.is_some() {
             if self.fear < PANIC_END_FEAR {
                 self.panic = None;
@@ -109,7 +126,7 @@ impl RabbitData {
         let speed = base_speed * sudden_speed;
         self.stamina = (self.stamina - powf(speed.max(0.0), STAMINA_COST_EXPONENT) * gap as f32
             + STAMINA_RECOVERY * gap as f32)
-            * powf(STAMINA_DECAY, gap as f32);
+            * decays(gap).1;
         speed * SPEED_MULTIPLIER * speed_multiplier
     }
 
