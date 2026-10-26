@@ -13,8 +13,14 @@ end
 -------------------------------------------------------------------
 -------------------------------------------------------------------
 local lastx, lasty, lastz
+local benchmarkNoInput = tonumber((Spring.GetModOptions() or {}).benchmark_no_input) == 1
+
+function widget:Initialize()
+	if benchmarkNoInput then Spring.Echo("[HuntedBenchmark] mouse_input=off") end
+end
 
 function widget:GameFrame(n)
+	if benchmarkNoInput then return end
 	local mx, my = Spring.GetMouseState()
 	local _, pos = Spring.TraceScreenRay(mx, my, true)
 	if pos then
@@ -27,6 +33,7 @@ function widget:GameFrame(n)
 end
 
 function widget:MousePress(mx, my, button)
+	if benchmarkNoInput then return false end
 	local alt, ctrl, meta, shift = Spring.GetModKeyState()
 	if button == 1 and not Spring.IsAboveMiniMap(mx, my) then
 		local _, pos = Spring.TraceScreenRay(mx, my, true)
