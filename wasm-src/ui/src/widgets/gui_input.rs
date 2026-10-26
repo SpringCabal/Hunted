@@ -11,6 +11,7 @@ use crate::state::{self, Global, Point3};
 
 pub struct GuiInputWidget {
     mouse: Cell<Option<(i32, i32)>>,
+    benchmark_no_input: Cell<bool>,
     last_target: Cell<Option<Point3>>,
     last_sent_frame: Cell<i32>,
 }
@@ -19,6 +20,7 @@ impl Default for GuiInputWidget {
     fn default() -> Self {
         Self {
             mouse: Cell::new(None),
+            benchmark_no_input: Cell::new(false),
             last_target: Cell::new(None),
             last_sent_frame: Cell::new(-1),
         }
@@ -31,6 +33,9 @@ impl GuiInputWidget {
     }
 
     fn update_target(&self, spring: &spring::Spring<'_, spring::Ui>, global: &Global) {
+        if self.benchmark_no_input.get() {
+            return;
+        }
         let Some((x, y)) = self.mouse_position(spring, global) else {
             return;
         };
@@ -62,6 +67,9 @@ impl GuiInputWidget {
         y: i32,
         button: i32,
     ) -> bool {
+        if self.benchmark_no_input.get() {
+            return false;
+        }
         diagnostics::mouse_press(spring, x, y, button);
         if global.round.access().game_over {
             return true;
@@ -128,6 +136,18 @@ fn ground_at(
 impl Widget<Global> for GuiInputWidget {
     fn name(&self) -> &'static str {
         "GuiInput"
+    }
+
+    fn init(&self, ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>) {
+        self.benchmark_no_input.set(
+            ctx.spring()
+                .game()
+                .get_mod_option("benchmark_no_input")
+                .is_ok_and(|value| value.value == "1"),
+        );
+        if self.benchmark_no_input.get() {
+            spring::log_notice!(ctx.spring(), "HuntedBenchmark", "mouse_input=off");
+        }
     }
 
     fn update(&self, ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>, _dt: f32) {
