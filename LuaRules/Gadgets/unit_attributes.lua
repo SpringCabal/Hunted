@@ -262,7 +262,9 @@ local function removeUnit(unitID)
 	currentAcc[unitID] = nil
 end
 
-function UpdateUnitAttributes(unitID, frame)
+-- AI callers already have these three values. Accept them directly while
+-- retaining the rules-param path for callers that update attributes externally.
+function UpdateUnitAttributes(unitID, frame, selfMoveSpeedChange, selfTurnSpeedChange, selfMaxAccelerationChange)
 	if not spValidUnitID(unitID) then
 		removeUnit(unitID)
 		return
@@ -279,9 +281,11 @@ function UpdateUnitAttributes(unitID, frame)
 	local changedAtt = false
 	
 	-- Unit speed change (like sprint) --
-	local selfMoveSpeedChange = spGetUnitRulesParam(unitID, "selfMoveSpeedChange")
-	local selfTurnSpeedChange = spGetUnitRulesParam(unitID, "selfTurnSpeedChange")
-	local selfMaxAccelerationChange = spGetUnitRulesParam(unitID, "selfMaxAccelerationChange")
+	if selfMoveSpeedChange == nil then
+		selfMoveSpeedChange = spGetUnitRulesParam(unitID, "selfMoveSpeedChange")
+		selfTurnSpeedChange = spGetUnitRulesParam(unitID, "selfTurnSpeedChange")
+		selfMaxAccelerationChange = spGetUnitRulesParam(unitID, "selfMaxAccelerationChange")
+	end
 	
 	if selfMoveSpeedChange or selfTurnSpeedChange or selfAccelerationChange then
 		local slowMult   = 1-(slowState or 0)

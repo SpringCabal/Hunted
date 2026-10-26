@@ -21,6 +21,27 @@ end
 -- Configs/Speedups
 
 local sqrt = math.sqrt
+local spValidUnitID = Spring.ValidUnitID
+local spGetGameFrame = Spring.GetGameFrame
+local spGetUnitPosition = Spring.GetUnitPosition
+local spGetUnitVelocity = Spring.GetUnitVelocity
+local spGetHeadingFromVector = Spring.GetHeadingFromVector
+local spSetUnitMoveGoal = Spring.SetUnitMoveGoal
+local spSetUnitRulesParam = Spring.SetUnitRulesParam
+local spGetUnitRulesParam = Spring.GetUnitRulesParam
+local spGetUnitIsDead = Spring.GetUnitIsDead
+local spGetAllUnits = Spring.GetAllUnits
+local spGetUnitDefID = Spring.GetUnitDefID
+local spSetGameRulesParam = Spring.SetGameRulesParam
+local spGetGameRulesParam = Spring.GetGameRulesParam
+local spDestroyUnit = Spring.DestroyUnit
+local math_random = math.random
+local math_floor = math.floor
+local math_min = math.min
+local math_max = math.max
+local math_cos = math.cos
+local math_sin = math.sin
+local math_pi = math.pi
 
 local rabbitDefID = {
 	[UnitDefNames["rabbit"].id] = true
@@ -68,6 +89,11 @@ local desirableUnitDefs = {
 -- have 100*0.995^300 = 22.2 fear
 local FEAR_DECAY = 0.995
 local STAMINA_DECAY = 0.998
+local fearDecays, staminaDecays = {}, {}
+for gap = 0, 15 do
+    fearDecays[gap], staminaDecays[gap] = FEAR_DECAY^gap, STAMINA_DECAY^gap
+end
+
 local FEAR_ADDED = 0.3 -- fear added every frame
 local BOLDNESS_ADDED = 0.3 -- boldness added every frame
 
@@ -112,6 +138,8 @@ local function OrderedRabbits()
     return rabbitOrder
 end
 local FOOD_CELL_SIZE = 1500
+local hungryDesirables, carryingDesirables = {1, 0}, {0, 1}
+local carryingScares = {1, 1}
 local foodCells = {}
 local globalDesirables = {}
 
@@ -141,11 +169,11 @@ local function Norm(b, x, z)
 end
 
 local function Angle(x, z)
-	return -Spring.GetHeadingFromVector(x, z)/2^15*math.pi + math.pi/2
+	return -spGetHeadingFromVector(x, z)/2^15*math_pi + math_pi/2
 end
 
 local function PolarToCart(mag, dir)
-	return mag*math.cos(dir), mag*math.sin(dir)
+	return mag*math_cos(dir), mag*math_sin(dir)
 end
 
 
@@ -184,7 +212,7 @@ end
 
 function GiveClampedOrderToUnit(unitID, cmdID, params, options)
 	local x, z = ClampPosition(params[1], params[3])
-	Spring.SetUnitMoveGoal(unitID, x, params[2], z, 16, nil, true) -- The last argument is whether the goal is raw
+	spSetUnitMoveGoal(unitID, x, params[2], z, 16, nil, true) -- The last argument is whether the goal is raw
 	--Spring.GiveOrderToUnit(unitID, cmdID, {x, params[2], z}, options)
 	return true
 end
@@ -262,7 +290,7 @@ end
 local function IndexDesirable(thing, isUnit)
 	local list, indexKey
 	if isUnit and thing.attributes.thingType == 1 and thing.attributes.radius <= FOOD_CELL_SIZE then
-		local x, z = math.floor(thing.x/FOOD_CELL_SIZE), math.floor(thing.z/FOOD_CELL_SIZE)
+		local x, z = math_floor(thing.x/FOOD_CELL_SIZE), math_floor(thing.z/FOOD_CELL_SIZE)
 		foodCells[x] = foodCells[x] or {}
 		foodCells[x][z] = foodCells[x][z] or {}
 		list = foodCells[x][z]
@@ -283,43 +311,75 @@ local function UnindexDesirable(thing)
 	list[#list] = nil
 end
 
+-- Keep the query state in arguments rather than allocating a new closure for
+-- every rabbit. Attribute tables can be changed by other gadgets, so pruning
+-- is restricted to non-increasing, non-negative distance falloff.
+local desirableClosest = setmetatable({}, {__mode = "k"})
+local desirableQuery = 0
+
+local function ScanDesirables(list, x, z, typeMultiplier, best, bestMagnitude)
+    for i = 1, #list do
+        local thing = list[i]
+        local attributes = thing.attributes
+        local multiplier = typeMultiplier[attributes.thingType]
+        if not thing.inactive and multiplier ~= 0 then
+            local square = DistSq(x, z, thing.x, thing.z)
+            if square < attributes.radiusSq then
+                local previous = desirableClosest[attributes]
+                local fresh = previous and previous.query == desirableQuery
+                local monotone = attributes.proximityMagnitude >= 0 and not (multiplier and multiplier < 0)
+                -- Equal computed magnitudes retain the first main-list entry.
+                -- A farther candidate with an earlier index must still be
+                -- evaluated, including floating-point falloff ties.
+                if not monotone or not fresh or square < previous.square or thing.index < previous.index then
+                    if monotone and (not fresh or square < previous.square or
+                            (square == previous.square and thing.index < previous.index)) then
+                        if previous then
+                            previous.query, previous.square, previous.index = desirableQuery, square, thing.index
+                        else
+                            desirableClosest[attributes] = {query = desirableQuery, square = square, index = thing.index}
+                        end
+                    end
+                    local magnitude = GetThingAdjustedMagnitude(sqrt(square), attributes, typeMultiplier)
+                    if magnitude > bestMagnitude or
+                            (best and magnitude == bestMagnitude and thing.index < best.index) then
+                        best, bestMagnitude = thing, magnitude
+                    end
+                end
+            end
+        end
+    end
+    return best, bestMagnitude
+end
+
 local function GetBestDesirable(x, z, typeMultiplier)
-	if #desirableThings <= 32 then
-		return GetBestThing(desirableThings, x, z, typeMultiplier)
-	end
-	local best, bestMagnitude = nil, 0
-	local function scan(list)
-		for i = 1, #list do
-			local thing = list[i]
-			local attributes = thing.attributes
-			if not thing.inactive and typeMultiplier[attributes.thingType] ~= 0 then
-				local square = DistSq(x, z, thing.x, thing.z)
-				if square < attributes.radiusSq then
-					local magnitude = GetThingAdjustedMagnitude(sqrt(square), attributes, typeMultiplier)
-					-- Bucket order differs from the main list: retain its original
-					-- first-wins tie rule, including after swap-removal.
-					if magnitude > bestMagnitude or
-							(best and magnitude == bestMagnitude and thing.index < best.index) then
-						best, bestMagnitude = thing, magnitude
-					end
-				end
-			end
-		end
-	end
-	scan(globalDesirables)
-	if typeMultiplier[1] ~= 0 then
-		local cx, cz = math.floor(x/FOOD_CELL_SIZE), math.floor(z/FOOD_CELL_SIZE)
-		for gx = cx - 1, cx + 1 do
-			local row = foodCells[gx]
-			if row then
-				for gz = cz - 1, cz + 1 do
-					if row[gz] then scan(row[gz]) end
-				end
-			end
-		end
-	end
-	if best then return best, best.x, best.z, bestMagnitude end
-	return false, x, z, 0
+    if #desirableThings <= 32 then
+        return GetBestThing(desirableThings, x, z, typeMultiplier)
+    end
+    -- Lua_Number is float32 in the engine: keep generations exactly representable.
+    if desirableQuery == 1048576 then
+        desirableClosest = setmetatable({}, {__mode = "k"})
+        desirableQuery = 0
+    end
+    desirableQuery = desirableQuery + 1
+    local best, bestMagnitude = nil, 0
+    best, bestMagnitude = ScanDesirables(globalDesirables, x, z, typeMultiplier, best, bestMagnitude)
+    if typeMultiplier[1] ~= 0 then
+        local cx, cz = math_floor(x/FOOD_CELL_SIZE), math_floor(z/FOOD_CELL_SIZE)
+        for gx = cx - 1, cx + 1 do
+            local row = foodCells[gx]
+            if row then
+                for gz = cz - 1, cz + 1 do
+                    local list = row[gz]
+                    if list then
+                        best, bestMagnitude = ScanDesirables(list, x, z, typeMultiplier, best, bestMagnitude)
+                    end
+                end
+            end
+        end
+    end
+    if best then return best, best.x, best.z, bestMagnitude end
+    return false, x, z, 0
 end
 
 -------------------------------------------------------------------
@@ -357,8 +417,8 @@ end
 -- Desirable Unit Handling
 
 local function StartStealing(rabbitData, thingRef)
-	if Spring.ValidUnitID(rabbitData.unitID) then
-		Spring.SetUnitRulesParam(rabbitData.unitID, "stealing", 1)
+	if spValidUnitID(rabbitData.unitID) then
+		spSetUnitRulesParam(rabbitData.unitID, "stealing", 1)
 	end
 	
 	--Spring.MarkerAddPoint(thingRef.x, 0, thingRef.z, "Stealing")
@@ -376,8 +436,8 @@ local function StartStealing(rabbitData, thingRef)
 end
 
 local function StopStealing(rabbitData)
-	if Spring.ValidUnitID(rabbitData.unitID) then
-		Spring.SetUnitRulesParam(rabbitData.unitID, "stealing", 0)
+	if spValidUnitID(rabbitData.unitID) then
+		spSetUnitRulesParam(rabbitData.unitID, "stealing", 0)
 	end
 	
 	local thingRef = rabbitData.eatingThingRef
@@ -397,7 +457,7 @@ local function StopStealing(rabbitData)
 end
 
 local function AddDesirableUnit(unitID, unitDefID)
-	local x,_,z = Spring.GetUnitPosition(unitID)
+	local x,_,z = spGetUnitPosition(unitID)
 	local attributes = desirableUnitDefs[unitDefID]
 	local index = AddThing(desirableThings, {
 		x = x,
@@ -435,7 +495,7 @@ local function AddRabbit(unitID)
 		stamina = 100,
 		foodCarried = 0,
 		carryingSince = false,
-		lastUpdate = Spring.GetGameFrame(),
+		lastUpdate = spGetGameFrame(),
 	}
 end
 
@@ -454,11 +514,11 @@ local function RemoveRabbit(unitID)
 	rabbits[unitID] = nil
 	rabbitOrderDirty = true
 	
-	if not Spring.GetUnitRulesParam(unitID, "internalDestroy") then
-		local killed = Spring.GetGameRulesParam("rabbits_killed")
-		Spring.SetGameRulesParam("rabbits_killed", killed + 1)
-		local score = Spring.GetGameRulesParam("score") or 0
-		Spring.SetGameRulesParam("score", score + 50)
+	if not spGetUnitRulesParam(unitID, "internalDestroy") then
+		local killed = spGetGameRulesParam("rabbits_killed")
+		spSetGameRulesParam("rabbits_killed", killed + 1)
+		local score = spGetGameRulesParam("score") or 0
+		spSetGameRulesParam("score", score + 50)
 	end
 end
 
@@ -471,27 +531,28 @@ local function RabbitFoodDestroyed(unitID)
 end
 
 local function SetRabbitMovement(unitID, x, z, goalX, goalZ, speedMult, accelMult, turnMult)
-	Spring.SetUnitRulesParam(unitID, "selfMoveSpeedChange", speedMult)
-		Spring.SetUnitRulesParam(unitID, "selfMaxAccelerationChange", accelMult)
-	Spring.SetUnitRulesParam(unitID, "selfTurnSpeedChange", turnMult)
-	GG.UpdateUnitAttributes(unitID)
-	GiveClampedOrderToUnit(unitID, CMD.MOVE, {goalX + x, 0, goalZ + z}, 0 )
+	spSetUnitRulesParam(unitID, "selfMoveSpeedChange", speedMult)
+		spSetUnitRulesParam(unitID, "selfMaxAccelerationChange", accelMult)
+	spSetUnitRulesParam(unitID, "selfTurnSpeedChange", turnMult)
+	GG.UpdateUnitAttributes(unitID, nil, speedMult, turnMult, accelMult)
+	local targetX, targetZ = ClampPosition(goalX + x, goalZ + z)
+	spSetUnitMoveGoal(unitID, targetX, 0, targetZ, 16, nil, true)
 end
 
 local function UpdateRabbit(unitID, frame, scaryOverride)
 
-	if not (Spring.ValidUnitID(unitID) and rabbits[unitID]) then
+	if not (spValidUnitID(unitID) and rabbits[unitID]) then
 		return
 	end
 	
 	--// Collect rabbit information
-	frame = frame or Spring.GetGameFrame()
-	local x,_,z = Spring.GetUnitPosition(unitID)
+	frame = frame or spGetGameFrame()
+	local x,_,z = spGetUnitPosition(unitID)
 	local rabbitData = rabbits[unitID]
 
 	local updateGap = frame - rabbitData.lastUpdate
 	rabbitData.lastUpdate = frame
-	rabbitData.nextUpdate = frame + 5 + 10*math.random()
+	rabbitData.nextUpdate = frame + 5 + 10*math_random()
 	
 	-- ScaryThingTable
 	local scaryThingTable
@@ -499,10 +560,8 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 		local carrySeconds = (frame - rabbitData.carryingSince)/30
 		-- After 10 seconds of carrying the Rabbit begins to ignore lights.
 		-- After 20 seconds it ignores lights entirely.
-		scaryThingTable = {
-			1, -- Scaryness of weapons
-			math.min(1, math.max(0, (20 - carrySeconds)/10)), -- Scaryness of lights
-		}
+        carryingScares[2] = math_min(1, math_max(0, (20 - carrySeconds)/10))
+        scaryThingTable = carryingScares
 	end
 	
 	--// Update Scary Place and Fear
@@ -521,8 +580,9 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 		scaryFear = scaryMag*updateGap
 	end
 	
+    local fear = rabbitData.fear
 	-- Panic mode causes a rabbit to run away from a scary location until it calms down.
-	if rabbitData.panicMode and (scaryMag + 80*global_rabbitPanicResist > rabbitData.fear or scaryMag > 80*global_rabbitPanicResist) then
+	if rabbitData.panicMode and (scaryMag + 80*global_rabbitPanicResist > fear or scaryMag > 80*global_rabbitPanicResist) then
 		rabbitData.panicMode = {
 			x = sX,
 			z = sZ,
@@ -531,13 +591,14 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	end
 	
 	-- Update Fear
-	rabbitData.fear = (rabbitData.fear + scaryFear + FEAR_ADDED*updateGap)*(FEAR_DECAY^updateGap)
+	fear = (fear + scaryFear + FEAR_ADDED*updateGap)*((fearDecays[updateGap] or FEAR_DECAY^updateGap))
+    rabbitData.fear = fear
 	
 	if rabbitData.panicMode then
-		if rabbitData.fear < 150 then
+		if fear < 150 then
 			rabbitData.panicMode = false
 		end
-	elseif rabbitData.fear > 250*global_rabbitPanicResist then
+	elseif fear > 250*global_rabbitPanicResist then
 		rabbitData.panicMode = {
 			x = sX,
 			z = sZ,
@@ -552,28 +613,29 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 		GG.RabbitDropCarrot(unitID)
 	end
 	
+    local fear, boldness, stamina = rabbitData.fear, rabbitData.boldness, rabbitData.stamina
 	--// Update Goal and Boldness
 	local expectedFood = rabbitData.foodCarried + ((rabbitData.eatingProgress and 1) or 0)
 	-- 1 carrot
-	local deisrableTypeTable = {
-		math.max(0, 1 - expectedFood), -- Desirability of food
-		math.min(1, expectedFood), -- Desirability of Burrow
-	}
+    local deisrableTypeTable = expectedFood > 0 and carryingDesirables or hungryDesirables
 	
 	local goalRef, gX, gZ, goalMag = GetBestDesirable(x, z, deisrableTypeTable)
 	
-	rabbitData.boldness = (rabbitData.boldness + goalMag*updateGap + BOLDNESS_ADDED*updateGap)*
-		(1/(0.99 + rabbitData.fear/(10000 - math.min(8000, rabbitData.boldness*20))))^updateGap
+	boldness = (boldness + goalMag*updateGap + BOLDNESS_ADDED*updateGap)*
+		(1/(0.99 + fear/(10000 - math_min(8000, boldness*20))))^updateGap
+
+    rabbitData.boldness = boldness
 
 	--// Update Speed and Stamina
-	local speedMult = ((((rabbitData.fear + math.max(0, rabbitData.boldness - 320))/45)^0.8)*(2 + (rabbitData.boldness/200)^0.45)/2.3)*rabbitData.stamina/150
+	local speedMult = ((((fear + math_max(0, boldness - 320))/45)^0.8)*(2 + (boldness/200)^0.45)/2.3)*stamina/150
 
 	-- High scaryMag means that something scary is happening right now!
 	-- (Suddden blast or near center of a torch)
-	speedMult = speedMult*math.max(1, math.min(2, (scaryMag - 0.7)*2))
+	speedMult = speedMult*math_max(1, math_min(2, (scaryMag - 0.7)*2))
 	
-	rabbitData.stamina = (rabbitData.stamina - ((speedMult)^0.2)*updateGap + 1.3*updateGap)*STAMINA_DECAY^updateGap
+	stamina = (stamina - ((speedMult)^0.2)*updateGap + 1.3*updateGap)*(staminaDecays[updateGap] or STAMINA_DECAY^updateGap)
 	
+    rabbitData.stamina = stamina
 	speedMult = speedMult*1.8*global_rabbitSpeedMult
 	
 	--// Handle Carrot Eating
@@ -588,8 +650,8 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 				local carrotID = rabbitData.eatingThingRef.unitID
 				-- Release the reservation before DestroyUnit raises UnitDestroyed.
 				StopStealing(rabbitData)
-				Spring.SetUnitRulesParam(carrotID, "internalDestroy", 1)
-				Spring.DestroyUnit(carrotID, false, false)
+				spSetUnitRulesParam(carrotID, "internalDestroy", 1)
+				spDestroyUnit(carrotID, false, false)
 				rabbitData.foodCarried = rabbitData.foodCarried + 1
 				rabbitData.boldness = rabbitData.boldness + 150 -- Bonus boldness for being a good theif!
 				rabbitData.carryingSince = frame
@@ -600,14 +662,15 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 		end
 	end
 	
-	--speedMult = math.min(100, speedMult^5)
+	--speedMult = math_min(100, speedMult^5)
 	
-	--GG.UnitEcho(unitID, math.floor(rabbitData.fear))
+	--GG.UnitEcho(unitID, math_floor(rabbitData.fear))
 	--Spring.Echo("Fear", rabbitData.fear)
 	--Spring.Echo("Boldness", rabbitData.boldness)
 	--Spring.Echo("Stamina", rabbitData.stamina)
 	--Spring.Echo("speedMult", speedMult)
 	
+    local fear, boldness = rabbitData.fear, rabbitData.boldness
 	--// Determine move direction and speed
 	-- scaryVec is the direction and magnitude to the scariest thing.
 	-- goalVec is the same for the goal
@@ -623,17 +686,17 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	-- moveVec is the resultant move direction from fear and boldness.
 
 	
-	scaryX, scaryZ = Norm(-rabbitData.fear/8, scaryX, scaryZ)
+	scaryX, scaryZ = Norm(-fear/8, scaryX, scaryZ)
 	
 	local moveX, moveZ, goalMag
-	if rabbitData.fear < 180*global_rabbitPanicResist + 150*rabbitData.foodCarried then
+	if fear < 180*global_rabbitPanicResist + 150*rabbitData.foodCarried then
 		local goalX, goalZ = gX - x, gZ - z
 		goalMag = AbsVal(goalX, goalZ)
 		if goalMag < 200 then
 			speedMult = speedMult*1.2
-			goalX, goalZ = Norm(rabbitData.boldness/10, goalX, goalZ)
+			goalX, goalZ = Norm(boldness/10, goalX, goalZ)
 		else
-			goalX, goalZ = Norm(rabbitData.boldness/30, goalX, goalZ)
+			goalX, goalZ = Norm(boldness/30, goalX, goalZ)
 		end
 		moveX, moveZ = scaryX + goalX, scaryZ + goalZ
 	else
@@ -670,23 +733,23 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	--Spring.Echo("Move", moveVec[1], moveVec[2], moveDir)
 	
 	-- Boldness decreases rabbit movement jitter.
-	local dirRandomness = math.min(math.pi*0.4, 20*(10 + rabbitData.boldness)^(-0.9))
-	local moveDir = moveDir + math.random()*2*dirRandomness - dirRandomness
+	local dirRandomness = math_min(math_pi*0.4, 20*(10 + boldness)^(-0.9))
+	local moveDir = moveDir + math_random()*2*dirRandomness - dirRandomness
 	
-	local jitter = 1/(1 + math.max(0, rabbitData.boldness - 300)/100)
+	local jitter = 1/(1 + math_max(0, boldness - 300)/100)
 	
 	-- Rabbits have a small bias towards keeping their momentum
-	local vx, _, vz, velMag = Spring.GetUnitVelocity(unitID)
-	local velX, velZ = Norm((10 + math.random()*5)*jitter, vx, vz)
+	local vx, _, vz, velMag = spGetUnitVelocity(unitID)
+	local velX, velZ = Norm((10 + math_random()*5)*jitter, vx, vz)
 	moveX, moveZ = PolarToCart(moveMag, moveDir)
 	
 	-- Rabbits also just move randomly.
-	local randX, randZ = PolarToCart((5 + math.random()*10)*jitter, math.random()*2*math.pi)
+	local randX, randZ = PolarToCart((5 + math_random()*10)*jitter, math_random()*2*math_pi)
 	
 	--Spring.Echo("jitter", jitter)
-	--Spring.Echo("moveVec Angle", Angle(moveVec)*180/math.pi)
+	--Spring.Echo("moveVec Angle", Angle(moveVec)*180/math_pi)
 	--Spring.Echo("randVec", AbsVal(randVec))
-	--Spring.Echo("dirRandomness", dirRandomness*180/math.pi)
+	--Spring.Echo("dirRandomness", dirRandomness*180/math_pi)
 	
 	-- Add the randomVector, momentumVector and goal+scary vectors to get final direction.
 	moveX, moveZ = Norm(200*speedMult, moveX + (randX + velX), moveZ + (randZ + velZ))
@@ -704,10 +767,10 @@ end
 -- External functions
 
 local function ScareRabbitsInArea(x, z, scaryAttributes)
-	local frame = Spring.GetGameFrame()
+	local frame = spGetGameFrame()
 	for _, unitID in ipairs(OrderedRabbits()) do
         local data = rabbits[unitID]
-		local rx,_,rz = Spring.GetUnitPosition(unitID)
+		local rx,_,rz = spGetUnitPosition(unitID)
 		if rx then
 			local distSq = DistSq(x, z, rx, rz)
 			if distSq < scaryAttributes.radiusSq then
@@ -731,7 +794,7 @@ end
 -- gadget handler functions
 
 function gadget:UnitCreated(unitID, unitDefID)
-	if Spring.GetUnitIsDead(unitID) then
+	if spGetUnitIsDead(unitID) then
 		return
 	end
 	
@@ -775,15 +838,15 @@ function gadget:Initialize()
 	global_rabbitSpeedMult = 1
 	global_rabbitPanicResist = 1
 	
-	for _, unitID in ipairs(Spring.GetAllUnits()) do
-		local unitDefID = Spring.GetUnitDefID(unitID)
+	for _, unitID in ipairs(spGetAllUnits()) do
+		local unitDefID = spGetUnitDefID(unitID)
 		if rabbitDefID[unitDefID] then
-			Spring.SetUnitRulesParam(unitID, "internalDestroy", 1)
-			Spring.DestroyUnit(unitID, false, false)
+			spSetUnitRulesParam(unitID, "internalDestroy", 1)
+			spDestroyUnit(unitID, false, false)
 		else
 			gadget:UnitCreated(unitID, unitDefID)
 		end
 	end
 	
-	Spring.SetGameRulesParam("rabbits_killed", 0)
+	spSetGameRulesParam("rabbits_killed", 0)
 end
