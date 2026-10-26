@@ -101,6 +101,16 @@ local desirableThings = {}
 
 local desirableUnits = {}
 local rabbits = {}
+local rabbitOrder, rabbitOrderDirty = {}, true
+local function OrderedRabbits()
+    if rabbitOrderDirty then
+        rabbitOrder = {}
+        for id in pairs(rabbits) do rabbitOrder[#rabbitOrder+1] = id end
+        table.sort(rabbitOrder)
+        rabbitOrderDirty = false
+    end
+    return rabbitOrder
+end
 local FOOD_CELL_SIZE = 1500
 local foodCells = {}
 local globalDesirables = {}
@@ -417,6 +427,7 @@ end
 -- Rabbit Handling
 
 local function AddRabbit(unitID)
+	rabbitOrderDirty = true
 	rabbits[unitID] = {
 		unitID = unitID,
 		fear = 50,
@@ -441,6 +452,7 @@ local function RemoveRabbit(unitID)
 		StopStealing(rabbits[unitID])
 	end
 	rabbits[unitID] = nil
+	rabbitOrderDirty = true
 	
 	if not Spring.GetUnitRulesParam(unitID, "internalDestroy") then
 		local killed = Spring.GetGameRulesParam("rabbits_killed")
@@ -693,7 +705,8 @@ end
 
 local function ScareRabbitsInArea(x, z, scaryAttributes)
 	local frame = Spring.GetGameFrame()
-	for unitID, data in pairs(rabbits) do
+	for _, unitID in ipairs(OrderedRabbits()) do
+        local data = rabbits[unitID]
 		local rx,_,rz = Spring.GetUnitPosition(unitID)
 		if rx then
 			local distSq = DistSq(x, z, rx, rz)
@@ -740,7 +753,8 @@ function gadget:UnitDestroyed(unitID, unitDefID)
 end
 
 function gadget:GameFrame(frame)
-	for unitID, data in pairs(rabbits) do
+	for _, unitID in ipairs(OrderedRabbits()) do
+        local data = rabbits[unitID]
 		if (not data.nextUpdate) or frame >= data.nextUpdate then
 			UpdateRabbit(unitID)
 		end

@@ -45,7 +45,7 @@ local waveAtt = {
 --------------------------------------------------------------------------------
 
 local function SpawnUnit(unitDefID, x, z, noRotate)
-	local unitID = Spring.CreateUnit(unitDefID, x, 0, z, 0, 0, false, false)
+	local unitID = Spring.CreateUnit(unitDefID, x, Spring.GetGroundHeight(x, z), z, 0, 0, false, false)
 	if not noRotate then
 		Spring.SetUnitRotation(unitID, 0, math.random()*2*math.pi, 0)
 	end
@@ -64,7 +64,12 @@ end
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
+local pendingWorld = true
 function gadget:Initialize()
+	pendingWorld = true
+end
+
+local function PopulateWorld()
 	CleanUnits()
 	
 	GG.SpawnField(2650, 2125, 2930, 2380, 4, 5)
@@ -96,6 +101,10 @@ function gadget:Initialize()
 end
 
 function gadget:GameFrame(frame)
+	if pendingWorld then
+		pendingWorld = false
+		PopulateWorld()
+	end
 	local elapsed = frame - startFrame
 	if elapsed%waveGap == 5 then
 		

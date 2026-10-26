@@ -64,13 +64,12 @@ local function SpawnField(topX, topZ, botX, botZ, rows, cols)
 	local x, z = topX, topZ
 	for i = 1, rows do
 		for j = 1, cols do
-			local carrotID = Spring.CreateUnit(carrotDefID, x, 0, z, 0, 0, false, false)
+			x = topX + (j-1)*colSpace
+			z = topZ + (i-1)*rowSpace
+			local carrotID = Spring.CreateUnit(carrotDefID, x, Spring.GetGroundHeight(x, z), z, 0, 0, false, false)
 			Spring.SetUnitRotation(carrotID, 0, math.random()*2*math.pi, 0)
-			x = x + colSpace
 			carrotSpot[carrotID] = fieldCount
 		end
-		z = z + rowSpace
-		x = topX
 	end
 end
 
