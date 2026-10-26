@@ -209,7 +209,7 @@ pub fn set_rabbit_movement_attributes(
         speed_multiplier
     };
     let mut acceleration_rate =
-        RABBIT_MAX_ACCELERATION * speed_multiplier * acceleration_multiplier;
+        RABBIT_MAX_ACCELERATION * speed_multiplier * (speed_multiplier * acceleration_multiplier);
     if speed_multiplier < 1.0 {
         acceleration_rate = acceleration_rate.min(speed_multiplier);
     }

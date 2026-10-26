@@ -1,4 +1,5 @@
-use spring::commands::Pending;
+use alloc::vec::Vec;
+use core::cell::RefCell;
 
 use spring_addons::rules::Gadget;
 
@@ -8,12 +9,10 @@ use crate::map::{self, BURROWS, LIGHTHOUSES};
 use crate::state::{self, Global};
 use crate::units;
 
-const STATIC_SPAWN_BATCH: i32 = 32;
-
 fn spawn_static(spring: &spring::Spring<'_, spring::RulesSynced>, global: &Global) {
     let mut waves = global.waves.access_mut();
     let starting_index = waves.spawn_index;
-    let batch_end = (starting_index + STATIC_SPAWN_BATCH).min(state::NON_RABBIT_COUNT);
+    let batch_end = state::NON_RABBIT_COUNT;
     while waves.spawn_index < batch_end {
         spawn_item(spring, waves.spawn_index);
         waves.spawn_index += 1;
@@ -23,11 +22,7 @@ fn spawn_static(spring: &spring::Spring<'_, spring::RulesSynced>, global: &Globa
     }
 }
 
-fn spawn_rabbit(
-    spring: &spring::Spring<'_, spring::RulesSynced>,
-    burrow: usize,
-) -> Pending<spring::RulesSynced, Option<i32>> {
-    let (x, z) = BURROWS[burrow];
+fn spawn_rabbit(spring: &spring::Spring<'_, spring::RulesSynced>, origin: spring::Float3) {
     let radius = (12.0
         * spring
             .synced_random()
@@ -38,31 +33,58 @@ fn spawn_rabbit(
         .synced_random()
         .next_float()
         .expect("synced random float")
-        * core::f32::consts::TAU;
-    let x = x + radius * angle.cos();
-    let z = z + radius * angle.sin();
-    let y = spring.terrain().get_ground_height(x, z).unwrap_or(0.0);
+        * 2.0
+        * core::f32::consts::PI;
     let facing = spring
         .synced_random()
         .next_int(0, 3)
         .expect("synced random int");
-    units::create_at(
+    units::create_now(
         spring,
         UnitKind::Rabbit,
-        spring::Float3 { x, y, z },
+        spring::Float3::new(
+            origin.x + radius * angle.cos(),
+            origin.y,
+            origin.z + radius * angle.sin(),
+        ),
         0,
         facing,
-    )
+    );
 }
 
-fn update_wave(spring: &spring::Spring<'_, spring::RulesSynced>, global: &Global, frame: i32) {
+fn update_wave(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    global: &Global,
+    origins: &RefCell<Vec<(i32, spring::Float3)>>,
+    frame: i32,
+) {
     let mut waves = global.waves.access_mut();
     if waves.wave_target == 0 && frame >= waves.next_wave_frame {
+        let mut origins = origins.borrow_mut();
+        *origins = global
+            .roster
+            .access()
+            .units(UnitKind::Burrow)
+            .into_iter()
+            .filter_map(|id| {
+                spring
+                    .units_info()
+                    .get_unit_position(id, Default::default())
+                    .ok()
+                    .map(|position| (id, position))
+            })
+            .collect();
+        if origins.is_empty() {
+            return;
+        }
+        waves
+            .burrow_spawns
+            .resize(origins.len(), Default::default());
         let rabbit_count = global.roster.access().count(UnitKind::Rabbit) as i32;
         let burrows = waves.start_wave(frame, rabbit_count, || {
             spring
                 .synced_random()
-                .next_int_up_to(BURROWS.len() as i32)
+                .next_int(1, origins.len() as i32)
                 .expect("synced random up_to") as usize
                 - 1
         });
@@ -77,23 +99,28 @@ fn update_wave(spring: &spring::Spring<'_, spring::RulesSynced>, global: &Global
         return;
     }
 
-    for burrow in 0..BURROWS.len() {
-        let Some(batch) = waves.next_burrow_batch(burrow, frame, || {
-            spring
-                .synced_random()
-                .next_float()
-                .expect("synced random float")
-        }) else {
+    for (burrow, &(unit, position)) in origins.borrow().iter().enumerate() {
+        if spring.units_info().get_unit_is_dead(unit).unwrap_or(true) {
+            waves.burrow_spawns[burrow].active = false;
             continue;
-        };
-        for _ in 0..batch {
-            let _ = spawn_rabbit(spring, burrow);
         }
+        waves.emit_burrow_batch(
+            burrow,
+            frame,
+            || {
+                spring
+                    .synced_random()
+                    .next_float()
+                    .expect("synced random float")
+            },
+            |count| {
+                for _ in 0..count {
+                    spawn_rabbit(spring, position);
+                }
+            },
+        );
     }
-    crate::with_addon_context(|ctx| {
-        ctx.commands()
-            .run(|_spring| crate::with_global(|global| global.waves.access_mut().finish_wave()))
-    });
+    waves.finish_wave();
 }
 
 fn spawn_item(spring: &spring::Spring<'_, spring::RulesSynced>, index: i32) {
@@ -107,27 +134,37 @@ fn spawn_item(spring: &spring::Spring<'_, spring::RulesSynced>, index: i32) {
     if let Some(&(x, z)) = BURROWS.get(index) {
         spawn_turned(spring, UnitKind::Burrow, x, z);
     } else if let Some(&(x, z)) = LIGHTHOUSES.get(index - BURROWS.len()) {
-        let _ = units::create(spring, UnitKind::Lighthouse, x, z, 0);
+        let y = spring.terrain().get_ground_height(x, z).unwrap_or(0.0);
+        units::create_now(
+            spring,
+            UnitKind::Lighthouse,
+            spring::Float3::new(x, y, z),
+            0,
+            0,
+        );
     }
 }
 
 fn spawn_turned(spring: &spring::Spring<'_, spring::RulesSynced>, kind: UnitKind, x: f32, z: f32) {
-    units::create(spring, kind, x, z, 0).then(|spring, unit| {
-        if let Some(unit) = unit {
-            units::set_yaw(
-                spring,
-                unit,
-                spring
-                    .synced_random()
-                    .next_float()
-                    .expect("synced random float")
-                    * core::f32::consts::TAU,
-            );
-        }
-    });
+    let y = spring.terrain().get_ground_height(x, z).unwrap_or(0.0);
+    if let Some(unit) = units::create_now(spring, kind, spring::Float3::new(x, y, z), 0, 0) {
+        units::set_yaw(
+            spring,
+            unit,
+            spring
+                .synced_random()
+                .next_float()
+                .expect("synced random float")
+                * 2.0
+                * core::f32::consts::PI,
+        );
+    }
 }
 
-pub struct WaveSpawnerGadget;
+#[derive(Default)]
+pub struct WaveSpawnerGadget {
+    origins: alloc::rc::Rc<RefCell<Vec<(i32, spring::Float3)>>>,
+}
 
 impl Gadget<Global> for WaveSpawnerGadget {
     fn name(&self) -> &'static str {
@@ -135,8 +172,12 @@ impl Gadget<Global> for WaveSpawnerGadget {
     }
 
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
-        let spring = ctx.spring();
-        spawn_static(spring, ctx.global());
-        update_wave(spring, ctx.global(), frame);
+        let origins = alloc::rc::Rc::clone(&self.origins);
+        ctx.commands().run(move |spring| {
+            crate::with_global(|global| {
+                spawn_static(spring, global);
+                update_wave(spring, global, &origins, frame);
+            })
+        });
     }
 }

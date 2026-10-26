@@ -37,7 +37,6 @@ pub fn setup(
             RosterGadget::default(),
             BlockingGadget,
             InvulnerableGadget,
-            WaveSpawnerGadget,
             WeaponHandlersGadget,
         ]
     );
@@ -49,6 +48,7 @@ pub fn setup(
         handler,
         [
             RabbitAiGadget,
+            WaveSpawnerGadget::default(),
             FlareGadget,
             GameEndGadget,
             ScoreGadget,

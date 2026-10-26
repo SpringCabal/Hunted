@@ -7,8 +7,6 @@ pub(super) fn update_movement(
     game: &mut RabbitCtx<'_>,
     memory_index: usize,
     tick: &RabbitTick,
-    surroundings: &Surroundings,
-    consumed_carrots: &[i32],
 ) {
     let RabbitTick {
         rabbit,
@@ -17,26 +15,18 @@ pub(super) fn update_movement(
         original_reverse_speed,
         scary,
         speed_multiplier,
+        goal,
     } = *tick;
     let carried = game.rabbits.memories[memory_index].carried_carrot >= 0;
-    let (carrot, target) = choose_target(
-        game,
-        rabbit,
-        &position,
-        carried,
-        surroundings,
-        consumed_carrots,
-    );
-
-    let goal_magnitude = target.map_or(0.0, |(_, _, _, magnitude)| magnitude.max(0.0));
-    game.rabbits.memories[memory_index]
-        .data
-        .update_boldness(goal_magnitude, update_gap);
+    let (carrot, target) = goal;
 
     if let Some((carrot_id, carrot_position, distance_sq, eating_time)) = carrot
         && target.is_some_and(|(x, z, _, _)| x == carrot_position.x && z == carrot_position.z)
         && distance_sq.sqrt() < GOAL_RADIUS
         && game.rabbits.memories[memory_index].data.panic.is_none()
+        && game.rabbits.memories[memory_index]
+            .data
+            .moves_to_goal(game.panic_resistance, carried)
     {
         let rabbit_id = game.rabbits.memories[memory_index].unit_id;
         let eating_progress = game.rabbits.carrot_progress(carrot_id);
@@ -121,7 +111,7 @@ pub(super) fn movement_goal(
         input.panic_resistance,
     );
     let speed_multiplier = input.speed_mult * move_vector.speed_factor;
-    let movement_magnitude = move_vector.x.hypot(move_vector.z);
+    let movement_magnitude = (move_vector.x * move_vector.x + move_vector.z * move_vector.z).sqrt();
     let heading = spring::Float3::new(move_vector.x, 0.0, move_vector.z).heading();
     let movement_direction =
         -f32::from(heading) / 32768.0 * core::f32::consts::PI + core::f32::consts::PI / 2.0;
@@ -157,11 +147,6 @@ pub(super) fn movement_goal(
             )
         })
         .unwrap_or((0.0, 0.0));
-    let random_angle = spring
-        .synced_random()
-        .next_float()
-        .expect("synced random float")
-        * core::f32::consts::TAU;
     let random_magnitude = (5.0
         + spring
             .synced_random()
@@ -169,13 +154,19 @@ pub(super) fn movement_goal(
             .expect("synced random float")
             * 10.0)
         * jitter;
+    let random_angle = spring
+        .synced_random()
+        .next_float()
+        .expect("synced random float")
+        * 2.0
+        * core::f32::consts::PI;
     let random_vector = (
         random_angle.cos() * random_magnitude,
         random_angle.sin() * random_magnitude,
     );
     let movement = (
-        movement.0 + random_vector.0 + velocity.0,
-        movement.1 + random_vector.1 + velocity.1,
+        movement.0 + (random_vector.0 + velocity.0),
+        movement.1 + (random_vector.1 + velocity.1),
     );
     let movement = normalize(200.0 * speed_multiplier, movement.0, movement.1);
     let target = (

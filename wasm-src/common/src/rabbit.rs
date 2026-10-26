@@ -96,11 +96,11 @@ impl RabbitData {
             / STAMINA_SPEED_DIVISOR;
         let sudden_speed = ((scary_magnitude - SCARE_SPEED_THRESHOLD) * SCARE_SPEED_MULTIPLIER)
             .clamp(1.0, MAX_SCARE_SPEED);
-        self.stamina = (self.stamina
-            - base_speed.max(0.0).powf(STAMINA_COST_EXPONENT) * gap as f32
+        let speed = base_speed * sudden_speed;
+        self.stamina = (self.stamina - speed.max(0.0).powf(STAMINA_COST_EXPONENT) * gap as f32
             + STAMINA_RECOVERY * gap as f32)
             * STAMINA_DECAY.powi(gap);
-        base_speed * sudden_speed * SPEED_MULTIPLIER * speed_multiplier
+        speed * SPEED_MULTIPLIER * speed_multiplier
     }
 
     pub fn update_boldness(&mut self, goal_magnitude: f32, gap: i32) {

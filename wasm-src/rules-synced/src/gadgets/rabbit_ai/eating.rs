@@ -8,7 +8,11 @@ pub(super) fn update_carried_rabbit(
     original_reverse_speed: f32,
     burrows: &[(i32, Position)],
 ) -> bool {
-    let carried_id = game.rabbits.memories[memory_index].carried_carrot;
+    let memory = game.rabbits.memories[memory_index];
+    if memory.data.panic.is_some() || !memory.data.moves_to_goal(game.panic_resistance, true) {
+        return false;
+    }
+    let carried_id = memory.carried_carrot;
     if carried_id < 0 {
         return false;
     }

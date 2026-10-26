@@ -18,7 +18,7 @@ pub struct BurrowSpawn {
     pub active: bool,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct Waves {
     pub spawn_index: i32,
     pub wave_target: i32,
@@ -26,7 +26,7 @@ pub struct Waves {
     pub next_wave_frame: i32,
     pub rabbit_speed_multiplier: f32,
     pub rabbit_panic_resistance: f32,
-    pub burrow_spawns: [BurrowSpawn; BURROWS.len()],
+    pub burrow_spawns: Vec<BurrowSpawn>,
 }
 
 impl Default for Waves {
@@ -38,7 +38,7 @@ impl Default for Waves {
             next_wave_frame: FIRST_WAVE_FRAME,
             rabbit_speed_multiplier: 1.5,
             rabbit_panic_resistance: 1.0,
-            burrow_spawns: [BurrowSpawn::default(); BURROWS.len()],
+            burrow_spawns: vec![BurrowSpawn::default(); BURROWS.len()],
         }
     }
 }
@@ -93,11 +93,14 @@ impl Waves {
         }
     }
 
-    pub fn next_burrow_batch(
+    /// Run creation between the family-size draw and its next timer draw.
+    /// Unit-script initialization consumes RNG too, so this order is gameplay.
+    pub fn emit_burrow_batch(
         &mut self,
         burrow: usize,
         frame: i32,
         mut random: impl FnMut() -> f32,
+        mut emit: impl FnMut(i32),
     ) -> Option<i32> {
         let spawn = self.burrow_spawns[burrow];
         if !spawn.active || frame < spawn.next_frame {
@@ -106,20 +109,28 @@ impl Waves {
         let batch = ((BURROW_FAMILY_MIN as f32 + BURROW_FAMILY_RANGE as f32 * random()).ceil()
             as i32)
             .min(spawn.pending);
+        emit(batch);
         let pending = spawn.pending - batch;
-        let next_frame = if pending > 0 {
-            let delay = (BURROW_SPAWN_DELAY_MIN as f32 + BURROW_SPAWN_DELAY_RANGE as f32 * random())
-                .ceil() as i32;
-            frame + delay
-        } else {
-            0
-        };
+        // The original burrow script sleeps 33 ms per nominal frame at 30 Hz.
+        // Draw the final sleep too, as the original coroutine does.
+        let delay = (0.99
+            * (BURROW_SPAWN_DELAY_MIN as f32 + BURROW_SPAWN_DELAY_RANGE as f32 * random()))
+        .ceil() as i32;
         self.burrow_spawns[burrow] = BurrowSpawn {
             pending,
-            next_frame,
+            next_frame: frame + delay,
             active: pending > 0,
         };
         Some(batch)
+    }
+
+    pub fn next_burrow_batch(
+        &mut self,
+        burrow: usize,
+        frame: i32,
+        random: impl FnMut() -> f32,
+    ) -> Option<i32> {
+        self.emit_burrow_batch(burrow, frame, random, |_| {})
     }
 }
 
@@ -129,6 +140,33 @@ mod tests {
 
     fn pending(waves: &Waves) -> i32 {
         waves.burrow_spawns.iter().map(|spawn| spawn.pending).sum()
+    }
+
+    #[test]
+    fn creation_precedes_the_timer_draw_and_cloned_burrows_can_spawn() {
+        use std::cell::RefCell;
+        let mut waves = Waves::default();
+        waves.burrow_spawns.resize(18, BurrowSpawn::default());
+        waves.start_wave(5, 0, || 17);
+        let events = RefCell::new(Vec::new());
+        assert_eq!(
+            waves.emit_burrow_batch(
+                17,
+                6,
+                || {
+                    events.borrow_mut().push("random");
+                    0.5
+                },
+                |count| {
+                    assert_eq!(count, 3);
+                    events.borrow_mut().push("create");
+                }
+            ),
+            Some(3)
+        );
+        assert_eq!(*events.borrow(), ["random", "create", "random"]);
+        assert_eq!(waves.burrow_spawns[17].pending, 22);
+        assert_eq!(waves.burrow_spawns[17].next_frame, 41);
     }
 
     #[test]

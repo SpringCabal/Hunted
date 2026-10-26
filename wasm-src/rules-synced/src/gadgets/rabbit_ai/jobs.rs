@@ -25,9 +25,7 @@ pub(super) fn prepare(
         let memories = global.rabbits.access();
         for (index, &rabbit) in rabbits.iter().enumerate() {
             let memory = memories.find(rabbit).map(|slot| &memories.memories[slot]);
-            if memory.is_some_and(|memory| frame < memory.next_update)
-                && surroundings.blasts.is_empty()
-            {
+            if memory.is_some_and(|memory| frame < memory.next_update) {
                 continue;
             }
             if let Some(position) = units::unit_position(spring, rabbit) {

@@ -129,7 +129,7 @@ pub struct RabbitCtx<'a> {
 pub fn with_rabbit_ctx<R>(global: &Global, f: impl FnOnce(&mut RabbitCtx<'_>) -> R) -> R {
     let mut rabbits = global.rabbits.access_mut();
     let mut score = global.score.access_mut();
-    let waves = *global.waves.access();
+    let waves = global.waves.access();
     f(&mut RabbitCtx {
         rabbits: &mut rabbits,
         carrots_stolen: &mut score.carrots_stolen,

@@ -30,7 +30,8 @@ pub fn move_vector(
             speed_factor: 1.0,
         };
     }
-    let (goal_weight, speed_factor) = if goal_dx.hypot(goal_dz) < NEAR_GOAL {
+    let (goal_weight, speed_factor) = if (goal_dx * goal_dx + goal_dz * goal_dz).sqrt() < NEAR_GOAL
+    {
         (data.boldness / 10.0, NEAR_GOAL_SPEED)
     } else {
         (data.boldness / 30.0, 1.0)
@@ -45,10 +46,10 @@ pub fn move_vector(
 
 pub fn normalize(magnitude: f32, x: f32, z: f32) -> (f32, f32) {
     let length = (x * x + z * z).sqrt();
-    if length > 0.001 {
+    if length > 0.0 {
         (magnitude * x / length, magnitude * z / length)
     } else {
-        (0.0, 0.0)
+        (x, z)
     }
 }
 
