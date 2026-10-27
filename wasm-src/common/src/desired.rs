@@ -72,6 +72,14 @@ impl Desirables {
         self.indices.get(&key).copied().expect("tracked desirable")
     }
 
+    /// Live unit desirables in the Lua list's current order, including swaps.
+    pub fn ordered_units(&self) -> impl Iterator<Item = i32> + '_ {
+        self.order.iter().filter_map(|key| match key {
+            Key::Unit(unit) => Some(*unit),
+            Key::Field(_) => None,
+        })
+    }
+
     pub fn fields(&self) -> &[Vec<i32>] {
         &self.fields
     }
@@ -105,6 +113,23 @@ pub fn best_falloff(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn unit_iteration_keeps_both_swaps_when_a_field_is_exhausted() {
+        let mut desirables = Desirables::default();
+        desirables.begin_field(0);
+        desirables.insert_unit(10);
+        desirables.add_original_carrot(0, 10);
+        desirables.begin_field(1);
+        desirables.insert_unit(20);
+        desirables.insert_unit(30);
+        assert_eq!(desirables.ordered_units().collect::<Vec<_>>(), [10, 20, 30]);
+        desirables.remove_unit(10);
+        assert_eq!(desirables.ordered_units().collect::<Vec<_>>(), [20, 30]);
+        desirables.insert_unit(40);
+        desirables.remove_unit(20);
+        assert_eq!(desirables.ordered_units().collect::<Vec<_>>(), [40, 30]);
+    }
 
     #[test]
     fn rounded_falloff_ties_retain_the_earlier_target() {

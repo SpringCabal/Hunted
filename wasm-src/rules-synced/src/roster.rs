@@ -70,6 +70,15 @@ impl Roster {
             .collect()
     }
 
+    pub fn desirable_positions(
+        &self,
+    ) -> impl Iterator<Item = (i32, UnitKind, spring::Float3)> + '_ {
+        self.desirables.ordered_units().map(|unit| {
+            let kind = self.kinds[&unit];
+            (unit, kind, self.by_kind[kind.index()][&unit])
+        })
+    }
+
     pub fn carrot_count(&self) -> i32 {
         UnitKind::ALL
             .into_iter()

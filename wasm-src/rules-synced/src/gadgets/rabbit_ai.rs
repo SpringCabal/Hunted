@@ -54,17 +54,20 @@ impl SenseCache {
         {
             return Rc::clone(data);
         }
-        let mut carrots = food_units_with_positions(roster, UnitKind::Carrot, EAT_TIME);
-        carrots.extend(food_units_with_positions(
-            roster,
-            UnitKind::CarrotDropped,
-            DROPPED_EAT_TIME,
-        ));
-        carrots.sort_unstable_by_key(|(unit, _, _)| {
-            roster
-                .desirables
-                .rank(hunted_common::desired::Key::Unit(*unit))
-        });
+        let mut carrots = Vec::with_capacity(roster.carrot_count() as usize);
+        let mut mines = Vec::with_capacity(roster.count(UnitKind::Mine));
+        let mut burrows = Vec::with_capacity(roster.count(UnitKind::Burrow));
+        // One pass follows the exact Lua swap-removal order. Sorting every
+        // category after each pickup repeated rank-map lookups unnecessarily.
+        for (unit, kind, position) in roster.desirable_positions() {
+            match kind {
+                UnitKind::Carrot => carrots.push((unit, position, EAT_TIME)),
+                UnitKind::CarrotDropped => carrots.push((unit, position, DROPPED_EAT_TIME)),
+                UnitKind::Mine => mines.push((unit, position)),
+                UnitKind::Burrow => burrows.push((unit, position)),
+                _ => unreachable!("only static targets are desirables"),
+            }
+        }
         let food_grid = hunted_common::spatial::Grid::new(
             FOOD_RADIUS,
             carrots.iter().map(|(_, p, _)| (p.x, p.z)),
@@ -73,8 +76,8 @@ impl SenseCache {
             carrots,
             desirables: roster.desirables.clone(),
             food_grid,
-            mines: ordered_positions(roster, UnitKind::Mine),
-            burrows: ordered_positions(roster, UnitKind::Burrow),
+            mines,
+            burrows,
         });
         self.0 = Some((roster.static_revision(), Rc::clone(&data)));
         data

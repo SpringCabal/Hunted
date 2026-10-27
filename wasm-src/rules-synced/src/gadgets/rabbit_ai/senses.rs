@@ -1,7 +1,6 @@
 use alloc::vec::Vec;
 
 use super::*;
-use crate::roster::Roster;
 use hunted_common::desired::{Desirables, Key};
 
 pub(super) const FIELD_RADIUS: f32 = 9000.0;
@@ -166,18 +165,6 @@ pub(super) fn carrot_reserved_by_other(game: &RabbitCtx<'_>, rabbit: i32, carrot
     game.rabbits.reserved_by_other(rabbit, carrot)
 }
 
-pub(super) fn food_units_with_positions(
-    roster: &Roster,
-    kind: UnitKind,
-    eating_time: i32,
-) -> Vec<(i32, Position, i32)> {
-    roster
-        .positions(kind)
-        .into_iter()
-        .map(|(unit_id, position)| (unit_id, position, eating_time))
-        .collect()
-}
-
 pub(super) fn lighthouse_beams(global: &Global) -> Vec<Source> {
     global.beams.access().sources()
 }
@@ -246,10 +233,4 @@ pub(super) fn nearest_field(
                         .cmp(&desirables.rank(Key::Field(*lf)))
                 })
         })
-}
-
-pub(super) fn ordered_positions(roster: &Roster, kind: UnitKind) -> Vec<(i32, Position)> {
-    let mut positions = roster.positions(kind);
-    positions.sort_unstable_by_key(|(unit, _)| roster.desirables.rank(Key::Unit(*unit)));
-    positions
 }
