@@ -10,9 +10,9 @@ build: fmt clippy
     cargo build --workspace --target wasm32-unknown-unknown --release
 
 copy: build
-    cp target/wasm32-unknown-unknown/release/hunted_jobs_wasm.wasm ../LuaRules/wasm/hunted-jobs.wasm
-    cp target/wasm32-unknown-unknown/release/hunted_rules_wasm.wasm ../LuaRules/wasm/hunted-rules.wasm
-    cp target/wasm32-unknown-unknown/release/hunted_ui_wasm.wasm ../LuaUI/wasm/hunted-ui.wasm
+    cp "${CARGO_TARGET_DIR:-target}/wasm32-unknown-unknown/release/hunted_jobs_wasm.wasm" ../LuaRules/wasm/hunted-jobs.wasm
+    cp "${CARGO_TARGET_DIR:-target}/wasm32-unknown-unknown/release/hunted_rules_wasm.wasm" ../LuaRules/wasm/hunted-rules.wasm
+    cp "${CARGO_TARGET_DIR:-target}/wasm32-unknown-unknown/release/hunted_ui_wasm.wasm" ../LuaUI/wasm/hunted-ui.wasm
 
 # Host unit tests for the AI arithmetic (the `ai` crate needs no engine).
 test:
