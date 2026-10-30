@@ -5,7 +5,9 @@ use spring::cus::{Axis, Piece, TaskDefinition, UnitCtx};
 
 use spring::ResultExt;
 
-use hunted_common::lighthouse::{BEAM_DISTANCE, BEAM_SIZE, PARAM_SIZE, PARAM_X, PARAM_Z};
+use hunted_common::lighthouse::{
+    BEAM_DISTANCE, BEAM_SIZE, PARAM_COLOR, PARAM_SIZE, PARAM_X, PARAM_Z,
+};
 
 use super::common::*;
 
@@ -41,6 +43,10 @@ pub(super) fn create(ctx: &UnitCtx, state: Rc<RefCell<LighthouseState>>) {
             .rules_params()
             .set_unit_rules_param_f32(ctx.unit().0, PARAM_SIZE, BEAM_SIZE, PUBLIC)
             .log_err_once(spring, "publishing the lighthouse beam size");
+        spring
+            .rules_params()
+            .set_unit_rules_param_f32(ctx.unit().0, PARAM_COLOR, 1.0, PUBLIC)
+            .log_err_once(spring, "publishing the lighthouse beam color");
         Ok(())
     })
     .expect("active unit-script scope");

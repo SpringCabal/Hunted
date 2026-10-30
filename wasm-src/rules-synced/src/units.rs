@@ -179,6 +179,19 @@ pub fn set_goal(
     }
 }
 
+pub fn destroy_internal_now(spring: &spring::Spring<'_, spring::RulesSynced>, unit: i32) {
+    spring
+        .rules_params()
+        .set_unit_rules_param_f32(
+            unit,
+            "internalDestroy",
+            1.0,
+            spring::rules_params::los::PUBLIC,
+        )
+        .log_err_once(spring, "marking internal unit removal");
+    destroy_now(spring, unit, false, -1);
+}
+
 pub fn set_rabbit_movement_attributes(
     spring: &spring::Spring<'_, spring::RulesSynced>,
     unit_id: i32,
@@ -186,7 +199,7 @@ pub fn set_rabbit_movement_attributes(
     acceleration_multiplier: f32,
     turn_multiplier: f32,
     original_reverse_speed: f32,
-) {
+) -> bool {
     let unit_speed = defs(spring).rabbit_speed;
     let speed_multiplier = speed_multiplier.max(0.0);
     let acceleration_multiplier = acceleration_multiplier.max(0.0);
@@ -214,30 +227,34 @@ pub fn set_rabbit_movement_attributes(
         acceleration_rate = acceleration_rate.min(speed_multiplier);
     }
 
-    spring
+    let mut applied = true;
+    applied &= spring
         .move_ctrl()
         .set_ground_move_type_max_speed(
             unit_id,
             unit_speed * RABBIT_SPEED_FACTOR * speed_multiplier,
         )
-        .log_err_once(spring, "setting a rabbit's max speed");
-    spring
+        .log_err_once(spring, "setting a rabbit's max speed")
+        == Some(true);
+    applied &= spring
         .move_ctrl()
         .set_move_type_numeric(
             unit_id,
             spring::move_ctrl::MoveTypeNumericField::MoveTypeGroundAccRate,
             acceleration_rate,
         )
-        .log_err_once(spring, "setting a rabbit's MoveTypeGroundAccRate");
-    spring
+        .log_err_once(spring, "setting a rabbit's MoveTypeGroundAccRate")
+        == Some(true);
+    applied &= spring
         .move_ctrl()
         .set_move_type_numeric(
             unit_id,
             spring::move_ctrl::MoveTypeNumericField::MoveTypeGroundDecRate,
             RABBIT_MAX_DECELERATION * deceleration_multiplier,
         )
-        .log_err_once(spring, "setting a rabbit's MoveTypeGroundDecRate");
-    spring
+        .log_err_once(spring, "setting a rabbit's MoveTypeGroundDecRate")
+        == Some(true);
+    applied &= spring
         .move_ctrl()
         .set_move_type_numeric(
             unit_id,
@@ -248,23 +265,27 @@ pub fn set_rabbit_movement_attributes(
                 original_reverse_speed
             },
         )
-        .log_err_once(spring, "setting a rabbit's MoveTypeGroundMaxReverseSpeed");
-    spring
+        .log_err_once(spring, "setting a rabbit's MoveTypeGroundMaxReverseSpeed")
+        == Some(true);
+    applied &= spring
         .move_ctrl()
         .set_move_type_numeric(
             unit_id,
             spring::move_ctrl::MoveTypeNumericField::MoveTypeGroundTurnRate,
             RABBIT_TURN_RATE * turn_multiplier,
         )
-        .log_err_once(spring, "setting a rabbit's MoveTypeGroundTurnRate");
-    spring
+        .log_err_once(spring, "setting a rabbit's MoveTypeGroundTurnRate")
+        == Some(true);
+    applied &= spring
         .move_ctrl()
         .set_move_type_numeric(
             unit_id,
             spring::move_ctrl::MoveTypeNumericField::MoveTypeGroundTurnAccel,
             RABBIT_TURN_ACCELERATION * turn_multiplier,
         )
-        .log_err_once(spring, "setting a rabbit's MoveTypeGroundTurnAccel");
+        .log_err_once(spring, "setting a rabbit's MoveTypeGroundTurnAccel")
+        == Some(true);
+    applied
 }
 
 pub fn set_gunship_movement_attributes(

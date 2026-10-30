@@ -18,14 +18,13 @@ pub(super) fn update_carried_rabbit(
 
     let (x, z, distance_sq, _) = target?;
     if distance_sq.sqrt() < GOAL_RADIUS {
-        let rabbit_id = game.rabbits.memories[memory_index].unit_id;
         game.rabbits.memories[memory_index].carried_carrot = -1;
         game.rabbits.memories[memory_index].carrying_since = -1;
         *game.carrots_stolen += 1;
         crate::diagnostics::info_once!(spring, "rabbit returned a carrot to a burrow");
         issue_goal(
             spring,
-            rabbit_id,
+            &mut game.rabbits.memories[memory_index],
             x,
             z,
             0.05,
@@ -143,7 +142,7 @@ pub(super) fn update_eating_rabbit(
     }
     issue_goal(
         spring,
-        tick.rabbit,
+        &mut game.rabbits.memories[memory_index],
         carrot_position.x,
         carrot_position.z,
         0.05,

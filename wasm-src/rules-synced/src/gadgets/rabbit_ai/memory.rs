@@ -17,6 +17,7 @@ pub struct RabbitMemory {
     pub stealing_notified: bool,
     pub carried_carrot: i32,
     pub original_reverse_speed: f32,
+    pub applied_movement: Option<[f32; 3]>,
 }
 
 const NEW_RABBIT_MEMORY: RabbitMemory = RabbitMemory {
@@ -31,6 +32,7 @@ const NEW_RABBIT_MEMORY: RabbitMemory = RabbitMemory {
     stealing_notified: false,
     carried_carrot: -1,
     original_reverse_speed: -1.0,
+    applied_movement: None,
 };
 
 #[derive(Default)]

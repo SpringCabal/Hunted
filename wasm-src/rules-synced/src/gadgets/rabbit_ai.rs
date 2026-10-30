@@ -320,7 +320,7 @@ fn pick_up(
                 game.rabbits.memories[index].stealing_notified = false;
             }
         });
-        units::destroy_now(spring, carrot, false, -1);
+        units::destroy_internal_now(spring, carrot);
     }
     with_rabbit_ctx(global, |game| {
         finish_pickup(spring, game, pickup, carried_id, consumed_carrots)

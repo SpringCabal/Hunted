@@ -1,4 +1,5 @@
 use hunted_common::movement::{self, normalize};
+use spring::ResultExt;
 
 use super::*;
 
@@ -39,7 +40,7 @@ pub(super) fn update_movement(
         Call::carrot_start_being_stolen(carrot_id, eating_progress).run(spring);
         issue_goal(
             spring,
-            rabbit_id,
+            &mut game.rabbits.memories[memory_index],
             carrot_position.x,
             carrot_position.z,
             0.05,
@@ -78,7 +79,7 @@ pub(super) fn update_movement(
         };
     issue_goal(
         spring,
-        rabbit,
+        &mut game.rabbits.memories[memory_index],
         move_goal.0,
         move_goal.1,
         move_goal.2,
@@ -181,7 +182,7 @@ pub(super) fn movement_goal(
 
 pub(super) fn issue_goal(
     spring: &spring::Spring<'_, spring::RulesSynced>,
-    unit_id: i32,
+    memory: &mut RabbitMemory,
     target_x: f32,
     target_z: f32,
     speed_multiplier: f32,
@@ -189,13 +190,35 @@ pub(super) fn issue_goal(
     turn_multiplier: f32,
     original_reverse_speed: f32,
 ) {
-    units::set_rabbit_movement_attributes(
-        spring,
-        unit_id,
+    let unit_id = memory.unit_id;
+    // Lua publishes these values for other gadgets, then only changes native
+    // movement data when speed, turn or combined acceleration changes.
+    for (name, value) in [
+        ("selfMoveSpeedChange", speed_multiplier),
+        ("selfMaxAccelerationChange", acceleration_multiplier),
+        ("selfTurnSpeedChange", turn_multiplier),
+    ] {
+        spring
+            .rules_params()
+            .set_unit_rules_param_f32(unit_id, name, value, spring::rules_params::los::PUBLIC)
+            .log_err_once(spring, "publishing rabbit movement attributes");
+    }
+    let key = [
         speed_multiplier,
-        acceleration_multiplier,
         turn_multiplier,
-        original_reverse_speed,
-    );
+        speed_multiplier * acceleration_multiplier,
+    ];
+    if memory.applied_movement != Some(key)
+        && units::set_rabbit_movement_attributes(
+            spring,
+            unit_id,
+            speed_multiplier,
+            acceleration_multiplier,
+            turn_multiplier,
+            original_reverse_speed,
+        )
+    {
+        memory.applied_movement = Some(key);
+    }
     units::set_goal(spring, unit_id, target_x, target_z, 0.0);
 }

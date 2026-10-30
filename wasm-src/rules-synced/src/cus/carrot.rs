@@ -1,5 +1,6 @@
 use alloc::rc::Rc;
 use core::cell::RefCell;
+use spring::ResultExt;
 
 use spring::cus::{Axis, Piece, SignalMask, TaskDefinition, UnitCtx};
 
@@ -134,6 +135,15 @@ async fn dropped(state: Rc<RefCell<CarriedState>>, ctx: UnitCtx) {
                 .unit_control()
                 .set_unit_direction(carrot, direction, right);
         }
+        spring
+            .rules_params()
+            .set_unit_rules_param_f32(
+                carried,
+                "internalDestroy",
+                1.0,
+                spring::rules_params::los::PUBLIC,
+            )
+            .log_err_once(spring, "marking a dropped carried carrot");
     });
     destroy(&ctx);
 }
