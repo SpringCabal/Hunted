@@ -43,6 +43,8 @@ local math_cos = math.cos
 local math_sin = math.sin
 local math_pi = math.pi
 
+local rabbitUnitDef = UnitDefs[UnitDefNames["rabbit"].id]
+
 local rabbitDefID = {
 	[UnitDefNames["rabbit"].id] = true
 }
@@ -530,24 +532,25 @@ local function RabbitFoodDestroyed(unitID)
 	end
 end
 
-local function SetRabbitMovement(unitID, x, z, goalX, goalZ, speedMult, accelMult, turnMult)
+local function SetRabbitMovement(unitID, x, z, goalX, goalZ, speedMult, accelMult, turnMult, frame)
 	spSetUnitRulesParam(unitID, "selfMoveSpeedChange", speedMult)
 		spSetUnitRulesParam(unitID, "selfMaxAccelerationChange", accelMult)
 	spSetUnitRulesParam(unitID, "selfTurnSpeedChange", turnMult)
-	GG.UpdateUnitAttributes(unitID, nil, speedMult, turnMult, accelMult)
+	GG.UpdateUnitAttributes(unitID, frame, speedMult, turnMult, accelMult, rabbitUnitDef)
 	local targetX, targetZ = ClampPosition(goalX + x, goalZ + z)
 	spSetUnitMoveGoal(unitID, targetX, 0, targetZ, 16, nil, true)
 end
 
 local function UpdateRabbit(unitID, frame, scaryOverride)
 
-	if not (spValidUnitID(unitID) and rabbits[unitID]) then
+	if not rabbits[unitID] then
 		return
 	end
 	
 	--// Collect rabbit information
 	frame = frame or spGetGameFrame()
 	local x,_,z = spGetUnitPosition(unitID)
+	if not x then return end
 	local rabbitData = rabbits[unitID]
 
 	local updateGap = frame - rabbitData.lastUpdate
@@ -656,7 +659,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 				rabbitData.boldness = rabbitData.boldness + 150 -- Bonus boldness for being a good theif!
 				rabbitData.carryingSince = frame
 			else
-				SetRabbitMovement(unitID, x, z, rabbitData.eatingThingRef.x - x, rabbitData.eatingThingRef.z - z, 0.05, 2, 0.2)
+				SetRabbitMovement(unitID, x, z, rabbitData.eatingThingRef.x - x, rabbitData.eatingThingRef.z - z, 0.05, 2, 0.2, frame)
 				return
 			end
 		end
@@ -709,7 +712,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 			(not rabbitData.eatingProgress) and rabbitData.foodCarried == 0 and (not rabbitData.panicMode) then
 		StartStealing(rabbitData, goalRef)
 		rabbitData.eatingProgress = rabbitData.eatingProgress + updateGap
-		SetRabbitMovement(unitID, x, z, gX - x, gZ - z, 0.05, 2, 0.2)
+		SetRabbitMovement(unitID, x, z, gX - x, gZ - z, 0.05, 2, 0.2, frame)
 		return
 	end
 	
@@ -719,7 +722,7 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 		rabbitData.foodCarried = 0
 		rabbitData.carryingSince = false
 		GG.RabbitScoreCarrot(unitID)
-		SetRabbitMovement(unitID, x, z, gX - x, gZ - z, 0.05, 2, 1)
+		SetRabbitMovement(unitID, x, z, gX - x, gZ - z, 0.05, 2, 1, frame)
 		return
 	end
 	
@@ -756,9 +759,9 @@ local function UpdateRabbit(unitID, frame, scaryOverride)
 	
 	--// Modify movement attributes and goal
 	if scaryMag > 80 then
-		SetRabbitMovement(unitID, x, z, moveX, moveZ, speedMult, 5/jitter, 1.5)
+		SetRabbitMovement(unitID, x, z, moveX, moveZ, speedMult, 5/jitter, 1.5, frame)
 	else
-		SetRabbitMovement(unitID, x, z, moveX, moveZ, speedMult, 1/jitter, speedMult^-0.1)
+		SetRabbitMovement(unitID, x, z, moveX, moveZ, speedMult, 1/jitter, speedMult^-0.1, frame)
 	end
 end
 
@@ -819,7 +822,7 @@ function gadget:GameFrame(frame)
 	for _, unitID in ipairs(OrderedRabbits()) do
         local data = rabbits[unitID]
 		if (not data.nextUpdate) or frame >= data.nextUpdate then
-			UpdateRabbit(unitID)
+			UpdateRabbit(unitID, frame)
 		end
 	end
 end

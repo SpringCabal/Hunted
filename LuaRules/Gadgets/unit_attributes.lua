@@ -264,20 +264,19 @@ end
 
 -- AI callers already have these three values. Accept them directly while
 -- retaining the rules-param path for callers that update attributes externally.
-function UpdateUnitAttributes(unitID, frame, selfMoveSpeedChange, selfTurnSpeedChange, selfMaxAccelerationChange)
-	if not spValidUnitID(unitID) then
-		removeUnit(unitID)
-		return
-	end
-	
-	local udid = spGetUnitDefID(unitID)
-	if not udid then 
-		return 
-	end
-	
-	frame = frame or spGetGameFrame()
-	
-	local ud = UnitDefs[udid]
+function UpdateUnitAttributes(unitID, frame, selfMoveSpeedChange, selfTurnSpeedChange, selfMaxAccelerationChange, knownUnitDef)
+    local ud = knownUnitDef
+    if not ud then
+        if not spValidUnitID(unitID) then
+            removeUnit(unitID)
+            return
+        end
+        local udid = spGetUnitDefID(unitID)
+        if not udid then return end
+        ud = UnitDefs[udid]
+    end
+    frame = frame or spGetGameFrame()
+
 	local changedAtt = false
 	
 	-- Unit speed change (like sprint) --
