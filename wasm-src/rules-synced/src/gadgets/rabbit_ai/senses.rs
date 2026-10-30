@@ -20,33 +20,16 @@ pub(super) fn choose_target(
     rabbit: i32,
     position: &Position,
     carried: bool,
-    surroundings: &Surroundings,
+    roster: &crate::roster::Roster,
     consumed_carrots: &[i32],
 ) -> (Option<CarrotChoice>, Option<Target>) {
     let position = *position;
-    let mut carrot = if carried {
-        None
+    let (mut carrot, mine) = if carried {
+        (None, None)
     } else {
-        nearest_unreserved_carrot(
-            game,
-            rabbit,
-            &position,
-            &surroundings.static_data,
-            consumed_carrots,
-        )
+        nearest_food(game, rabbit, &position, roster, consumed_carrots)
     };
-    let mine = if carried {
-        None
-    } else {
-        nearest_mine(&position, &surroundings.static_data.mines)
-    };
-    let burrow = strongest_unit(
-        &position,
-        &surroundings.static_data.burrows,
-        FIELD_RADIUS,
-        2.0,
-        1.0,
-    );
+    let burrow = strongest_burrow(&position, roster);
     let target = if carried {
         burrow.map(|(_, target, distance)| {
             (
@@ -73,12 +56,8 @@ pub(super) fn choose_target(
                 food_magnitude(*distance, EAT_TIME),
             )
         });
-        let field_target = nearest_field(
-            &position,
-            &surroundings.static_data.desirables,
-            consumed_carrots,
-        );
-        let order = &surroundings.static_data.desirables;
+        let field_target = nearest_field(&position, &roster.desirables, consumed_carrots);
+        let order = &roster.desirables;
         let ranked_carrot = carrot_target.zip(carrot.as_ref().map(|c| Key::Unit(c.0)));
         let ranked_mine = mine_target.zip(mine.as_ref().map(|m| Key::Unit(m.0)));
         let ranked_field = field_target.map(|(field, target)| (target, Key::Field(field)));
@@ -100,65 +79,68 @@ pub(super) fn choose_target(
     (carrot, target)
 }
 
-pub(super) fn nearest_unreserved_carrot(
+pub(super) fn nearest_food(
     game: &RabbitCtx<'_>,
     rabbit: i32,
     position: &Position,
-    surroundings: &StaticSurroundings,
+    roster: &crate::roster::Roster,
     consumed_carrots: &[i32],
-) -> Option<(i32, Position, f32, i32)> {
-    let mut best: Option<(CarrotChoice, f32, usize)> = None;
-    let mut nearest: [Option<(f32, usize)>; 2] = [None, None];
-    surroundings
-        .food_grid
-        .visit_nearby(position.x, position.z, |index| {
-            let (id, carrot, eating_time) = surroundings.carrots[index];
-            let distance = horizontal_distance_squared(position, &carrot);
-            if distance >= FOOD_RADIUS * FOOD_RADIUS {
-                return;
+) -> (Option<CarrotChoice>, Option<(i32, Position, f32)>) {
+    let mut carrot: Option<(CarrotChoice, f32, usize)> = None;
+    let mut mine: Option<((i32, Position, f32), f32, usize)> = None;
+    let mut nearest: [Option<(f32, usize)>; 3] = [None, None, None];
+    roster.visit_food(position.x, position.z, |id, food_kind, target| {
+        let distance = horizontal_distance_squared(position, &target);
+        if distance >= FOOD_RADIUS * FOOD_RADIUS {
+            return;
+        }
+        let (category, eating_time) = match food_kind {
+            UnitKind::Carrot => (0, EAT_TIME),
+            UnitKind::CarrotDropped => (1, DROPPED_EAT_TIME),
+            UnitKind::Mine => (2, EAT_TIME),
+            _ => unreachable!("indexed food kind"),
+        };
+        let rank = roster.desirables.rank(Key::Unit(id));
+        if nearest[category].is_some_and(|(d, r)| d <= distance && r <= rank) {
+            return;
+        }
+        if category != 2
+            && (consumed_carrots.contains(&id) || carrot_reserved_by_other(game, rabbit, id))
+        {
+            return;
+        }
+        if nearest[category].is_none_or(|(d, r)| distance < d || (distance == d && rank < r)) {
+            nearest[category] = Some((distance, rank));
+        }
+        let magnitude = food_magnitude(distance, eating_time);
+        if category == 2 {
+            if mine.is_none_or(|(_, m, r)| magnitude > m || (magnitude == m && rank < r)) {
+                mine = Some(((id, target, distance), magnitude, rank));
             }
-            let category = usize::from(eating_time == DROPPED_EAT_TIME);
-            // A farther, later entry cannot win, including rounded falloff ties.
-            if nearest[category].is_some_and(|(d, i)| d <= distance && i <= index) {
-                return;
-            }
-            if consumed_carrots.contains(&id) || carrot_reserved_by_other(game, rabbit, id) {
-                return;
-            }
-            if nearest[category].is_none_or(|(d, i)| distance < d || (distance == d && index < i)) {
-                nearest[category] = Some((distance, index));
-            }
-            let magnitude = food_magnitude(distance, eating_time);
-            if best.is_none_or(|(_, m, i)| magnitude > m || (magnitude == m && index < i)) {
-                best = Some(((id, carrot, distance, eating_time), magnitude, index));
-            }
-        });
-    best.map(|(choice, _, _)| choice)
+        } else if carrot.is_none_or(|(_, m, r)| magnitude > m || (magnitude == m && rank < r)) {
+            carrot = Some(((id, target, distance, eating_time), magnitude, rank));
+        }
+    });
+    (carrot.map(|(c, _, _)| c), mine.map(|(m, _, _)| m))
 }
 
-pub(super) fn nearest_mine(
+pub(super) fn strongest_burrow(
     position: &Position,
-    mines: &[(i32, Position)],
+    roster: &crate::roster::Roster,
 ) -> Option<(i32, Position, f32)> {
-    strongest_unit(position, mines, FOOD_RADIUS, 2.0, 0.1)
-}
-
-fn strongest_unit(
-    position: &Position,
-    units: &[(i32, Position)],
-    radius: f32,
-    proximity: f32,
-    edge: f32,
-) -> Option<(i32, Position, f32)> {
-    hunted_common::desired::best_falloff(
-        units
-            .iter()
-            .map(|(_, target)| horizontal_distance_squared(position, target)),
-        radius,
-        proximity,
-        edge,
-    )
-    .map(|(index, square, _)| (units[index].0, units[index].1, square))
+    let mut best = None;
+    roster.visit_kind(UnitKind::Burrow, |id, target| {
+        let distance = horizontal_distance_squared(position, &target);
+        if distance >= FIELD_RADIUS * FIELD_RADIUS {
+            return;
+        }
+        let magnitude = 2.0 * (1.0 - distance.sqrt() / FIELD_RADIUS) + 1.0;
+        let rank = roster.desirables.rank(Key::Unit(id));
+        if best.is_none_or(|(_, m, r)| magnitude > m || (magnitude == m && rank < r)) {
+            best = Some(((id, target, distance), magnitude, rank));
+        }
+    });
+    best.map(|(target, _, _)| target)
 }
 
 pub(super) fn carrot_reserved_by_other(game: &RabbitCtx<'_>, rabbit: i32, carrot: i32) -> bool {

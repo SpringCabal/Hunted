@@ -32,56 +32,147 @@ const DROPPED_EAT_TIME: i32 = 10;
 const GOAL_RADIUS: f32 = 60.0;
 
 struct Surroundings {
-    static_data: Rc<StaticSurroundings>,
     lights: Vec<Source>,
 }
 
-struct StaticSurroundings {
-    carrots: Vec<(i32, Position, i32)>,
-    desirables: hunted_common::desired::Desirables,
-    mines: Vec<(i32, Position)>,
-    burrows: Vec<(i32, Position)>,
-    food_grid: hunted_common::spatial::Grid,
+#[cfg(feature = "headless-integration")]
+pub(crate) fn verify_incremental_food_index() -> bool {
+    let mut roster = crate::roster::Roster::default();
+    let mut rabbits = Rabbits::default();
+    let slot = rabbits.memory_index(100, 0);
+    rabbits.reserve(slot, 7);
+    let mut score = 0;
+    let game = RabbitCtx {
+        rabbits: &mut rabbits,
+        carrots_stolen: &mut score,
+        speed_multiplier: 1.0,
+        panic_resistance: 1.0,
+    };
+    let consumed = [11, 23];
+    for step in 0..180 {
+        let id = step % 31;
+        if step % 3 == 0 {
+            roster.untrack(id);
+        } else {
+            let kind = [
+                UnitKind::Carrot,
+                UnitKind::CarrotDropped,
+                UnitKind::Mine,
+                UnitKind::Burrow,
+            ][step as usize % 4];
+            let position = spring::Float3::new(
+                ((step * 173) % 6000) as f32 - 3000.0,
+                0.0,
+                ((step * 97) % 6000) as f32 - 3000.0,
+            );
+            roster.track(id, kind, position);
+        }
+        for (x, z) in [(-1500.0, 0.0), (0.0, 0.0), (1500.0, 1500.0)] {
+            let query = spring::Float3::new(x, 0.0, z);
+            let mut carrot = None;
+            let mut mine = None;
+            let mut burrow = None;
+            let mut magnitudes = [0.0; 3];
+            // Independent full scan in the Lua main-list order. The indexed
+            // query may visit buckets in any order but must select the same ID.
+            for unit in roster.desirables.ordered_units() {
+                let kind = roster.kind(unit).unwrap();
+                let target = roster
+                    .positions(kind)
+                    .into_iter()
+                    .find(|(id, _)| *id == unit)
+                    .unwrap()
+                    .1;
+                let d = senses::horizontal_distance_squared(&query, &target);
+                match kind {
+                    UnitKind::Carrot | UnitKind::CarrotDropped
+                        if d < FOOD_RADIUS * FOOD_RADIUS
+                            && !consumed.contains(&unit)
+                            && !game.rabbits.reserved_by_other(101, unit) =>
+                    {
+                        let time = if kind == UnitKind::Carrot {
+                            EAT_TIME
+                        } else {
+                            DROPPED_EAT_TIME
+                        };
+                        let m = food_magnitude(d, time);
+                        if m > magnitudes[0] {
+                            magnitudes[0] = m;
+                            carrot = Some((unit, target, d, time));
+                        }
+                    }
+                    UnitKind::Mine if d < FOOD_RADIUS * FOOD_RADIUS => {
+                        let m = food_magnitude(d, EAT_TIME);
+                        if m > magnitudes[1] {
+                            magnitudes[1] = m;
+                            mine = Some((unit, target, d));
+                        }
+                    }
+                    UnitKind::Burrow if d < FIELD_RADIUS * FIELD_RADIUS => {
+                        let m = 2.0 * (1.0 - d.sqrt() / FIELD_RADIUS) + 1.0;
+                        if m > magnitudes[2] {
+                            magnitudes[2] = m;
+                            burrow = Some((unit, target, d));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            if nearest_food(&game, 101, &query, &roster, &consumed) != (carrot, mine)
+                || strongest_burrow(&query, &roster) != burrow
+            {
+                return false;
+            }
+        }
+    }
+    true
 }
 
 #[derive(Default)]
-pub struct SenseCache(Option<(u64, Rc<StaticSurroundings>)>);
+pub struct SenseCache {
+    rabbit_order: Option<(u64, Rc<Vec<i32>>)>,
+}
 
 impl SenseCache {
-    fn snapshot(&mut self, roster: &crate::roster::Roster) -> Rc<StaticSurroundings> {
-        if let Some((revision, data)) = &self.0
-            && *revision == roster.static_revision()
+    fn rabbits(&mut self, roster: &crate::roster::Roster) -> Rc<Vec<i32>> {
+        let revision = roster.rabbit_revision();
+        if let Some((cached_revision, rabbits)) = &self.rabbit_order
+            && *cached_revision == revision
         {
-            return Rc::clone(data);
+            return Rc::clone(rabbits);
         }
-        let mut carrots = Vec::with_capacity(roster.carrot_count() as usize);
-        let mut mines = Vec::with_capacity(roster.count(UnitKind::Mine));
-        let mut burrows = Vec::with_capacity(roster.count(UnitKind::Burrow));
-        // One pass follows the exact Lua swap-removal order. Sorting every
-        // category after each pickup repeated rank-map lookups unnecessarily.
-        for (unit, kind, position) in roster.desirable_positions() {
-            match kind {
-                UnitKind::Carrot => carrots.push((unit, position, EAT_TIME)),
-                UnitKind::CarrotDropped => carrots.push((unit, position, DROPPED_EAT_TIME)),
-                UnitKind::Mine => mines.push((unit, position)),
-                UnitKind::Burrow => burrows.push((unit, position)),
-                _ => unreachable!("only static targets are desirables"),
-            }
-        }
-        let food_grid = hunted_common::spatial::Grid::new(
-            FOOD_RADIUS,
-            carrots.iter().map(|(_, p, _)| (p.x, p.z)),
-        );
-        let data = Rc::new(StaticSurroundings {
-            carrots,
-            desirables: roster.desirables.clone(),
-            food_grid,
-            mines,
-            burrows,
-        });
-        self.0 = Some((roster.static_revision(), Rc::clone(&data)));
-        data
+        let rabbits = Rc::new(roster.units(UnitKind::Rabbit));
+        self.rabbit_order = Some((revision, Rc::clone(&rabbits)));
+        rabbits
     }
+}
+
+#[cfg(feature = "headless-integration")]
+pub(crate) fn verify_cached_rabbit_order() -> bool {
+    use crate::roster::Roster;
+    let mut roster = Roster::default();
+    let mut cache = SenseCache::default();
+    let position = spring::Float3::new(0.0, 0.0, 0.0);
+    for id in [7, 2] {
+        roster.track(id, UnitKind::Rabbit, position);
+    }
+    let original = cache.rabbits(&roster);
+    let mut valid = original.as_slice() == [2, 7] && Rc::ptr_eq(&original, &cache.rabbits(&roster));
+    roster.track(25, UnitKind::Carrot, position);
+    valid &= Rc::ptr_eq(&original, &cache.rabbits(&roster));
+    roster.track(3, UnitKind::Rabbit, position);
+    valid &= cache.rabbits(&roster).as_slice() == [2, 3, 7];
+    roster.untrack(2);
+    valid &= cache.rabbits(&roster).as_slice() == [3, 7];
+    roster.track(7, UnitKind::Mine, position);
+    valid &= cache.rabbits(&roster).as_slice() == [3];
+    roster.untrack(3);
+    valid &= cache.rabbits(&roster).is_empty();
+    roster.track(2, UnitKind::Rabbit, position);
+    valid &= cache.rabbits(&roster).as_slice() == [2];
+    // A synchronous engine callback may invalidate the next poll while this
+    // AI tick is still iterating its original immutable list.
+    valid && original.as_slice() == [2, 7]
 }
 
 struct RabbitTick {
@@ -111,23 +202,21 @@ pub fn update(
     frame: i32,
 ) {
     let roster = global.roster.access();
-    let surroundings = Rc::new(Surroundings {
-        static_data: global.senses.access_mut().snapshot(&roster),
+    let rabbits = global.senses.access_mut().rabbits(&roster);
+    let surroundings = Surroundings {
         lights: flashlight(global)
             .into_iter()
             .chain(lighthouse_beams(global))
             .collect(),
-    });
-    let rabbits = roster.units(UnitKind::Rabbit);
+    };
     drop(roster);
     diagnostics::rabbit_motion(spring, frame, &rabbits);
     let mut consumed_carrots = Vec::new();
     let blasts = core::mem::take(&mut global.scares.access_mut().0);
     // Finish a rabbit's synchronous engine effects before the next rabbit.
     // In particular, pickup destroys the original food and changes tie ranks.
-    let mut surroundings = surroundings;
     for blast in blasts {
-        for &rabbit in &rabbits {
+        for &rabbit in rabbits.iter() {
             let Some(position) = units::unit_position(spring, rabbit) else {
                 continue;
             };
@@ -137,6 +226,7 @@ pub fn update(
             let pickup = with_rabbit_ctx(global, |game| {
                 update_rabbit(
                     spring,
+                    global,
                     game,
                     frame,
                     rabbit,
@@ -148,15 +238,15 @@ pub fn update(
             });
             if let Some(pickup) = pickup {
                 finish_action(spring, global, pickup, &mut consumed_carrots);
-                refresh_surroundings(global, &mut surroundings);
             }
         }
     }
     let prepared = jobs::prepare(spring, global, &rabbits, &surroundings, frame);
-    for (index, rabbit) in rabbits.into_iter().enumerate() {
+    for (index, rabbit) in rabbits.iter().copied().enumerate() {
         let pickup = with_rabbit_ctx(global, |game| {
             update_rabbit(
                 spring,
+                global,
                 game,
                 frame,
                 rabbit,
@@ -168,16 +258,8 @@ pub fn update(
         });
         if let Some(pickup) = pickup {
             finish_action(spring, global, pickup, &mut consumed_carrots);
-            refresh_surroundings(global, &mut surroundings);
         }
     }
-}
-
-fn refresh_surroundings(global: &Global, surroundings: &mut Rc<Surroundings>) {
-    let roster = global.roster.access();
-    Rc::get_mut(surroundings)
-        .expect("AI owns its snapshot")
-        .static_data = global.senses.access_mut().snapshot(&roster);
 }
 
 fn finish_action(
@@ -286,6 +368,7 @@ pub fn food_destroyed(
 
 fn update_rabbit(
     spring: &spring::Spring<'_, spring::RulesSynced>,
+    global: &Global,
     game: &mut RabbitCtx<'_>,
     frame: i32,
     rabbit: i32,
@@ -376,7 +459,7 @@ fn update_rabbit(
         rabbit,
         &position,
         expected_food,
-        surroundings,
+        &global.roster.access(),
         consumed_carrots,
     );
     let data = &mut game.rabbits.memories[memory_index].data;
@@ -400,13 +483,11 @@ fn update_rabbit(
         speed_multiplier,
         goal,
     };
-    match update_eating_rabbit(
-        spring,
-        game,
-        memory_index,
-        &tick,
-        &surroundings.static_data.carrots,
-    ) {
+    let carrot_position = global
+        .roster
+        .access()
+        .food_position(game.rabbits.memories[memory_index].reserved_carrot);
+    match update_eating_rabbit(spring, game, memory_index, &tick, carrot_position) {
         Eating::No => {}
         Eating::Busy => return None,
         Eating::Finished {

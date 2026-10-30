@@ -11,25 +11,49 @@ pub enum Key {
 #[derive(Clone, Default)]
 pub struct Desirables {
     order: Vec<Key>,
-    indices: BTreeMap<Key, usize>,
+    unit_indices: Vec<Option<usize>>,
+    field_indices: Vec<Option<usize>>,
     original_fields: BTreeMap<i32, usize>,
     fields: Vec<Vec<i32>>,
 }
 
 impl Desirables {
+    fn index(&self, key: Key) -> Option<usize> {
+        let (indices, id) = match key {
+            Key::Unit(id) => (&self.unit_indices, usize::try_from(id).ok()?),
+            Key::Field(id) => (&self.field_indices, id),
+        };
+        indices.get(id).copied().flatten()
+    }
+
+    fn set_index(&mut self, key: Key, index: Option<usize>) {
+        let (indices, id) = match key {
+            Key::Unit(id) => (
+                &mut self.unit_indices,
+                usize::try_from(id).expect("nonnegative unit ID"),
+            ),
+            Key::Field(id) => (&mut self.field_indices, id),
+        };
+        if id >= indices.len() {
+            indices.resize(id + 1, None);
+        }
+        indices[id] = index;
+    }
+
     fn insert(&mut self, key: Key) {
-        assert!(!self.indices.contains_key(&key), "duplicate desirable");
-        self.indices.insert(key, self.order.len());
+        assert!(self.index(key).is_none(), "duplicate desirable");
+        self.set_index(key, Some(self.order.len()));
         self.order.push(key);
     }
 
     fn remove(&mut self, key: Key) {
-        let Some(index) = self.indices.remove(&key) else {
+        let Some(index) = self.index(key) else {
             return;
         };
+        self.set_index(key, None);
         self.order.swap_remove(index);
-        if let Some(moved) = self.order.get(index) {
-            self.indices.insert(*moved, index);
+        if let Some(&moved) = self.order.get(index) {
+            self.set_index(moved, Some(index));
         }
     }
 
@@ -49,8 +73,8 @@ impl Desirables {
     }
 
     pub fn add_original_carrot(&mut self, field: usize, unit: i32) {
-        assert!(self.indices.contains_key(&Key::Unit(unit)));
-        assert!(self.indices.contains_key(&Key::Field(field)));
+        assert!(self.index(Key::Unit(unit)).is_some());
+        assert!(self.index(Key::Field(field)).is_some());
         assert!(self.original_fields.insert(unit, field).is_none());
         self.fields[field].push(unit);
     }
@@ -69,7 +93,7 @@ impl Desirables {
     }
 
     pub fn rank(&self, key: Key) -> usize {
-        self.indices.get(&key).copied().expect("tracked desirable")
+        self.index(key).expect("tracked desirable")
     }
 
     /// Live unit desirables in the Lua list's current order, including swaps.
@@ -179,9 +203,9 @@ mod tests {
         assert_eq!(targets.fields(), &[vec![20]]);
         targets.remove_unit(20);
         assert!(targets.fields()[0].is_empty());
-        assert!(!targets.indices.contains_key(&Key::Field(0)));
-        assert!(targets.indices.contains_key(&Key::Unit(10)));
-        assert!(targets.indices.contains_key(&Key::Unit(30)));
+        assert!(!targets.index(Key::Field(0)).is_some());
+        assert!(targets.index(Key::Unit(10)).is_some());
+        assert!(targets.index(Key::Unit(30)).is_some());
     }
 
     #[test]

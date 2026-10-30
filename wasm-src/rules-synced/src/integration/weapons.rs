@@ -39,6 +39,16 @@ impl Tracker {
             );
             return;
         }
+        self.suite.check(
+            spring,
+            crate::gadgets::rabbit_ai::verify_incremental_food_index(),
+            "live food buckets preserve target ranks and reservations through removal and ID reuse",
+        );
+        self.suite.check(
+            spring,
+            crate::gadgets::rabbit_ai::verify_cached_rabbit_order(),
+            "cached rabbit order survives creation, death, kind replacement and ID reuse",
+        );
         let roster = global.roster.access();
         let counts = (
             roster.count(UnitKind::Carrot),

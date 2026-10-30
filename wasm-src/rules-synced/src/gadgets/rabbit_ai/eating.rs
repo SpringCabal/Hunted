@@ -106,7 +106,7 @@ pub(super) fn update_eating_rabbit(
     game: &mut RabbitCtx<'_>,
     memory_index: usize,
     tick: &RabbitTick,
-    carrots: &[(i32, Position, i32)],
+    carrot_position: Option<Position>,
 ) -> Eating {
     let carrot_id = game.rabbits.memories[memory_index].reserved_carrot;
     if carrot_id < 0 {
@@ -116,7 +116,7 @@ pub(super) fn update_eating_rabbit(
         cancel_eating(spring, game, memory_index);
         return Eating::No;
     }
-    let Some((_, carrot_position, _)) = carrots.iter().find(|(id, _, _)| *id == carrot_id) else {
+    let Some(carrot_position) = carrot_position else {
         cancel_eating(spring, game, memory_index);
         return Eating::No;
     };

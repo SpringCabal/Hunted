@@ -19,7 +19,7 @@ use crate::gadgets::ui_input;
 use crate::map;
 use crate::state::Global;
 
-const EXPECTED_CHECKS: u32 = 38;
+const EXPECTED_CHECKS: u32 = 40;
 const TIMEOUT: i32 = 200;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
