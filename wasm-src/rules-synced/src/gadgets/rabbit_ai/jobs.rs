@@ -1,6 +1,6 @@
 mod worker;
 use super::*;
-use springcabal::jobs::{self, Reader, put_f32, put_u32};
+use springcabal::jobs::{Reader, put_f32, put_u32};
 pub(crate) use worker::worker;
 
 pub(super) struct Prepared {
@@ -41,7 +41,8 @@ pub(super) fn prepare(
     if positions.is_empty() {
         return Some(prepared);
     }
-    let chunk_size = positions.len().div_ceil(jobs::CHUNKS);
+    // Keep the small light-query reduction in one ordered job packet.
+    let chunk_size = positions.len();
     let mut inputs = Vec::new();
     let mut limits = Vec::new();
     for chunk in positions.chunks(chunk_size) {
